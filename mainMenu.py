@@ -12,15 +12,13 @@ class mainWindow(tkinter.Frame):
         #Setup parent configuration
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        #Height, width and rows for this frame
-        self.height = 500
-        self.width = 400
+        #Rows needed for this frame
         self.numberRows = 5
 
         #Setup rows and column
         for row in range(0, self.numberRows):
-            self.grid_rowconfigure(row, minsize=self.height / self.numberRows)
-        self.grid_columnconfigure(0, minsize=self.width)
+            self.grid_rowconfigure(row, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
         #Create a font for the buttons
         self.buttonFont = Font(size=16)
@@ -110,8 +108,9 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     #Set the shape of the window
     root.geometry("400x500")
-    #Window cannot be resized
-    root.resizable(False, False)
+    #Allow for expanding sizes
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
     root.title("Setup GFM")
     #Add the editor to the root windows

@@ -21,24 +21,21 @@ class mainWindow(tkinter.Frame):
         
         #Create the rows
         for row in range(0, self.numberRows):
-            self.grid_rowconfigure(row, minsize=self.height / self.numberRows)
+            self.grid_rowconfigure(row, weight=1)
         
         #Create the columns
         for col in range(0, self.numberCols):
-            self.grid_columnconfigure(col, minsize=self.width/ self.numberCols)
+            self.grid_columnconfigure(col, weight=1)
         
         #Add a display frame for the data
         self.displayFrame = tkinter.Frame(self)
         self.displayFrame.grid(row=2, column=0, rowspan=11, columnspan=7, sticky="NESW")
-        self.displayFrame.grid_columnconfigure(0, minsize=583)
-        self.displayFrame.grid_columnconfigure(1, minsize=17)
-        self.displayFrame.grid_rowconfigure(0, minsize=(self.height / self.numberRows * 11))
         #Add a scroll bar
         self.textScroll = tkinter.Scrollbar(self.displayFrame)
-        self.textScroll.grid(row=0, column=1, sticky="NESW")
+        self.textScroll.pack(side="right", fill="y")
         #Add an area to display the text
         self.textList = tkinter.Listbox(self.displayFrame, yscrollcommand=self.textScroll.set)
-        self.textList.grid(row=0, column=0, sticky="NESW")
+        self.textList.pack(side="left", fill="both", expand=True)
         self.textScroll.config(command=self.textList.yview)
         #Adding example text to the scroll area
         self.textList.insert(tkinter.END, "No data present yet, press generate to produce data points.")
@@ -265,8 +262,9 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     #Set the shape of the window
     root.geometry("600x610")
-    #Window cannot be resized
-    root.resizable(False, False)
+    #Allow for expanding sizes
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
     root.title("Event Log GFM")
     #Add the editor to the root windows
