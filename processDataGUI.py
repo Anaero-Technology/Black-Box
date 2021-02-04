@@ -13,17 +13,18 @@ class mainWindow(tkinter.Frame):
         #Call parent init so it sets up frame correctly
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        #Set width and height and number of rows and columns
-        self.width = 1095
-        self.height = 610
+        #Set the number of rows and columns
         self.numRows = 20
         self.numcolumns = 15
         
         #Create grid from rows and columns
         for row in range(0, self.numRows):
-            self.grid_rowconfigure(row, minsize=self.height / self.numRows)
+            if row > 4:
+                self.grid_rowconfigure(row, weight=3)
+            else:
+                self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numcolumns):
-            self.grid_columnconfigure(col, minsize=self.width / self.numcolumns)
+            self.grid_columnconfigure(col, weight=1)
 
         #Create buttons for setup and event log file selects
         self.setupSelectButton = tkinter.Button(self, text="Load Setup", command=self.loadSetup)
@@ -47,59 +48,52 @@ class mainWindow(tkinter.Frame):
         #List to contain buttons for the different channels
         self.channelButtons = []
 
-        #Lists to hold the hour and day frames
-        self.channelHourFrames = []
-        self.channelDayFrames = []
-        #Lists to hold the setup information frames and labels
-        self.setupFrames = []
-        self.setupLabels = []
-
         #Setup the font for the headers
         self.headerFont = ("courier", 10, "bold")
 
         #Create the hours and days buttons
         self.hoursButton = tkinter.Button(self, text="Per Hour", relief="ridge", command=self.changeToHours)
-        self.hoursButton.grid(row=3, column=0, sticky="NESW")
+        self.hoursButton.grid(row=2, column=13, sticky="NESW")
         self.daysButton = tkinter.Button(self, text="Per Day", relief="ridge", command=self.changeToDays)
-        self.daysButton.grid(row=3, column=1, sticky="NESW")
+        self.daysButton.grid(row=2, column=14, sticky="NESW")
 
         #Currently viewing the first channel in hours mode
         self.hours = True
         self.currentScreen = 0
 
+        self.channelLabels = []
+
         #Iterate through each channel
         for channelNum in range(1, 16):
-            #Create button for the channel and assign switch function (with parameter)
-            channelButton = tkinter.Button(self, text="Cha " + str(channelNum), relief="ridge", command=lambda num=channelNum - 1: self.changeChannel(num))
-            channelButton.grid(row=2, column=channelNum - 1, sticky="NESW")
-            #Create the hour frame
-            channelHourFrame = tkinter.Frame(self)
-            channelHourFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
-            #Create the day frame
-            channelDayFrame = tkinter.Frame(self)
-            channelDayFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
-            #Create and place the setup frame and label
-            channelSetupFrame = tkinter.Frame(self)
-            channelSetupLabel = tkinter.Label(channelSetupFrame, font=self.headerFont)
-            channelSetupFrame.grid(row=3, column=2, columnspan=12, sticky="NESW")
-            channelSetupFrame.grid_rowconfigure(0, minsize=self.height/self.numRows)
-            channelSetupFrame.grid_columnconfigure(0, minsize=self.width/self.numcolumns*12)
-            channelSetupLabel.grid(row=0, column=0, sticky="NESW")
-            #Add all components to the lists so they can be manipulated
-            self.channelButtons.append(channelButton)
-            self.channelHourFrames.append(channelHourFrame)
-            self.channelDayFrames.append(channelDayFrame)
-            self.setupFrames.append(channelSetupFrame)
-            self.setupLabels.append(channelSetupLabel)
+            self.channelLabels.append("Channel " + str(channelNum))
+
+        self.channelChoiceVar = tkinter.StringVar()
+        self.channelChoiceVar.set(self.channelLabels[0])
+        self.channelChoiceVar.trace("w", self.changeChannel)
+
+        #Create channel drop down
+        self.channelChoice = tkinter.OptionMenu(self, self.channelChoiceVar, "Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15")
+        self.channelChoice.grid(row=2, column=0, columnspan=8, sticky="NESW")
+
+        #Create the hour frame
+        self.channelHourFrame = tkinter.Frame(self)
+        self.channelHourFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
+        #Create the day frame
+        self.channelDayFrame = tkinter.Frame(self)
+        self.channelDayFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
+        #Create and place the setup frame and label
+        self.channelSetupFrame = tkinter.Frame(self)
+        self.channelSetupLabel = tkinter.Label(self.channelSetupFrame, font=self.headerFont)
+        self.channelSetupFrame.grid(row=3, column=0, columnspan=14, sticky="NESW")
+        self.channelSetupFrame.grid_rowconfigure(0, weight=1)
+        self.channelSetupFrame.grid_columnconfigure(0, weight=1)
+        self.channelSetupLabel.grid(row=0, column=0, sticky="NESW")
+            
         
         #Get the default button colour and create deselected colour
-        self.defaultButtonColour = self.channelButtons[0].cget("bg")
+        self.defaultButtonColour = self.hoursButton.cget("bg")
         self.otherButtonColour = "#BBBBBB"
         self.alternateBackground = "#E0E0E0"
-
-        #Switch to channel 0 and hours mode (to ensure it is all set up correctly at the start)
-        self.changeChannel(0)
-        self.changeToHours()
 
         #Allowed file types and extensions
         self.fileTypes = [("CSV Files", "*.csv")]
@@ -114,12 +108,15 @@ class mainWindow(tkinter.Frame):
         self.eventData = None
 
         #Canvases, scrollbars and labels used for each of the displays (None at start as nothing has been processed)
-        self.hourCanvases = []
-        self.dayCanvases = []
-        self.hourScrolls = []
-        self.dayScrolls = []
+        self.hourCanvas = None
+        self.dayCanvas = None
+        self.hourScroll = None
+        self.dayScroll = None
         self.hourLabels = []
         self.dayLabels = []
+        self.setupTexts = []
+        self.gridFrameHour = None
+        self.gridFrameDay = None
 
         #Column headers for hours and days
         self.hourHeaders = ["Hour", "Volume(ml)", "Volume From Sample(ml)", "Volume/Gram(ml/g)", "Innoculum Avg(ml/g)", "Total Evolved(ml)"]
@@ -130,44 +127,71 @@ class mainWindow(tkinter.Frame):
 
         self.exportData = []
 
-
-    def raiseCurrentScreen(self) -> None:
-        '''Raise the correct frame'''
-        if self.hours:
-            #Raise the current hours screen
-            self.channelHourFrames[self.currentScreen].tkraise()
-        else:
-            #Raise the correct days screen
-            self.channelDayFrames[self.currentScreen].tkraise()
+        #Switch to channel 0 and hours mode (to ensure it is all set up correctly at the start)
+        self.changeChannel()
+        self.changeToHours()
 
 
-    def changeChannel(self, channelNumber: int) -> None:
-        '''Change the currently selected channel'''
-        #Change the channel number
-        self.currentScreen = channelNumber
-        #Raise the correct frame
-        self.raiseCurrentScreen()
-        #Iterate through the channel buttons
-        for buttonId in range(0, len(self.channelButtons)):
-            #If this is the button associated with the current channel
-            if buttonId == channelNumber:
-                #Set it to selected (default) colour
-                self.channelButtons[buttonId].config(bg=self.defaultButtonColour)
-            else:
-                #Set it to deselected (darkened) colour
-                self.channelButtons[buttonId].config(bg=self.otherButtonColour)
+    def changeChannelData(self) -> None:
+        '''Populate the grids with the correct information'''
+        #Setup information
+        if len(self.setupTexts) > self.currentScreen:
+            self.channelSetupLabel.config(text=self.setupTexts[self.currentScreen])
+        #Add in the hour data
+        if len(self.exportData) > self.currentScreen:
+            channelData = self.exportData[self.currentScreen]
+            channelHourData = channelData[1]
+            hour = 0
+            for thisHourData in channelHourData:
+                self.hourLabels[0][hour].config(text=str(thisHourData[0]))
+                self.hourLabels[1][hour].config(text=str(thisHourData[1]))
+                self.hourLabels[2][hour].config(text=str(thisHourData[2]))
+                #Show innoculum average per gram for that hour and then the actual ml using the mass of innoculum
+                innoculumMessage = str(thisHourData[3]) + " (" + str(thisHourData[4]) + "ml)"
+                self.hourLabels[3][hour].config(text=innoculumMessage)
+                self.hourLabels[4][hour].config(text=str(thisHourData[5]))
+                hour = hour + 1
         
-        #If there is a setup frame present
-        if self.currentScreen < len(self.setupFrames):
-            #Raise the correct setup frame
-            self.setupFrames[self.currentScreen].tkraise()
+            #Add in the day data
+            channelDayData = channelData[2]
+            day = 0
+            for thisDayData in channelDayData:
+                self.dayLabels[0][day].config(text=str(thisDayData[0]))
+                self.dayLabels[1][day].config(text=str(thisDayData[1]))
+                self.dayLabels[2][day].config(text=str(thisDayData[2]))
+                #Show innoculum average per gram for that day and then the actual ml using the mass of innoculum
+                innoculumMessage = str(thisDayData[3]) + " (" + str(thisDayData[4]) + "ml)"
+                self.dayLabels[3][day].config(text=innoculumMessage)
+                self.dayLabels[4][day].config(text=str(thisDayData[5]))
+                day = day + 1
+
+
+    def changeChannel(self, *args) -> None:
+        '''Change the currently selected channel'''
+        #Get the channel number from the list
+        channelNumber = self.channelLabels.index(self.channelChoiceVar.get())
+        #If the channel exists (prevents errors if something went wrong)
+        if channelNumber > -1:
+            #Change the channel number
+            self.currentScreen = channelNumber
+            #Raise the correct frame
+            self.changeChannelData()
+            #Iterate through the channel buttons
+            for buttonId in range(0, len(self.channelButtons)):
+                #If this is the button associated with the current channel
+                if buttonId == channelNumber:
+                    #Set it to selected (default) colour
+                    self.channelButtons[buttonId].config(bg=self.defaultButtonColour)
+                else:
+                    #Set it to deselected (darkened) colour
+                    self.channelButtons[buttonId].config(bg=self.otherButtonColour)
 
     
     def changeToHours(self) -> None:
         '''Switch to hours view'''
         self.hours = True
         #Raise the correct frame
-        self.raiseCurrentScreen()
+        self.channelHourFrame.tkraise()
         #Switch to the hours highlighted colours
         self.hoursButton.config(bg=self.defaultButtonColour)
         self.daysButton.config(bg=self.otherButtonColour)
@@ -176,7 +200,7 @@ class mainWindow(tkinter.Frame):
         '''Switch to days view'''
         self.hours = False
         #Raise the correct frame
-        self.raiseCurrentScreen()
+        self.channelDayFrame.tkraise()
         #Switch to the days highlighted colours
         self.hoursButton.config(bg=self.otherButtonColour)
         self.daysButton.config(bg=self.defaultButtonColour)
@@ -284,28 +308,29 @@ class mainWindow(tkinter.Frame):
                 for setupNum in range(0, len(setup[0])):
                     #Add the setup information
                     self.exportData.append([[setup[0][setupNum], setup[1][setupNum], setup[2][setupNum], setup[3][setupNum], setup[4][setupNum], setup[5][setupNum]]])
-                    if setupNum < len(self.setupLabels):
-                        #Message to display - the name of the tube
-                        msg = setup[0][setupNum]
-                        #If the tube is in use
-                        if setup[1][setupNum]:
-                            #IF it is an innoculum only tube
-                            if setup[2][setupNum]:
-                                #Add the innoculum only message
-                                msg = msg + "  (Innoculum Only)"
-                            #Add the innoculum mass
-                            msg = msg + "  Innoculum:" + str(round(setup[3][setupNum], 3)) + "g"
-                            #If this is not innoculum only
-                            if not setup[2][setupNum]:
-                                #Add the sample mass
-                                msg = msg + "  Sample:" + str(round(setup[4][setupNum], 3)) + "g"
-                            #Add the tumbler volume
-                            msg = msg + "  Volume:" + str(round(setup[5][setupNum], 3)) + "ml"
-                        else:
-                            #Otherwise add not in use message
-                            msg = msg + "  (Not in use)"
-                        #Add the text to the label
-                        self.setupLabels[setupNum].configure(text=msg)
+                    #Message to display - the name of the tube
+                    msg = setup[0][setupNum]
+                    #Update drop down labels
+                    self.channelLabels[setupNum] = "Channel " + str(setupNum + 1) + " (" + setup[0][setupNum] + ")"
+                    #If the tube is in use
+                    if setup[1][setupNum]:
+                        #IF it is an innoculum only tube
+                        if setup[2][setupNum]:
+                            #Add the innoculum only message
+                            msg = msg + "  (Innoculum Only)"
+                        #Add the innoculum mass
+                        msg = msg + "  Innoculum:" + str(round(setup[3][setupNum], 3)) + "g"
+                        #If this is not innoculum only
+                        if not setup[2][setupNum]:
+                            #Add the sample mass
+                            msg = msg + "  Sample:" + str(round(setup[4][setupNum], 3)) + "g"
+                        #Add the tumbler volume
+                        msg = msg + "  Volume:" + str(round(setup[5][setupNum], 3)) + "ml"
+                    else:
+                        #Otherwise add not in use message
+                        msg = msg + "  (Not in use)"
+                    #Add the text to the label
+                    self.setupTexts.append(msg)
 
                 #Iterate through the lists of hour data
                 for listNum in range(0, len(hourLists)):
@@ -324,14 +349,6 @@ class mainWindow(tkinter.Frame):
                         thisHourData.append(round(hourlyInnoculumAvg[hour], 3)) #Innoculum average volume per gram
                         thisHourData.append(round(hourlyInnoculumAvg[hour] * setup[3][listNum], 3)) #Innoculum average volume for this tube
                         thisHourData.append(round(hourEvolved[listNum], 3)) #Total gas evolved by sample in this tube
-                        #Set each of the labels of the hour frame
-                        self.hourLabels[listNum][0][hour].config(text=str(thisHourData[0]))
-                        self.hourLabels[listNum][1][hour].config(text=str(thisHourData[1]))
-                        self.hourLabels[listNum][2][hour].config(text=str(thisHourData[2]))
-                        #Show innoculum average per gram for that hour and then the actual ml using the mass of innoculum
-                        innoculumMessage = str(thisHourData[3]) + " (" + str(thisHourData[4]) + "ml)"
-                        self.hourLabels[listNum][3][hour].config(text=innoculumMessage)
-                        self.hourLabels[listNum][4][hour].config(text=str(thisHourData[5]))
                         #Add this hour's information to the overall list
                         hourDataList.append(thisHourData)
                     
@@ -357,14 +374,6 @@ class mainWindow(tkinter.Frame):
                         thisDayData.append(round(daylyInnoculumAvg[day], 3))
                         thisDayData.append(round(daylyInnoculumAvg[day] * setup[3][listNum], 3))
                         thisDayData.append(round(dayEvolved[listNum], 3))
-                        #Set each of the labels of the day frame
-                        self.dayLabels[listNum][0][day].config(text=str(thisDayData[0]))
-                        self.dayLabels[listNum][1][day].config(text=str(thisDayData[1]))
-                        self.dayLabels[listNum][2][day].config(text=str(thisDayData[2]))
-                        #Show innoculum average per gram for that day and then the actual ml using the mass of innoculum
-                        innoculumMessage = str(thisDayData[3]) + " (" + str(thisDayData[4]) + "ml)"
-                        self.dayLabels[listNum][3][day].config(text=innoculumMessage)
-                        self.dayLabels[listNum][4][day].config(text=str(thisDayData[5]))
                         #Add this day's information to the overall list
                         dayDataList.append(thisDayData)
                     
@@ -383,6 +392,12 @@ class mainWindow(tkinter.Frame):
             #Display error that files need to be loaded (should not generally occur but in case)
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
 
+        menu = self.channelChoice["menu"]
+        menu.delete(0, tkinter.END)
+        for value in self.channelLabels:
+            menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
+
+        self.channelChoiceVar.set(self.channelLabels[0])
         self.processing = False
 
     
@@ -460,21 +475,21 @@ class mainWindow(tkinter.Frame):
     
     def unpopulateWindows(self) -> None:
         '''Remove all canvases and scroll bars and delete all references'''
-        #Iterate through lists and destroy (children will be destoryed too so labels can be ignored)
-        for canvas in self.hourCanvases:
-            canvas.destroy()
-        for canvas in self.dayCanvases:
-            canvas.destroy()
-        for scroll in self.hourScrolls:
-            scroll.destroy()
-        for scroll in self.dayScrolls:
-            scroll.destroy()
+        #Delete all the created parts
+        if self.hourCanvas != None:
+            self.hourCanvas.destroy()
+        if self.dayCanvas != None:
+            self.dayCanvas.destroy()
+        if self.hourScroll != None:
+            self.hourScroll.destroy()
+        if self.dayScroll != None:
+            self.dayScroll.destroy()
         
-        #Reset canvas, scroll and label lists to remove references to non-existant objects
-        self.hourCanvases = []
-        self.dayCanvases = []
-        self.hourScrolls = []
-        self.dayScrolls = []
+        #Reset canvas, scroll and label objects to remove references to non-existant objects
+        self.hourCanvas = None
+        self.dayCanvas = None
+        self.hourScroll = None
+        self.dayScroll = None
         self.hourLabels = []
         self.dayLabels = []
 
@@ -483,119 +498,145 @@ class mainWindow(tkinter.Frame):
         #Remove all the current window items
         self.unpopulateWindows()
 
-        #Iterate through the different channels' hour frames
-        for hFrame in self.channelHourFrames:
-            #Create canvas
-            hourCanvas = tkinter.Canvas(hFrame)
-            #Create scroll bar
-            hourScrollBar = tkinter.Scrollbar(hFrame, orient="vertical", command=hourCanvas.yview)
+        #For hours
+        #Create canvas
+        self.hourCanvas = tkinter.Canvas(self.channelHourFrame)
+        #Create scroll bar
+        self.hourScroll = tkinter.Scrollbar(self.channelHourFrame, orient="vertical", command=self.hourCanvas.yview)
 
-            #Add canvas and scroll bar to hour frame
-            hourCanvas.pack(side="left", expand=True, fill="both")
-            hourScrollBar.pack(side="right", fill="y")
+        #Add canvas and scroll bar to hour frame
+        self.hourCanvas.pack(side="left", expand=True, fill="both")
+        self.hourScroll.pack(side="right", fill="y")
 
-            #Create a frame to hold the labels in the canvas
-            gridFrame = tkinter.Frame(hourCanvas)
+        #Create a frame to hold the labels in the canvas
+        self.gridFrameHour = tkinter.Frame(self.hourCanvas)
 
-            #Iterate through the rows of data and columns and set up grid in frame
-            for col in range(0, 6):
-                gridFrame.grid_columnconfigure(col, minsize=(self.width - 10) / 6)
-            for row in range(0, rowsHours + 1):
-                gridFrame.grid_rowconfigure(row, weight=1)
+        #Iterate through the rows of data and columns and set up grid in frame
+        for col in range(0, 6):
+            self.gridFrameHour.grid_columnconfigure(col, weight=1)
+        for row in range(0, rowsHours + 1):
+            self.gridFrameHour.grid_rowconfigure(row, weight=1)
 
-            #List to hold all the labels
-            labels = [[], [], [], [], []]
-            
-            #Iterate through the rows
-            for row in range(0, rowsHours + 1):
-                for col in range(0, 6):
-                    #Create labels
-                    label = tkinter.Label(gridFrame, text="")
-                    if row % 2 == 0:
-                        label.configure(bg=self.alternateBackground)
-                    label.grid(row=row, column=col, sticky="NESW")
-                    #If is is not a header
-                    if row != 0:
-                        #If it is not the numbering column
-                        if col > 0:
-                            #Add to list of labels
-                            labels[col - 1].append(label)
-                        else:
-                            #Add the current hour number
-                            label.configure(text=row)
-                    else:
-                        #Set the text to the header and change the font
-                        label.configure(text=self.hourHeaders[col], font=("courier", 10, "bold"))
-
-            #Add the frame to the window of the canvas
-            hourCanvas.create_window(0, 0, window=gridFrame, anchor="nw")
-            #Call for update of canvas (so that size is correct)
-            hourCanvas.update_idletasks()
-
-            #Manually call for calculation of scroll region based on bounding box
-            hourCanvas.configure(scrollregion=hourCanvas.bbox("all"), yscrollcommand=hourScrollBar.set)
-
-            #Add hour canvas, scroll and labels to lists
-            self.hourCanvases.append(hourCanvas)
-            self.hourScrolls.append(hourScrollBar)
-            self.hourLabels.append(labels)
+        #List to hold all the labels
+        labelsHour = [[], [], [], [], []]
         
-        #Iterate through the different channels' day frames
-        for dFrame in self.channelDayFrames:
-            #Create a canvas
-            dayCanvas = tkinter.Canvas(dFrame)
-            #Create a scroll bar
-            dayScrollBar = tkinter.Scrollbar(dFrame, orient="vertical", command=dayCanvas.yview)
-            
-            #Add the canvas and the scroll bar to the day frame
-            dayCanvas.pack(side="left", expand=True, fill="both")
-            dayScrollBar.pack(side="right", fill="y")
-
-            #Create frame inside canvas for labels
-            gridFrame = tkinter.Frame(dayCanvas)
-
-            #Iterate through columns and rows to create grid
+        #Iterate through the rows
+        for row in range(0, rowsHours + 1):
             for col in range(0, 6):
-                gridFrame.grid_columnconfigure(col, minsize=(self.width - 10) / 6)
-            for row in range(0, rowsDays + 1):
-                gridFrame.grid_rowconfigure(row, weight=1)
-
-            #List to hold the created labels
-            labels = [[], [], [], [], []]
-            
-            #Iterate through the rows and columns
-            for row in range(0, rowsDays + 1):
-                for col in range(0, 6):
-                    #Create a labels
-                    label = tkinter.Label(gridFrame, text="")
-                    if row % 2 == 0:
-                        label.configure(bg=self.alternateBackground)
-                    label.grid(row=row, column=col, sticky="NESW")
-                    #If this is not the header row
-                    if row != 0:
-                        #If this is not the day number row
-                        if col > 0:
-                            #Add the label to the list
-                            labels[col - 1].append(label)
-                        else:
-                            #Add the day number to the label
-                            label.configure(text=row)
+                #Create labels
+                label = tkinter.Label(self.gridFrameHour, text="")
+                if row % 2 == 0:
+                    label.configure(bg=self.alternateBackground)
+                label.grid(row=row, column=col, sticky="NESW")
+                #If is is not a header
+                if row != 0:
+                    #If it is not the numbering column
+                    if col > 0:
+                        #Add to list of labels
+                        labelsHour[col - 1].append(label)
                     else:
-                        #Add the header text to the label and change the font
-                        label.configure(text=self.dayHeaders[col], font=self.headerFont)
+                        #Add the current hour number
+                        label.configure(text=row)
+                else:
+                    #Set the text to the header and change the font
+                    label.configure(text=self.hourHeaders[col], font=("courier", 10, "bold"))
 
-            #Add the frame to the window of the canvas
-            dayCanvas.create_window(0, 0, window=gridFrame, anchor="nw")
-            #Call for update of canvas - so the size is correct
-            dayCanvas.update_idletasks()
+        #Add the frame to the window of the canvas
+        self.hourCanvasWindow = self.hourCanvas.create_window(0, 0, window=self.gridFrameHour, anchor="nw")
 
-            #Manually call for the calculation of the scroll area using the bounding area
-            dayCanvas.configure(scrollregion=dayCanvas.bbox("all"), yscrollcommand=dayScrollBar.set)
+        #Add resize configuration binds
+        self.gridFrameHour.bind("<Configure>", self.onFrameConfigureHour)
+        self.hourCanvas.bind("<Configure>", self.frameWidthHour)
 
-            #Add all the canvases, scroll bars and labels to the lists
-            self.dayCanvases.append(dayCanvas)
-            self.dayScrolls.append(dayScrollBar)
-            self.dayLabels.append(labels)
+        #Call for update of canvas (so that size is correct)
+        self.hourCanvas.update_idletasks()
+
+        #Manually call for calculation of scroll region based on bounding box
+        self.hourCanvas.configure(scrollregion=self.hourCanvas.bbox("all"), yscrollcommand=self.hourScroll.set)
+
+        #Store labels
+        self.hourLabels = labelsHour
+        
+        #For Days
+        #Create a canvas
+        self.dayCanvas = tkinter.Canvas(self.channelDayFrame)
+        #Create a scroll bar
+        self.dayScroll = tkinter.Scrollbar(self.channelDayFrame, orient="vertical", command=self.dayCanvas.yview)
+        
+        #Add the canvas and the scroll bar to the day frame
+        self.dayCanvas.pack(side="left", expand=True, fill="both")
+        self.dayScroll.pack(side="right", fill="y")
+
+        #Create frame inside canvas for labels
+        self.gridFrameDay = tkinter.Frame(self.dayCanvas)
+
+        #Iterate through columns and rows to create grid
+        for col in range(0, 6):
+            self.gridFrameDay.grid_columnconfigure(col, weight=1)
+        for row in range(0, rowsDays + 1):
+            self.gridFrameDay.grid_rowconfigure(row, weight=1)
+
+        #List to hold the created labels
+        labelsDay = [[], [], [], [], []]
+        
+        #Iterate through the rows and columns
+        for row in range(0, rowsDays + 1):
+            for col in range(0, 6):
+                #Create a labels
+                label = tkinter.Label(self.gridFrameDay, text="")
+                if row % 2 == 0:
+                    label.configure(bg=self.alternateBackground)
+                label.grid(row=row, column=col, sticky="NESW")
+                #If this is not the header row
+                if row != 0:
+                    #If this is not the day number row
+                    if col > 0:
+                        #Add the label to the list
+                        labelsDay[col - 1].append(label)
+                    else:
+                        #Add the day number to the label
+                        label.configure(text=row)
+                else:
+                    #Add the header text to the label and change the font
+                    label.configure(text=self.dayHeaders[col], font=self.headerFont)
+
+        #Add the frame to the window of the canvas
+        self.dayCanvasWindow = self.dayCanvas.create_window(0, 0, window=self.gridFrameDay, anchor="nw")
+
+        #Add resize configuration binds
+        self.gridFrameDay.bind("<Configure>", self.onFrameConfigureDay)
+        self.dayCanvas.bind("<Configure>", self.frameWidthDay)
+
+        #Call for update of canvas - so the size is correct
+        self.dayCanvas.update_idletasks()
+
+        #Manually call for the calculation of the scroll area using the bounding area
+        self.dayCanvas.configure(scrollregion=self.dayCanvas.bbox("all"), yscrollcommand=self.dayScroll.set)
+
+        #Store labels
+        self.dayLabels = labelsDay
+    
+    def frameWidthHour (self, event):
+        '''Event called when hour canvas resized'''
+        canvasWidth = event.width
+        #Update size of window on canvas
+        self.hourCanvas.itemconfig(self.hourCanvasWindow, width=canvasWidth)
+
+    def onFrameConfigureHour (self, event):
+        '''Event called when hour canvas frame resized'''
+        #Update canvas bounding box
+        self.hourCanvas.configure(scrollregion=self.hourCanvas.bbox("all"))
+    
+    def frameWidthDay (self, event):
+        '''Event called when day canvas resized'''
+        canvasWidth = event.width
+        #Update size of window on canvas
+        self.dayCanvas.itemconfig(self.dayCanvasWindow, width=canvasWidth)
+
+    def onFrameConfigureDay (self, event):
+        '''Event called when day canvas frame resized'''
+        #Update canvas bounding box
+        self.dayCanvas.configure(scrollregion=self.dayCanvas.bbox("all"))
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
@@ -603,8 +644,11 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     #Set the shape of the window
     root.geometry("1095x620")
-    #Window cannot be resized
-    root.resizable(False, False)
+    #Allow for expanding sizes
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    #Set minimum size
+    root.minsize(800, 300)
     #Set the title text of the window
     root.title("Process GFM Data")
     #Add the editor to the root windows

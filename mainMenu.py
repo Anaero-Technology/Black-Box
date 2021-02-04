@@ -56,9 +56,11 @@ class mainWindow(tkinter.Frame):
             self.setupWindow = tkinter.Toplevel(self.parent)
             self.setupWindow.transient(self.parent)
             self.setupWindow.geometry("600x610")
-            self.setupWindow.resizable(False, False)
+            self.setupWindow.minsize(550, 400)
             self.setupWindow.title("Setup GFM")
-            setupGUI.mainWindow(self.setupWindow).grid(row = 0, column=0, sticky="NESW")
+            self.setupWindow.grid_rowconfigure(0, weight=1)
+            self.setupWindow.grid_columnconfigure(0, weight=1)
+            setupGUI.mainWindow(self.setupWindow).grid(row=0, column=0, sticky="NESW")
             self.setupWindow.focus()
 
     def openEventLogWindow(self) -> None:
@@ -72,8 +74,10 @@ class mainWindow(tkinter.Frame):
             self.eventLogWindow = tkinter.Toplevel(self.parent)
             self.eventLogWindow.transient(self.parent)
             self.eventLogWindow.geometry("600x610")
-            self.eventLogWindow.resizable(False, False)
+            self.eventLogWindow.minsize(550, 400)
             self.eventLogWindow.title("Setup Event Log")
+            self.eventLogWindow.grid_rowconfigure(0, weight=1)
+            self.eventLogWindow.grid_columnconfigure(0, weight=1)
             eventLogGUI.mainWindow(self.eventLogWindow).grid(row = 0, column=0, sticky="NESW")
             self.eventLogWindow.focus()
 
@@ -85,11 +89,13 @@ class mainWindow(tkinter.Frame):
             self.dataProcessWindow.focus()
         except:
             #If unable to do so, create a new processing window
-            self.dataProcessWindow = tkinter.Toplevel(self.parent)
+            self.dataProcessWindow = tkinter.Toplevel(self.parent, bg="red")
             self.dataProcessWindow.transient(self.parent)
             self.dataProcessWindow.geometry("1095x620")
-            self.dataProcessWindow.resizable(False, False)
+            self.dataProcessWindow.minsize(800, 300)
             self.dataProcessWindow.title("Process GFM Data")
+            self.dataProcessWindow.grid_rowconfigure(0, weight=1)
+            self.dataProcessWindow.grid_columnconfigure(0, weight=1)
             processDataGUI.mainWindow(self.dataProcessWindow).grid(row = 0, column=0, sticky="NESW")
             self.dataProcessWindow.focus()
 
