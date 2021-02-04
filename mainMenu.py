@@ -1,4 +1,3 @@
-import sys
 import tkinter
 from tkinter.font import Font
 import setupGUI
