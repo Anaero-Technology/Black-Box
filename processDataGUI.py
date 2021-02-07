@@ -127,6 +127,9 @@ class mainWindow(tkinter.Frame):
 
         self.exportData = []
 
+        self.populateWindows(48, 2)
+        self.unpopulateWindows()
+
         #Switch to channel 0 and hours mode (to ensure it is all set up correctly at the start)
         self.changeChannel()
         self.changeToHours()
@@ -556,6 +559,10 @@ class mainWindow(tkinter.Frame):
 
         #Store labels
         self.hourLabels = labelsHour
+
+        #Bind grid to add scroll wheel functionality
+        self.gridFrameHour.bind("<Enter>", self.bindMouseWheel)
+        self.gridFrameHour.bind("<Leave>", self.unbindMouseWheel)
         
         #For Days
         #Create a canvas
@@ -615,28 +622,74 @@ class mainWindow(tkinter.Frame):
 
         #Store labels
         self.dayLabels = labelsDay
+
+        #Bind grid to add scrollwheel functionality
+        self.gridFrameDay.bind("<Enter>", self.bindMouseWheel)
+        self.gridFrameHour.bind("<Leave>", self.unbindMouseWheel)
     
-    def frameWidthHour (self, event):
+    def frameWidthHour (self, event) -> None:
         '''Event called when hour canvas resized'''
         canvasWidth = event.width
         #Update size of window on canvas
         self.hourCanvas.itemconfig(self.hourCanvasWindow, width=canvasWidth)
 
-    def onFrameConfigureHour (self, event):
+    def onFrameConfigureHour (self, event) -> None:
         '''Event called when hour canvas frame resized'''
         #Update canvas bounding box
         self.hourCanvas.configure(scrollregion=self.hourCanvas.bbox("all"))
     
-    def frameWidthDay (self, event):
+    def frameWidthDay (self, event) -> None:
         '''Event called when day canvas resized'''
         canvasWidth = event.width
         #Update size of window on canvas
         self.dayCanvas.itemconfig(self.dayCanvasWindow, width=canvasWidth)
 
-    def onFrameConfigureDay (self, event):
+    def onFrameConfigureDay (self, event) -> None:
         '''Event called when day canvas frame resized'''
         #Update canvas bounding box
         self.dayCanvas.configure(scrollregion=self.dayCanvas.bbox("all"))
+
+    def bindMouseWheel(self, event) -> None:
+        '''Add binding for scrollwheel movement to current canvas'''
+        #If hours is the current frame
+        if self.hours:
+            #If the data has been loaded
+            if self.hourCanvas != None:
+                #Bind the scrollwheel movement to the hour canvas
+                self.hourCanvas.bind_all("<MouseWheel>", self.mouseWheelMove)
+        else:
+            #If the data has been loaded
+            if self.dayCanvas != None:
+                #Bind the scrollwheel movement to the day canvas
+                self.dayCanvas.bind_all("<MouseWheel>", self.mouseWheelMove)
+
+    def unbindMouseWheel(self, event) -> None:
+        '''Remove binding for scrollwheel movement from the current frame'''
+        #If hours is the current frame
+        if self.hours:
+            #If the data has been loaded
+            if self.hourCanvas != None:
+                #Unbind the scrollwheel movement from the hours frame
+                self.hourCanvas.unbind_all("<MouseWheel>")
+        else:
+            #If the data has been loaded
+            if self.dayCanvas != None:
+                #Unbind the scrollwheel movement from the days frame
+                self.dayCanvas.unbind_all("<MouseWheel>")
+
+    def mouseWheelMove(self, event) -> None:
+        '''Change the scroll position of the bound frame when using the scrollwheel'''
+        #If it is currently hours
+        if self.hours:
+            #If data has been loaded
+            if self.hourCanvas != None:
+                #Update the scroll position of the canvas
+                self.hourCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        else:
+            #If the data has been loaded
+            if self.dayCanvas != None:
+                #Update the scroll position of the canvas
+                self.dayCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
