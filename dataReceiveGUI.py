@@ -1,5 +1,5 @@
 import tkinter
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, filedialog
 import serial
 from serial.tools import list_ports
 from threading import Thread
@@ -28,7 +28,7 @@ class mainWindow(tkinter.Frame):
 
         #Add connect button
         self.connectButton = tkinter.Button(self, text="Connect", command=self.connectPressed)
-        self.connectButton.grid(row=0, column=3, sticky="NESW")
+        self.connectButton.grid(row=0, column=2, columnspan=2, sticky="NESW")
 
         #Add label for selected file name
         self.fileLabel = tkinter.Label(self, text="No file selected")
@@ -43,12 +43,8 @@ class mainWindow(tkinter.Frame):
         self.deleteFileButton.grid(row=3, column=3, sticky="NESW")
 
         #Add a frame to put the list of files into
-        self.fileFrame = tkinter.Frame(self)
+        self.fileFrame = tkinter.Frame(self, bg="#FFFFFF")
         self.fileFrame.grid(row=2, column=0, columnspan=4, sticky="NESW")
-
-        #Add a button to scan for ports
-        self.scanButton = tkinter.Button(self, text="Scan Ports", command=self.scanPressed)
-        self.scanButton.grid(row=0, column=2, sticky="NESW")
 
         #Add a button to initiate reading and storing the data from the arduino
         self.toggleButton = tkinter.Button(self, text="No Port", command=self.togglePressed, state="disabled")
@@ -91,9 +87,10 @@ class mainWindow(tkinter.Frame):
 
         #List of available files (for testing)
         self.files = ["File Number 1", "File Number 2"]
+        self.fileSizes = []
 
         #Perform a first time scan
-        self.scanPressed()
+        self.performScan()
 
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
@@ -111,16 +108,26 @@ class mainWindow(tkinter.Frame):
         #List of accepted characters for file names as a string
         self.acceptedChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz-_"
 
+        #Name of file being saved to
         self.fileNameToSave = ""
+        #Information being saved to the file
         self.fileDataToSave = ""
 
+        #If still waiting for first response
         self.awaitingCommunication = False
+        #Timeout timers
         self.timesTried = 0
         self.timeoutAttempts = 10
 
+        #Valid file save types
+        self.fileTypes = [("CSV Files", "*.csv")]
+
     def checkConnection(self) -> None:
+        '''Check if a connection has been made repeatedly until timeout'''
+        #If still waiting
         if self.awaitingCommunication:
-            if self.timesTried == self.timeoutAttempts:
+            #If timeout has been reached or exceeded
+            if self.timesTried >= self.timeoutAttempts:
                 #Close the connection and reset the buttons
                 self.serialConnection.close()
                 self.serialConnection = None
@@ -131,15 +138,24 @@ class mainWindow(tkinter.Frame):
                     self.setdownFiles()
                 self.connectButton.configure(text="Connect", command=self.connectPressed)
                 self.portOption.configure(state="normal")
-                self.scanButton.configure(state="normal")
                 self.toggleButton.configure(state="disabled", text="No Port")
                 self.openFilesButton.configure(state="disabled", text="No Port")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
                 messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is correct port and try again.")
+                self.performScan()
             else:
+                #Increment timeout
                 self.timesTried = self.timesTried + 1
+                #Test again in .5 seconds
                 self.after(500, self.checkConnection)
+
+    def sendInfoRequest(self) -> None:
+        '''Send the initial request for communication (in function so that it can be delayed)'''
+        #If there is a connection
+        if self.connected and self.serialConnection != None:
+            #Send the information request
+            self.serialConnection.write("info\n".encode("utf-8"))
 
     def connectPressed(self) -> None:
         '''Attempt to connect to selected port'''
@@ -163,7 +179,6 @@ class mainWindow(tkinter.Frame):
                     self.connectButton.configure(text="Disconnect", command=self.disconnectPressed)
                     self.connected = True
                     self.portOption.configure(state="disabled")
-                    self.scanButton.configure(state="disabled")
                     self.openPortLabel.configure(text="Port " + self.connectedPort + " Open")
                     self.openFilesButton.configure(state="disabled", text="Waiting")
                     #Do not allow action if waiting
@@ -174,44 +189,68 @@ class mainWindow(tkinter.Frame):
                     #Start reading from the port
                     readThread = Thread(target=self.readSerial, daemon=True)
                     readThread.start()
-                    self.serialConnection.write("info\n".encode("utf-8"))
+                    #Send connection information request after a short time - allows for boot messages to clear
+                    self.after(200, self.sendInfoRequest)
                 else:
                     #Connection failed - reset
                     self.connected = False
                     #Allow for connect to be pressed and disable disconnect
                     self.portOption.configure(state="normal")
-                    self.scanButton.configure(state="normal")
                     self.toggleButton.configure(state="disabled", text="No Port")
                     self.openFilesButton.configure(state="disabled", text="No Port")
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
                     messagebox.showinfo(title="Failed", message="Failed to connect to port, you may need to scan again to check the port is available.")
+                    self.performScan()
     
-    def scanPressed(self) -> None:
+    def performScan(self) -> None:
         '''Perform a scan of available ports and update option list accordingly'''
-        #List to contain available ports
-        found = ["No Port Selected"]
-        #Scan to find all available ports
-        portData = list_ports.comports()
-        #Iterate through ports
-        for data in portData:
-            #Add the name of the port to the list (can be used to connect to it)
-            found.append(data.name)
-        
-        #Update labels
-        self.portLabels = found
+        if not self.connected:
+            #List to contain available ports
+            found = ["No Port Selected"]
+            #Scan to find all available ports
+            portData = list_ports.comports()
+            #Iterate through ports
+            for data in portData:
+                #Add the name of the port to the list (can be used to connect to it)
+                found.append(data.name)
+            
+            #If the old and new lists are different
+            different = False
+            #Test if the lists are different lengths
+            if len(found) != len(self.portLabels):
+                different = True
+            else:
+                #Iterate through
+                for item in found:
+                    #Check if they contain the same things (order unimportant)
+                    if item not in self.portLabels:
+                        different = True
+            
+            #If there was a change
+            if different:
+                #Update labels
+                self.portLabels = found
 
-        #Delete the old menu options
-        menu = self.portOption["menu"]
-        menu.delete(0, tkinter.END)
-        #Iterate through labels
-        for name in self.portLabels:
-            #Add the labels to the list
-            menu.add_command(label=name, command=lambda v=self.selectedPort, l=name: v.set(l))
+                #Delete the old menu options
+                menu = self.portOption["menu"]
+                menu.delete(0, tkinter.END)
+                #Iterate through labels
+                for name in self.portLabels:
+                    #Add the labels to the list
+                    menu.add_command(label=name, command=lambda v=self.selectedPort, l=name: v.set(l))
 
-        #Set selected option to none
-        self.selectedPort.set(self.portLabels[0])
+                #If the selected item is still available
+                if self.selectedPort.get() in self.portLabels:
+                    #Set the drop down value to what it was
+                    self.selectedPort.set(self.selectedPort.get())
+                else:
+                    #Set selected option to none
+                    self.selectedPort.set(self.portLabels[0])
+            
+            #Scan again shortly
+            self.after(150, self.performScan)
 
     def togglePressed(self) -> None:
         '''When button pressed to start/stop communications'''
@@ -225,25 +264,32 @@ class mainWindow(tkinter.Frame):
                     self.serialConnection.write("stop\n".encode("utf-8"))
                     self.awaiting = True
                 else:
+                    #Ask for file name
                     fileName = simpledialog.askstring("Enter File Name To Store Data", "Enter file name (without extension)", parent=self)
+                    #If a name was given
                     if fileName != None:
+                        #Remove whitespace
                         fileName = fileName.replace(" ", "")
                         allowed = True
 
+                        #Check characters were entered
                         if len(fileName) < 1:
                             allowed = False
                             messagebox.showinfo(title="Invalid File Name", message="File name must contain at least 1 character.")
 
+                        #Check maximum name length
                         if len(fileName) > 26:
                             allowed = False
                             messagebox.showinfo(title="Invalid File Name", message="File name must not exceed 26 characters.")
 
+                        #Check for invalid characters
                         for char in fileName:
                             if allowed:
                                 if char not in self.acceptedChars:
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
+                        #If the name is allowed to be used
                         if allowed:
                             startMessage = "start /" + fileName + ".txt\n"
                             #Send the start message
@@ -255,11 +301,17 @@ class mainWindow(tkinter.Frame):
 
     def fileTogglePressed(self):
         '''Ask the esp32 for the list of held files'''
+        #If opening the files
         if not self.filesOpen:
+            #If there is a connection
             if self.connected and self.serialConnection != None:
+                #If not currently running data collection
                 if not self.receiving:
+                    #If not waiting for a response
                     if not self.awaiting:
                         self.files = []
+                        self.fileSizes = []
+                        #Ask for the list of files
                         self.serialConnection.write("files\n".encode("utf-8"))
                         self.awaiting = True
                 else:
@@ -267,17 +319,26 @@ class mainWindow(tkinter.Frame):
             else:
                 messagebox.showinfo(title="Not Connected", message="You must be connected to a port to access the files.")
         else:
+            #Close the files section
             self.setdownFiles()
 
-    def deletePressed(self):
+    def deletePressed(self) -> None:
+        '''Delete the currently selected file from the memory'''
+        #If the connection is running
         if self.connected and self.serialConnection != None:
+            #If the device is not collecting data
             if not self.receiving:
+                #If not waiting for a response
                 if not self.awaiting:
+                    #If there is a file selected (and a valid one)
                     if self.selectedFile != -1 and len(self.files) > self.selectedFile:
+                        #Ask for confirmation
                         confirm = messagebox.askyesno(title="Confirm Delete", message="Are you sure you want to delete " + self.files[self.selectedFile] + "?\nThis action cannot be undone.")
                         if confirm:
+                            #Send signal to delete file
                             message = "delete " + self.files[self.selectedFile] + "\n"
                             self.serialConnection.write(message.encode("utf-8"))
+                            #Wait for confirmation of deletion
                             self.awaiting = True
                     else:
                         messagebox.showinfo(title="No File Selected", message="Please select a file to delete.")
@@ -286,14 +347,33 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to delete files.")
 
-    def downloadPressed(self):
+    def downloadPressed(self) -> None:
+        '''Send request to download the selected file to the computer'''
+        #If there is a connection
         if self.connected and self.serialConnection != None:
+            #If not currently collecting data
             if not self.receiving:
+                #If not waiting for a response
                 if not self.awaiting:
+                    #If a file has been selected (and a valid one)
                     if self.selectedFile != -1 and len(self.files) > self.selectedFile:
-                        message = "download " + self.files[self.selectedFile] + "\n"
-                        self.serialConnection.write(message.encode("utf-8"))
-                        self.awaiting = True
+                        #Default name to save file as - same as the file name on the esp32
+                        defaultName = self.files[self.selectedFile][1:-4]
+                        #Ask where to save the file
+                        path = filedialog.asksaveasfilename(title="Save file location", filetypes=self.fileTypes, defaultextension=self.fileTypes, initialfile=defaultName)
+                        #Remove whitespace
+                        path = path.strip()
+                        #If there is a file name
+                        if path != None and path != "":
+                            #If it doesn't have a .csv extension for some reason - then add one
+                            if not path.endswith(".csv"):
+                                path = path + ".csv"
+                            #Store the save path
+                            self.fileNameToSave = path
+                            #Send message to download
+                            message = "download " + self.files[self.selectedFile] + "\n"
+                            self.serialConnection.write(message.encode("utf-8"))
+                            self.awaiting = True
                     else:
                         messagebox.showinfo(title="No File Selected", message="Please select a file to download.")
             else:
@@ -340,12 +420,12 @@ class mainWindow(tkinter.Frame):
                     self.setdownFiles()
                 self.connectButton.configure(text="Connect", command=self.connectPressed)
                 self.portOption.configure(state="normal")
-                self.scanButton.configure(state="normal")
                 self.toggleButton.configure(state="disabled", text="No Port")
                 self.openFilesButton.configure(state="disabled", text="No Port")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when device unplugged)
                 messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
+                self.performScan()
 
     def messageReceived(self):
         #DEBUG display the message
@@ -449,26 +529,54 @@ class mainWindow(tkinter.Frame):
         if len(messageParts) > 1 and messageParts[0] == "file":
             #Add to the list
             self.files.append(messageParts[1])
+            size = -1
+            if len(messageParts) > 2:
+                try:
+                    size = int(messageParts[2])
+                except:
+                    pass
+            self.fileSizes.append(size)
 
+        
+        #If it is part of the file download sequence
         if len(messageParts) > 1 and messageParts[0] == "download":
-            #Receive file from esp32
+            #If it is a new file
             if len(messageParts) > 2 and messageParts[1] == "start":
-                self.fileNameToSave = messageParts[2].strip("/")
+                #Reset the file data
                 self.fileDataToSave = ""
+                #Currently downloading a file
                 self.downloading = True
+            #If it is the end of a file
             elif messageParts[1] == "stop":
-                saveFile = open(self.fileNameToSave, "w")
-                saveFile.write(self.fileDataToSave)
-                saveFile.close()
+                #Attempt to save the file
+                try:
+                    #Open the file to write
+                    saveFile = open(self.fileNameToSave, "w")
+                    #Write the data
+                    saveFile.write(self.fileDataToSave)
+                    #Close the file
+                    saveFile.close()
+                    #Success message
+                    messagebox.showinfo(title="Download Successful", message="File successfully downloaded.")
+                except:
+                    #Something went wrong - failed message
+                    messagebox.showinfo(title="Download Failed", message="File was not downloaded correctly, please try again.")
+                
+                #No longer downloading or waiting for a response
                 self.downloading = False
                 self.awaiting = False
-                messagebox.showinfo(title="Download Successful", message="File successfully downloaded.")
+            #Otherwise it is a line in the file (if currently expecting data)
             elif self.downloading:
+                #Iterate through parts (except for first)
                 for i in range(1, len(messageParts)):
+                    #Remove any carriage returns
                     self.fileDataToSave = self.fileDataToSave + messageParts[i].replace("\r", "")
+                    #If this is not the last in the message
                     if i != len(messageParts) - 1:
-                        self.fileDataToSave = self.fileDataToSave + " "
+                        #Add a comma
+                        self.fileDataToSave = self.fileDataToSave + ","
                     else:
+                        #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
                     
     def filePressed(self, index : int) -> None:
@@ -512,12 +620,12 @@ class mainWindow(tkinter.Frame):
                 self.setdownFiles()
             self.connectButton.configure(text="Connect", command=self.connectPressed)
             self.portOption.configure(state="normal")
-            self.scanButton.configure(state="normal")
             self.toggleButton.configure(state="disabled", text="No Port")
             self.openFilesButton.configure(state="disabled", text="No Port")
             self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
+            self.performScan()
 
     def setdownFiles(self) -> None:
         '''Remove all file buttons from scroll section'''
@@ -546,7 +654,7 @@ class mainWindow(tkinter.Frame):
 
         self.filesOpen = True
         #Create canvas and scroll bar
-        self.fileCanvas = tkinter.Canvas(self.fileFrame)
+        self.fileCanvas = tkinter.Canvas(self.fileFrame, bg="#FFFFFF")
         self.fileScroll = tkinter.Scrollbar(self.fileFrame, orient="vertical", command=self.fileCanvas.yview)
 
         #Add canvas and scroll bar to the frame
@@ -566,8 +674,17 @@ class mainWindow(tkinter.Frame):
 
         #Iterate through the file names
         for nameId in range(0, len(fileNames)):
+            sizePart = ""
+            if len(self.fileSizes) > nameId and self.fileSizes[nameId] != -1:
+                size = self.fileSizes[nameId]
+                if size / 1000000 > 1:
+                    sizePart = str(int(size / 1000000)) + "MB"
+                elif size / 1000 > 1:
+                    sizePart = str(int(size / 1000)) + "KB"
+                else:
+                    sizePart = str(size) + "B"
             #Create a button and add it to the list
-            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId], relief="groove", command=lambda x=nameId: self.filePressed(x))
+            button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x))
             button.grid(row=nameId, column=0, sticky="NESW")
             self.fileButtons.append(button)
 
@@ -577,6 +694,7 @@ class mainWindow(tkinter.Frame):
         #Setup the resizing commands on the canvas and frame
         self.fileGridFrame.bind("<Configure>", self.onFrameConfigure)
         self.fileCanvas.bind("<Configure>", self.frameWidth)
+        self.frameWidth(None)
 
         #Update the initial size on the canvas (so it looks correct on first load)
         self.fileCanvas.update_idletasks()
@@ -596,9 +714,9 @@ class mainWindow(tkinter.Frame):
         self.fileCanvas.configure(scrollregion=self.fileCanvas.bbox("all"))
 
     def frameWidth(self, event) -> None:
-        print(event)
         '''Event called when canvas resized'''
-        canvasWidth = event.width
+        #canvasWidth = event.width
+        canvasWidth = self.fileCanvas.winfo_width()
         #Update size of window on canvas
         self.fileCanvas.itemconfig(self.fileCanvasWindow, width=canvasWidth - 1)
     
