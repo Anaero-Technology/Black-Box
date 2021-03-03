@@ -590,6 +590,8 @@ class mainWindow(tkinter.Frame):
             #Reset selected file index and label
             self.selectedFile = -1
             self.fileLabel.configure(text="No file selected")
+            self.downloadFileButton.configure(state="disabled")
+            self.deleteFileButton.configure(state="disabled")
         else:
             #If the index is valid
             if index < len(self.files):
@@ -647,6 +649,8 @@ class mainWindow(tkinter.Frame):
 
         self.filesOpen = False
         self.openFilesButton.configure(text="Open Files")
+        self.downloadFileButton.configure(state="disabled")
+        self.deleteFileButton.configure(state="disabled")
         self.files = []
 
     def setupFiles(self, fileNames : list, first = False) -> None:
