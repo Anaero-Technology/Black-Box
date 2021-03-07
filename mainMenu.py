@@ -1,7 +1,8 @@
 import tkinter
 from tkinter.font import Font
 import setupGUI
-import eventLogGUI
+#import eventLogGUI
+import dataReceiveGUI
 import processDataGUI
 
 
@@ -27,7 +28,7 @@ class mainWindow(tkinter.Frame):
         self.setupButton = tkinter.Button(self, text="Configure Setup", command=self.openSetupWindow, font=self.buttonFont)
         self.setupButton.grid(row=0, column=0)
         #Event log configuration
-        self.eventLogButton = tkinter.Button(self, text="Configure Event Log", command=self.openEventLogWindow, font=self.buttonFont)
+        self.eventLogButton = tkinter.Button(self, text="ESP Communication", command=self.openCommunicationWindow, font=self.buttonFont)
         self.eventLogButton.grid(row=1, column=0)
         #Performing calculations
         self.calculationsButton = tkinter.Button(self, text="Perform Calculations", command=self.openCalculationsWindow, font=self.buttonFont)
@@ -41,7 +42,7 @@ class mainWindow(tkinter.Frame):
 
         #Variables to hold the different windows currently in use
         self.setupWindow = None
-        self.eventLogWindow = None
+        self.communicationWindow = None
         self.dataProcessWindow = None
     
     def openSetupWindow(self) -> None:
@@ -62,23 +63,23 @@ class mainWindow(tkinter.Frame):
             setupGUI.mainWindow(self.setupWindow).grid(row=0, column=0, sticky="NESW")
             self.setupWindow.focus()
 
-    def openEventLogWindow(self) -> None:
-        '''Create a new instance of the event log window, or lift and focus the current one'''
+    def openCommunicationWindow(self) -> None:
+        '''Create a new instance of the communication window, or lift and focus the current one'''
         try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
-            self.eventLogWindow.lift()
-            self.eventLogWindow.focus()
+            self.communicationWindow.lift()
+            self.communicationWindow.focus()
         except:
             #If unable to do so, create a new setup window
-            self.eventLogWindow = tkinter.Toplevel(self.parent)
-            self.eventLogWindow.transient(self.parent)
-            self.eventLogWindow.geometry("600x610")
-            self.eventLogWindow.minsize(550, 400)
-            self.eventLogWindow.title("Setup Event Log")
-            self.eventLogWindow.grid_rowconfigure(0, weight=1)
-            self.eventLogWindow.grid_columnconfigure(0, weight=1)
-            eventLogGUI.mainWindow(self.eventLogWindow).grid(row = 0, column=0, sticky="NESW")
-            self.eventLogWindow.focus()
+            self.communicationWindow = tkinter.Toplevel(self.parent)
+            self.communicationWindow.transient(self.parent)
+            self.communicationWindow.geometry("400x500")
+            self.communicationWindow.minsize(400, 500)
+            self.communicationWindow.title("GFM Data Receive")
+            self.communicationWindow.grid_rowconfigure(0, weight=1)
+            self.communicationWindow.grid_columnconfigure(0, weight=1)
+            dataReceiveGUI.mainWindow(self.communicationWindow).grid(row = 0, column=0, sticky="NESW")
+            self.communicationWindow.focus()
 
     def openCalculationsWindow(self) -> None:
         '''Create a new instance of the proccessing window, or lift and focus the current one'''

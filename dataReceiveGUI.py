@@ -774,6 +774,7 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     #Set the shape of the window
     root.geometry("400x500")
+    root.minsize(400, 500)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
