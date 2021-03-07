@@ -179,7 +179,7 @@ class mainWindow(tkinter.Frame):
                     self.connectButton.configure(text="Disconnect", command=self.disconnectPressed)
                     self.connected = True
                     self.portOption.configure(state="disabled")
-                    self.openPortLabel.configure(text="Port " + self.connectedPort + " Open")
+                    self.openPortLabel.configure(text="Port " + self.connectedPort)
                     self.openFilesButton.configure(state="disabled", text="Waiting")
                     #Do not allow action if waiting
                     self.awaiting = True
@@ -295,6 +295,8 @@ class mainWindow(tkinter.Frame):
                             #Send the start message
                             self.serialConnection.write(startMessage.encode("utf-8"))
                             self.awaiting = True
+                            if self.filesOpen:
+                                self.setdownFiles()
         else:
             #If no connection present - display error message (Outside case but catches errors)
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
@@ -493,6 +495,8 @@ class mainWindow(tkinter.Frame):
                 self.receiving = True
                 self.toggleButton.configure(text="Stop")
                 self.openFilesButton.configure(text="Stop to open", state="disabled")
+                if self.filesOpen:
+                    self.setdownFiles()
             #Was already stopped
             if messageParts[1] == "stop":
                 self.receiving = False
@@ -521,21 +525,33 @@ class mainWindow(tkinter.Frame):
                 self.receiving = False
                 self.toggleButton.configure(text="Start")
                 self.openFilesButton.configure(text="Open Files", state="normal")
+            if messageParts[1] == "stop":
+                if messageParts[2] == "nofiles":
+                    messagebox.showinfo(title="File System Failed", message="The file system failed, please reconnect esp32 and try again.")
+            if messageParts[1] == "download":
+                if messageParts[2] == "nofile":
+                    messagebox.showinfo(title="File Not Found", message="The requested file could not be found, download stopped.")
+                self.downloading = False
+            if messageParts[1] == "delete":
+                if messageParts[2] == "nofile":
+                    messagebox.showinfo(title="File Not Found", message="The requested file could not be found, delete could not be completed.")
             
             #No longer waiting for a response
             self.awaiting = False
 
         #If it is a file name being given
         if len(messageParts) > 1 and messageParts[0] == "file":
-            #Add to the list
-            self.files.append(messageParts[1])
-            size = -1
-            if len(messageParts) > 2:
-                try:
-                    size = int(messageParts[2])
-                except:
-                    pass
-            self.fileSizes.append(size)
+            #If it is not the configuration file
+            if messageParts[1] != "/setup.txt":
+                #Add to the list
+                self.files.append(messageParts[1])
+                size = -1
+                if len(messageParts) > 2:
+                    try:
+                        size = int(messageParts[2])
+                    except:
+                        pass
+                self.fileSizes.append(size)
 
         
         #If it is part of the file download sequence
@@ -578,6 +594,18 @@ class mainWindow(tkinter.Frame):
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
+
+        if len(messageParts) > 2 and messageParts[0] == "memory":
+            try:
+                total = int(messageParts[1])
+                used = int(messageParts[2])
+                percentage = int((used / total) * 100)
+                total = int(total / 100000) / 10
+                used = int(used / 100000) / 10
+                message = "Port " + self.connectedPort + " " + str(used) + "/" + str(total) + "MB (" + str(percentage) + "%)"
+                self.openPortLabel.configure(text=message)
+            except:
+                pass
                     
     def filePressed(self, index : int) -> None:
         '''When a file is clicked on'''
