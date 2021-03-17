@@ -209,19 +209,12 @@ class mainWindow(tkinter.Frame):
         if not self.connected:
             #List to contain available ports
             found = ["No Port Selected"]
-            busy = [False]
             #Scan to find all available ports
             portData = list_ports.comports()
             #Iterate through ports
             for data in portData:
                 #Add the name of the port to the list (can be used to connect to it)
                 found.append(data.name)
-                serialTest = serial.Serial()
-                serialTest.port = data.name
-                serialTest.baudrate = 115200
-                serialTest.dsrdtr = True
-                serialTest.rtscts = False
-                busy.append(serialTest.isOpen())
             
             #If the old and new lists are different
             different = False
@@ -234,8 +227,6 @@ class mainWindow(tkinter.Frame):
                     #Check if they contain the same things (order unimportant)
                     if item not in self.portLabels:
                         different = True
-            
-            print(busy)
 
             #If there was a change
             if different:
@@ -246,12 +237,9 @@ class mainWindow(tkinter.Frame):
                 menu = self.portOption["menu"]
                 menu.delete(0, tkinter.END)
                 #Iterate through labels
-                for portIndex in range(0, len(self.portLabels)):
-                    name = self.portLabels[portIndex]
+                for name in self.portLabels:
                     #Add the labels to the list
                     menu.add_command(label=name, command=lambda v=self.selectedPort, l=name: v.set(l))
-                    if busy[portIndex]:
-                        menu.entryconfigure(name, state = "disabled")
 
                 #If the selected item is still available
                 if self.selectedPort.get() in self.portLabels:
