@@ -4,6 +4,7 @@ import setupGUI
 #import eventLogGUI
 import dataReceiveGUI
 import processDataGUI
+import graphCreatorGUI
 
 
 class mainWindow(tkinter.Frame):
@@ -44,6 +45,7 @@ class mainWindow(tkinter.Frame):
         self.setupWindow = None
         self.communicationWindow = None
         self.dataProcessWindow = None
+        self.graphWindow = None
     
     def openSetupWindow(self) -> None:
         '''Create a new instance of the setup window, or lift and focus the current one'''
@@ -54,7 +56,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new setup window
             self.setupWindow = tkinter.Toplevel(self.parent)
-            self.setupWindow.transient(self.parent)
+            #self.setupWindow.transient(self.parent)
             self.setupWindow.geometry("600x610")
             self.setupWindow.minsize(550, 400)
             self.setupWindow.title("Setup GFM")
@@ -72,7 +74,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new setup window
             self.communicationWindow = tkinter.Toplevel(self.parent)
-            self.communicationWindow.transient(self.parent)
+            #self.communicationWindow.transient(self.parent)
             self.communicationWindow.geometry("400x500")
             self.communicationWindow.minsize(400, 500)
             self.communicationWindow.title("GFM Data Receive")
@@ -89,8 +91,8 @@ class mainWindow(tkinter.Frame):
             self.dataProcessWindow.focus()
         except:
             #If unable to do so, create a new processing window
-            self.dataProcessWindow = tkinter.Toplevel(self.parent, bg="red")
-            self.dataProcessWindow.transient(self.parent)
+            self.dataProcessWindow = tkinter.Toplevel(self.parent)
+            #self.dataProcessWindow.transient(self.parent)
             self.dataProcessWindow.geometry("1095x620")
             self.dataProcessWindow.minsize(800, 300)
             self.dataProcessWindow.title("Process GFM Data")
@@ -100,7 +102,22 @@ class mainWindow(tkinter.Frame):
             self.dataProcessWindow.focus()
 
     def openGraphsWindow(self) -> None:
-        pass
+        '''Create a new instance of the graphs window, or list and focus the current one'''
+        try:
+            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            self.graphWindow.lift()
+            self.graphWindow.focus()
+        except:
+            #If unable to do so, create a new processing window
+            self.graphWindow = tkinter.Toplevel(self.parent)
+            #self.graphWindow.transient(self.parent)
+            self.graphWindow.geometry("800x575")
+            self.graphWindow.minsize(800, 575)
+            self.graphWindow.title("GFM Graph Creator")
+            self.graphWindow.grid_rowconfigure(0, weight=1)
+            self.graphWindow.grid_columnconfigure(0, weight=1)
+            graphCreatorGUI.mainWindow(self.graphWindow).grid(row = 0, column=0, sticky="NESW")
+            self.graphWindow.focus()
 
     def closeAll(self) -> None:
         '''Close all the tkinter windows - terminates the program'''
