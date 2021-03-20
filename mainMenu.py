@@ -56,7 +56,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new setup window
             self.setupWindow = tkinter.Toplevel(self.parent)
-            #self.setupWindow.transient(self.parent)
+            self.setupWindow.transient(self.parent)
             self.setupWindow.geometry("600x610")
             self.setupWindow.minsize(550, 400)
             self.setupWindow.title("Setup GFM")
@@ -74,7 +74,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new setup window
             self.communicationWindow = tkinter.Toplevel(self.parent)
-            #self.communicationWindow.transient(self.parent)
+            self.communicationWindow.transient(self.parent)
             self.communicationWindow.geometry("400x500")
             self.communicationWindow.minsize(400, 500)
             self.communicationWindow.title("GFM Data Receive")
@@ -92,7 +92,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new processing window
             self.dataProcessWindow = tkinter.Toplevel(self.parent)
-            #self.dataProcessWindow.transient(self.parent)
+            self.dataProcessWindow.transient(self.parent)
             self.dataProcessWindow.geometry("1095x620")
             self.dataProcessWindow.minsize(800, 300)
             self.dataProcessWindow.title("Process GFM Data")
@@ -110,7 +110,7 @@ class mainWindow(tkinter.Frame):
         except:
             #If unable to do so, create a new processing window
             self.graphWindow = tkinter.Toplevel(self.parent)
-            #self.graphWindow.transient(self.parent)
+            self.graphWindow.transient(self.parent)
             self.graphWindow.geometry("800x575")
             self.graphWindow.minsize(800, 575)
             self.graphWindow.title("GFM Graph Creator")
