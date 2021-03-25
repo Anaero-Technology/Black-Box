@@ -97,6 +97,22 @@ class mainWindow(tkinter.Frame):
         self.selectType.configure(state="disabled")
         self.selectType.grid(row=5, column=4, columnspan=2, sticky="NESW")
 
+        #Checkbox to toggle display of grid
+        self.gridEnabled = tkinter.IntVar()
+        self.gridEnabled.set(1)
+        self.gridEnabled.trace("w", self.updateCheckBox)
+        self.gridCheckBox = tkinter.Checkbutton(self, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
+        self.gridCheckBox.configure(state="disabled")
+        self.gridCheckBox.grid(row=6, column=4, columnspan=2, sticky="NESW")
+
+        #Checkbox to toggle legend if necessary
+        self.showLegend = tkinter.IntVar()
+        self.showLegend.set(1)
+        self.showLegend.trace("w", self.updateCheckBox)
+        self.legendCheckBox = tkinter.Checkbutton(self, text="Legend", variable=self.showLegend, onvalue=1, offvalue=0)
+        self.legendCheckBox.configure(state="disabled")
+        self.legendCheckBox.grid(row=7, column=4, columnspan=2, sticky="NESW")
+
         #Allowed file types and extensions
         self.fileTypes = [("CSV Files", "*.csv")]
 
@@ -224,6 +240,7 @@ class mainWindow(tkinter.Frame):
         self.channelChoice.configure(state="normal")
         self.dayButton.configure(state="normal")
         self.selectType.configure(state="normal")
+        self.gridCheckBox.configure(state="normal")
 
     def changeChannelNames(self) -> None:
         '''Change the labels for the channels'''
@@ -294,8 +311,8 @@ class mainWindow(tkinter.Frame):
                     
                     #Set y axis label to data
                     self.subPlot.set_ylabel(self.typeList[self.typeIndex])
-                    #Show the grid
-                    self.subPlot.grid(True)
+                    #Show the grid if enabled
+                    self.subPlot.grid(self.gridEnabled.get() == 1)
                     #Draw the new graph
                     self.graphCanvas.draw()
 
@@ -340,10 +357,11 @@ class mainWindow(tkinter.Frame):
                     self.subPlot.set_title("Channel Comparison Of " + self.typeList[self.typeIndex] + " Per Day")
                 #Set the y label to the type of data being shown
                 self.subPlot.set_ylabel(self.typeList[self.typeIndex])
-                #Display the legend
-                self.subPlot.legend()
-                #Show the grid
-                self.subPlot.grid(True)
+                #Display the legend if it is on
+                if self.showLegend.get() == 1:
+                    self.subPlot.legend()
+                #Show the grid if enabled
+                self.subPlot.grid(self.gridEnabled.get() == 1)
                 #Draw the new graph
                 self.graphCanvas.draw()
 
@@ -387,10 +405,11 @@ class mainWindow(tkinter.Frame):
                 
                 #Display no y axis label (all different)
                 self.subPlot.set_ylabel("")
-                #Show the legend
-                self.subPlot.legend()
-                #Display the grid
-                self.subPlot.grid(True)
+                #Show the legend if it is on
+                if self.showLegend.get() == 1:
+                    self.subPlot.legend()
+                #Display the grid if enabled
+                self.subPlot.grid(self.gridEnabled.get() == 1)
                 #Draw the new graph
                 self.graphCanvas.draw()
 
@@ -403,6 +422,8 @@ class mainWindow(tkinter.Frame):
             self.secondChannelChoice.configure(state="disabled")
             #Allow type to be selected
             self.selectType.configure(state="normal")
+            #Turn off the legend check box
+            self.legendCheckBox.configure(state="disabled")
             #Set index to 0 for single plot
             self.modeIndex = 0
         elif mode == "Compare Channels":
@@ -410,6 +431,8 @@ class mainWindow(tkinter.Frame):
             self.secondChannelChoice.configure(state="normal")
             #Allow type to be selected
             self.selectType.configure(state="normal")
+            #Turn on the legend check box
+            self.legendCheckBox.configure(state="normal")
             #Set index to 1 for compare channels
             self.modeIndex = 1
         elif mode == "All One Channel":
@@ -417,6 +440,8 @@ class mainWindow(tkinter.Frame):
             self.secondChannelChoice.configure(state="disabled")
             #Do not allow type to be selected
             self.selectType.configure(state="disabled")
+            #Turn on the legend check box
+            self.legendCheckBox.configure(state="normal")
             #Set index to 2 for all one channel
             self.modeIndex = 2
         #Update the graph to show the new plot
@@ -465,6 +490,10 @@ class mainWindow(tkinter.Frame):
         self.dayButton.configure(state="disabled")
         self.hourButton.configure(state="normal")
         #Draw the updated version of the graph
+        self.updatePlot()
+    
+    def updateCheckBox(self, *args):
+        '''When a check box is changed, update the plot ignoring the exta parameters'''
         self.updatePlot()
 
 
