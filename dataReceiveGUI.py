@@ -161,7 +161,6 @@ class mainWindow(tkinter.Frame):
         '''Attempt to connect to selected port'''
         #If a connection does not already exist
         if not self.connected:
-            #self.setupFiles(self.files)
             #If the current port selected exists
             if self.portLabels.index(self.selectedPort.get()) > 0:
                 #Set the port of the connection
@@ -263,6 +262,10 @@ class mainWindow(tkinter.Frame):
                     #Send the stop message
                     self.serialConnection.write("stop\n".encode("utf-8"))
                     self.awaiting = True
+                    #If the files are open
+                    if self.filesOpen:
+                        #Close the files so that only correct information is shown
+                        self.setdownFiles()
                 else:
                     #Ask for file name
                     fileName = simpledialog.askstring("Enter File Name To Store Data", "Enter file name (without extension)", parent=self)
@@ -295,7 +298,9 @@ class mainWindow(tkinter.Frame):
                             #Send the start message
                             self.serialConnection.write(startMessage.encode("utf-8"))
                             self.awaiting = True
+                            #If the files are open
                             if self.filesOpen:
+                                #Close the files so that only the correct information is shown
                                 self.setdownFiles()
         else:
             #If no connection present - display error message (Outside case but catches errors)
@@ -307,17 +312,13 @@ class mainWindow(tkinter.Frame):
         if not self.filesOpen:
             #If there is a connection
             if self.connected and self.serialConnection != None:
-                #If not currently running data collection
-                if not self.receiving:
-                    #If not waiting for a response
-                    if not self.awaiting:
-                        self.files = []
-                        self.fileSizes = []
-                        #Ask for the list of files
-                        self.serialConnection.write("files\n".encode("utf-8"))
-                        self.awaiting = True
-                else:
-                    messagebox.showinfo(title="Collection Running", message="Cannot access files while data collection is running.")
+                #If not waiting for a response
+                if not self.awaiting:
+                    self.files = []
+                    self.fileSizes = []
+                    #Ask for the list of files
+                    self.serialConnection.write("files\n".encode("utf-8"))
+                    self.awaiting = True
             else:
                 messagebox.showinfo(title="Not Connected", message="You must be connected to a port to access the files.")
         else:
@@ -353,33 +354,29 @@ class mainWindow(tkinter.Frame):
         '''Send request to download the selected file to the computer'''
         #If there is a connection
         if self.connected and self.serialConnection != None:
-            #If not currently collecting data
-            if not self.receiving:
-                #If not waiting for a response
-                if not self.awaiting:
-                    #If a file has been selected (and a valid one)
-                    if self.selectedFile != -1 and len(self.files) > self.selectedFile:
-                        #Default name to save file as - same as the file name on the esp32
-                        defaultName = self.files[self.selectedFile][1:-4]
-                        #Ask where to save the file
-                        path = filedialog.asksaveasfilename(title="Save file location", filetypes=self.fileTypes, defaultextension=self.fileTypes, initialfile=defaultName)
-                        #Remove whitespace
-                        path = path.strip()
-                        #If there is a file name
-                        if path != None and path != "":
-                            #If it doesn't have a .csv extension for some reason - then add one
-                            if not path.endswith(".csv"):
-                                path = path + ".csv"
-                            #Store the save path
-                            self.fileNameToSave = path
-                            #Send message to download
-                            message = "download " + self.files[self.selectedFile] + "\n"
-                            self.serialConnection.write(message.encode("utf-8"))
-                            self.awaiting = True
-                    else:
-                        messagebox.showinfo(title="No File Selected", message="Please select a file to download.")
-            else:
-                messagebox.showinfo(title="Collection Running", message="Cannot download files while data collection is running.")
+            #If not waiting for a response
+            if not self.awaiting:
+                #If a file has been selected (and a valid one)
+                if self.selectedFile != -1 and len(self.files) > self.selectedFile:
+                    #Default name to save file as - same as the file name on the esp32
+                    defaultName = self.files[self.selectedFile][1:-4]
+                    #Ask where to save the file
+                    path = filedialog.asksaveasfilename(title="Save file location", filetypes=self.fileTypes, defaultextension=self.fileTypes, initialfile=defaultName)
+                    #Remove whitespace
+                    path = path.strip()
+                    #If there is a file name
+                    if path != None and path != "":
+                        #If it doesn't have a .csv extension for some reason - then add one
+                        if not path.endswith(".csv"):
+                            path = path + ".csv"
+                        #Store the save path
+                        self.fileNameToSave = path
+                        #Send message to download
+                        message = "download " + self.files[self.selectedFile] + "\n"
+                        self.serialConnection.write(message.encode("utf-8"))
+                        self.awaiting = True
+                else:
+                    messagebox.showinfo(title="No File Selected", message="Please select a file to download.")
         else:
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to download files.")
 
@@ -449,7 +446,8 @@ class mainWindow(tkinter.Frame):
                 #Set UI to correct states
                 self.receiving = True
                 self.toggleButton.configure(text="Stop", state="normal")
-                self.openFilesButton.configure(text="Stop to open", state="disabled")
+                #self.openFilesButton.configure(text="Stop to open", state="disabled")
+                self.openFilesButton.configure(text="Open Files", state="normal")
             else:
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
@@ -466,13 +464,11 @@ class mainWindow(tkinter.Frame):
                 #Configure UI state
                 self.receiving = True
                 self.toggleButton.configure(text="Stop")
-                self.openFilesButton.configure(text="Stop to open", state="disabled")
             #Stopped receiving
             if messageParts[1] == "stop":
                 #Configure UI state
                 self.receiving = False
                 self.toggleButton.configure(text="Start")
-                self.openFilesButton.configure(text="Open Files", state="normal")
             #Finished sending files
             if messageParts[1] == "files":
                 #Display the files that were received
@@ -494,14 +490,10 @@ class mainWindow(tkinter.Frame):
             if messageParts[1] == "start":
                 self.receiving = True
                 self.toggleButton.configure(text="Stop")
-                self.openFilesButton.configure(text="Stop to open", state="disabled")
-                if self.filesOpen:
-                    self.setdownFiles()
             #Was already stopped
             if messageParts[1] == "stop":
                 self.receiving = False
                 self.toggleButton.configure(text="Start")
-                self.openFilesButton.configure(text="Open Files", state="normal")
             
             #No longer waiting for a response
             self.awaiting = False
@@ -524,7 +516,6 @@ class mainWindow(tkinter.Frame):
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start")
-                self.openFilesButton.configure(text="Open Files", state="normal")
             if messageParts[1] == "stop":
                 if messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please reconnect esp32 and try again.")
