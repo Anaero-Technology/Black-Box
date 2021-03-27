@@ -84,7 +84,7 @@ def performGeneralCalculations(setupData, eventData) -> [list, str]:
                     #Add the current hour value to the list of hours
                     hourList[hourId].append(currentHour[hourId])
 
-                    #If this is one of the innculum only channels - add it's value (of volume per gram) to the list
+                    #If this is one of the innculum only channels - add its value (of volume per gram) to the list
                     if innoculumOnly[hourId]:
                         hourInnoculum[-1].append(currentHour[hourId] / innoculumMass[hourId])
 
@@ -112,6 +112,18 @@ def performGeneralCalculations(setupData, eventData) -> [list, str]:
             volume = gassConstants[idNum] * (float(event[3]) + 237.13) / float(event[4])
             #Add this amount to the current hourly value for that channel
             currentHour[idNum] = currentHour[idNum] + volume
+        
+        #If there were tips that were not added
+        if sum(currentHour) > 0:
+            #Iterate through the tubes
+            for hourId in range(0, len(currentHour)):
+                #Add the data to the hour list
+                hourList[hourId].append(currentHour[hourId])
+
+                #If this is an innoculum only tube
+                if innoculumOnly[hourId]:
+                    #Add volume produced per gram to innoculum list
+                    hourInnoculum[-1].append(currentHour[hourId] / innoculumMass[hourId])
         
         #If the last innoculum value set is not filled - remove it
         if len(hourInnoculum[-1]) == 0:
