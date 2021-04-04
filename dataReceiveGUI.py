@@ -212,8 +212,8 @@ class mainWindow(tkinter.Frame):
             portData = list_ports.comports()
             #Iterate through ports
             for data in portData:
-                #Add the name of the port to the list (can be used to connect to it)
-                found.append(data.name)
+                #Add the device name of the port to the list (can be used to connect to it)
+                found.append(data.device)
             
             #If the old and new lists are different
             different = False
