@@ -46,6 +46,8 @@ class mainWindow(tkinter.Frame):
         self.communicationWindow = None
         self.dataProcessWindow = None
         self.graphWindow = None
+
+        self.dataReceiveTopLevel = None
     
     def openSetupWindow(self) -> None:
         '''Create a new instance of the setup window, or lift and focus the current one'''
@@ -80,7 +82,9 @@ class mainWindow(tkinter.Frame):
             self.communicationWindow.title("GFM Data Receive")
             self.communicationWindow.grid_rowconfigure(0, weight=1)
             self.communicationWindow.grid_columnconfigure(0, weight=1)
-            dataReceiveGUI.mainWindow(self.communicationWindow).grid(row = 0, column=0, sticky="NESW")
+            self.dataReceiveTopLevel = dataReceiveGUI.mainWindow(self.communicationWindow)
+            self.dataReceiveTopLevel.grid(row = 0, column=0, sticky="NESW")
+            self.communicationWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveTopLevel.closeWindow)
             self.communicationWindow.focus()
 
     def openCalculationsWindow(self) -> None:
@@ -121,6 +125,10 @@ class mainWindow(tkinter.Frame):
 
     def closeAll(self) -> None:
         '''Close all the tkinter windows - terminates the program'''
+        try:
+            self.dataReceiveTopLevel.closeWindow()
+        except:
+            pass
         self.parent.destroy()
 
 

@@ -646,7 +646,8 @@ class mainWindow(tkinter.Frame):
             self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
-            self.performScan()
+            #self.performScan()
+            self.parent.destroy()
 
     def setdownFiles(self) -> None:
         '''Remove all file buttons from scroll section'''
@@ -757,6 +758,12 @@ class mainWindow(tkinter.Frame):
         '''Change y scroll position when mouse wheel moved'''
         if self.fileCanvas != None:
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    
+    def closeWindow(self):
+        if self.connected and self.serialConnection != None:
+            self.disconnectPressed()
+        else:
+            self.parent.destroy()
 
 
 #Only run if this is the main module being run
@@ -772,6 +779,8 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("GFM Data Receive")
     #Add the editor to the root windows
-    mainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    window = mainWindow(root)
+    window.grid(row = 0, column=0, sticky="NESW")
+    root.protocol("WM_DELETE_WINDOW", window.closeWindow)
     #Start running the root
     root.mainloop()
