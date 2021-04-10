@@ -11,10 +11,10 @@ Data can be entered manually and then exported or can be loaded in from a correc
 ### ESP Communication
 Used to configure the ESP data logging and to download files from the ESP memory.
 Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
-If the connection is successfull, the disconnect, start and open files buttons should activate.
+If the connection is successfull, the disconnect and start buttons should activate; as well as the file system openning.
 Start is used to beigin a test and will ask for a unique file name (alphanumeric and fewer than 27 characters) after which the ESP will begin logging data.
 Disconnect can be called at any time to terminate the connection (as long as it has power the ESP will continue to log data).
-Pressing open files will display a list of saved files in the ESP's memory and allow you to download or delete any.
+The files will be open at all times and are refreshed whenever a new connection is made or the logging is started / stopped.
 Downloads can be performed at any time while deletes must be performed while the ESP is not logging data to prevent memory problems.
 
 ### Perform Calculations
