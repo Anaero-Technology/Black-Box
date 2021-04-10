@@ -48,11 +48,7 @@ class mainWindow(tkinter.Frame):
 
         #Add a button to initiate reading and storing the data from the arduino
         self.toggleButton = tkinter.Button(self, text="No Port", command=self.togglePressed, state="disabled")
-        self.toggleButton.grid(row=1, column=2, sticky="NESW")
-
-        #Add a button to open the file structure of the esp flash memory
-        self.openFilesButton = tkinter.Button(self, text="No Port", command=self.fileTogglePressed, state="disabled")
-        self.openFilesButton.grid(row=1, column=3, sticky="NESW")
+        self.toggleButton.grid(row=1, column=2, columnspan=2, sticky="NESW")
 
         #Add a label for the currently connected port
         self.openPortLabel = tkinter.Label(self, text="Not connected")
@@ -85,9 +81,16 @@ class mainWindow(tkinter.Frame):
         self.defaultButtonColour = self.connectButton.cget("bg")
         self.selectedButtonColour = "#70D070"
 
+        #Text colours
+        self.blackTextColour = "#000000"
+        self.blueTextColour = "#3333FF"
+
         #List of available files (for testing)
         self.files = ["File Number 1", "File Number 2"]
         self.fileSizes = []
+
+        #Current working file on esp
+        self.currentFileName = ""
 
         #Perform a first time scan
         self.performScan()
@@ -139,7 +142,6 @@ class mainWindow(tkinter.Frame):
                 self.connectButton.configure(text="Connect", command=self.connectPressed)
                 self.portOption.configure(state="normal")
                 self.toggleButton.configure(state="disabled", text="No Port")
-                self.openFilesButton.configure(state="disabled", text="No Port")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
                 messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is correct port and try again.")
@@ -179,7 +181,6 @@ class mainWindow(tkinter.Frame):
                     self.connected = True
                     self.portOption.configure(state="disabled")
                     self.openPortLabel.configure(text="Port " + self.connectedPort)
-                    self.openFilesButton.configure(state="disabled", text="Waiting")
                     #Do not allow action if waiting
                     self.awaiting = True
                     self.timesTried = 0
@@ -196,7 +197,6 @@ class mainWindow(tkinter.Frame):
                     #Allow for connect to be pressed and disable disconnect
                     self.portOption.configure(state="normal")
                     self.toggleButton.configure(state="disabled", text="No Port")
-                    self.openFilesButton.configure(state="disabled", text="No Port")
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
@@ -262,10 +262,6 @@ class mainWindow(tkinter.Frame):
                     #Send the stop message
                     self.serialConnection.write("stop\n".encode("utf-8"))
                     self.awaiting = True
-                    #If the files are open
-                    if self.filesOpen:
-                        #Close the files so that only correct information is shown
-                        self.setdownFiles()
                 else:
                     #Ask for file name
                     fileName = simpledialog.askstring("Enter File Name To Store Data", "Enter file name (without extension)", parent=self)
@@ -294,14 +290,10 @@ class mainWindow(tkinter.Frame):
                         
                         #If the name is allowed to be used
                         if allowed:
-                            startMessage = "start /" + fileName + ".txt\n"
+                            self.currentFileName = "/" + fileName + ".txt"
                             #Send the start message
-                            self.serialConnection.write(startMessage.encode("utf-8"))
+                            self.serialConnection.write(self.currentFileName.encode("utf-8"))
                             self.awaiting = True
-                            #If the files are open
-                            if self.filesOpen:
-                                #Close the files so that only the correct information is shown
-                                self.setdownFiles()
         else:
             #If no connection present - display error message (Outside case but catches errors)
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
@@ -420,7 +412,6 @@ class mainWindow(tkinter.Frame):
                 self.connectButton.configure(text="Connect", command=self.connectPressed)
                 self.portOption.configure(state="normal")
                 self.toggleButton.configure(state="disabled", text="No Port")
-                self.openFilesButton.configure(state="disabled", text="No Port")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when device unplugged)
                 messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
@@ -446,36 +437,47 @@ class mainWindow(tkinter.Frame):
                 #Set UI to correct states
                 self.receiving = True
                 self.toggleButton.configure(text="Stop", state="normal")
-                #self.openFilesButton.configure(text="Stop to open", state="disabled")
-                self.openFilesButton.configure(text="Open Files", state="normal")
+                #If a filename is provided, store it
+                if len(messageParts) > 2:
+                    self.currentFileName = messageParts[2]
             else:
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
                 self.toggleButton.configure(text="Start", state="normal")
-                self.openFilesButton.configure(text="Open Files", state="normal")
             
             #No longer waiting for a response
             self.awaiting = False
+            #Cycle the files so they are up to date
+            self.setdownFiles()
+            self.fileTogglePressed()
         
         #If an action has been successfully performed
         if len(messageParts) > 1 and messageParts[0] == "done":
+            #No longer waiting for a response
+            self.awaiting = False
+
             #Started receiving
             if messageParts[1] == "start":
                 #Configure UI state
                 self.receiving = True
                 self.toggleButton.configure(text="Stop")
+                #Cycle the files so they are up to date
+                self.setdownFiles()
+                self.fileTogglePressed()
             #Stopped receiving
             if messageParts[1] == "stop":
                 #Configure UI state
                 self.receiving = False
                 self.toggleButton.configure(text="Start")
+                #Reset current file
+                self.currentFileName = ""
+                #Cycle the files so they are up to date
+                self.setdownFiles()
+                self.fileTogglePressed()
             #Finished sending files
             if messageParts[1] == "files":
                 #Display the files that were received
                 self.setupFiles(self.files)
-
-            #No longer waiting for a response
-            self.awaiting = False
 
             #Finished deleting file
             if messageParts[1] == "delete":
@@ -532,17 +534,25 @@ class mainWindow(tkinter.Frame):
 
         #If it is a file name being given
         if len(messageParts) > 1 and messageParts[0] == "file":
-            #If it is not the configuration file
-            if messageParts[1] != "/setup.txt":
-                #Add to the list
-                self.files.append(messageParts[1])
-                size = -1
-                if len(messageParts) > 2:
-                    try:
-                        size = int(messageParts[2])
-                    except:
-                        pass
-                self.fileSizes.append(size)
+            #If this is not the start of the files
+            if messageParts[1] != "start":
+                #If it is not the configuration file
+                if messageParts[1] != "/setup.txt":
+                    #Add to the list
+                    self.files.append(messageParts[1])
+                    size = -1
+                    if len(messageParts) > 2:
+                        try:
+                            size = int(messageParts[2])
+                        except:
+                            pass
+                    self.fileSizes.append(size)
+            else:
+                #Reset the files and await file data
+                self.setdownFiles()
+                self.files = []
+                self.fileSizes = []
+                self.awaiting = True
 
         
         #If it is part of the file download sequence
@@ -642,7 +652,7 @@ class mainWindow(tkinter.Frame):
             self.connectButton.configure(text="Connect", command=self.connectPressed)
             self.portOption.configure(state="normal")
             self.toggleButton.configure(state="disabled", text="No Port")
-            self.openFilesButton.configure(state="disabled", text="No Port")
+            #self.openFilesButton.configure(state="disabled", text="No Port")
             self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
@@ -651,27 +661,30 @@ class mainWindow(tkinter.Frame):
 
     def setdownFiles(self) -> None:
         '''Remove all file buttons from scroll section'''
-        #If there is currently a selected file
-        if self.selectedFile != -1:
-            #Deselect the file
-            self.filePressed(self.selectedFile)
+        if self.filesOpen:
+            #If there is currently a selected file
+            if self.selectedFile != -1:
+                #Deselect the file
+                self.filePressed(self.selectedFile)
 
-        #Delete the canvas and scroll bar
-        self.fileCanvas.destroy()
-        self.fileScroll.destroy()
+            #Delete the canvas and scroll bar
+            self.fileCanvas.destroy()
+            self.fileScroll.destroy()
 
-        #Reset all variables holding information about the section
-        self.fileCanvas = None
-        self.fileScroll = None
-        self.fileGridFrame = None
-        self.fileButtons = []
-        self.fileCanvasWindow = None
+            #Reset all variables holding information about the section
+            self.fileCanvas = None
+            self.fileScroll = None
+            self.fileGridFrame = None
+            self.fileButtons = []
+            self.fileCanvasWindow = None
 
-        self.filesOpen = False
-        self.openFilesButton.configure(text="Open Files")
-        self.downloadFileButton.configure(state="disabled")
-        self.deleteFileButton.configure(state="disabled")
-        self.files = []
+            self.filesOpen = False
+            #self.openFilesButton.configure(text="Open Files")
+            self.downloadFileButton.configure(state="disabled")
+            self.deleteFileButton.configure(state="disabled")
+            self.files = []
+
+            self.filesOpen = False
 
     def setupFiles(self, fileNames : list, first = False) -> None:
         '''Set up the scrollable button section of each file given a list of file names'''
@@ -709,6 +722,10 @@ class mainWindow(tkinter.Frame):
                     sizePart = str(size) + "B"
             #Create a button and add it to the list
             button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x))
+            #If this is the file currently being used
+            if fileNames[nameId] == self.currentFileName:
+                #Display it's name in blue
+                button.configure(fg = self.blueTextColour)
             button.grid(row=nameId, column=0, sticky="NESW")
             self.fileButtons.append(button)
 
@@ -730,7 +747,7 @@ class mainWindow(tkinter.Frame):
         #Setup bounding box and scroll region so the scrolling works correctly
         self.fileCanvas.configure(scrollregion=self.fileCanvas.bbox("all"), yscrollcommand=self.fileScroll.set)
         
-        self.openFilesButton.configure(text="Close Files")
+        #self.openFilesButton.configure(text="Close Files")
     
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
