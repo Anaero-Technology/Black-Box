@@ -26,13 +26,13 @@ class mainWindow(tkinter.Frame):
         
         #Setup each of the option buttons and add them to the correct row
         #Setup file configuration
-        self.setupButton = tkinter.Button(self, text="Configure Setup", command=self.openSetupWindow, font=self.buttonFont)
+        self.setupButton = tkinter.Button(self, text="Experiment Settings", command=self.openSetupWindow, font=self.buttonFont)
         self.setupButton.grid(row=0, column=0)
         #Event log configuration
-        self.eventLogButton = tkinter.Button(self, text="ESP Communication", command=self.openCommunicationWindow, font=self.buttonFont)
+        self.eventLogButton = tkinter.Button(self, text="Connect to GFM", command=self.openCommunicationWindow, font=self.buttonFont)
         self.eventLogButton.grid(row=1, column=0)
         #Performing calculations
-        self.calculationsButton = tkinter.Button(self, text="Perform Calculations", command=self.openCalculationsWindow, font=self.buttonFont)
+        self.calculationsButton = tkinter.Button(self, text="Analyse Data", command=self.openCalculationsWindow, font=self.buttonFont)
         self.calculationsButton.grid(row=2, column=0)
         #Creating graphs
         self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
