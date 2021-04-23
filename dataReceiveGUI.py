@@ -1,4 +1,6 @@
 import tkinter
+import tkinter.ttk as Ttk
+from tkinter.ttk import Style
 from tkinter import messagebox, simpledialog, filedialog
 import serial
 from serial.tools import list_ports
@@ -53,6 +55,13 @@ class mainWindow(tkinter.Frame):
         #Add a label for the currently connected port
         self.openPortLabel = tkinter.Label(self, text="Not connected")
         self.openPortLabel.grid(row=1, column=0, columnspan=2, sticky="NESW")
+
+        #Create a progress bar
+        self.progressBar = Ttk.Progressbar(self, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
+        #Set the text
+        styles.configure("ProgressbarLabeled", text = "Downloading...00%")
+        self.progressBar.grid(row=4, column=0, columnspan=4, sticky="NESW")
+        self.progressBar.grid_remove()
 
         #Whether or not data is being recieved
         self.receiving = False
@@ -124,6 +133,10 @@ class mainWindow(tkinter.Frame):
 
         #Valid file save types
         self.fileTypes = [("CSV Files", "*.csv")]
+
+        #Values to store for the progress of a download
+        self.downloadedCharacters = 0
+        self.charactersToDownload = 0
 
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
@@ -291,8 +304,9 @@ class mainWindow(tkinter.Frame):
                         #If the name is allowed to be used
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
+                            message = "start " + self.currentFileName + "\n"
                             #Send the start message
-                            self.serialConnection.write(self.currentFileName.encode("utf-8"))
+                            self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
         else:
             #If no connection present - display error message (Outside case but catches errors)
@@ -367,6 +381,7 @@ class mainWindow(tkinter.Frame):
                         message = "download " + self.files[self.selectedFile] + "\n"
                         self.serialConnection.write(message.encode("utf-8"))
                         self.awaiting = True
+                        self.downloadFileButton.configure(state="disabled")
                 else:
                     messagebox.showinfo(title="No File Selected", message="Please select a file to download.")
         else:
@@ -524,6 +539,7 @@ class mainWindow(tkinter.Frame):
             if messageParts[1] == "download":
                 if messageParts[2] == "nofile":
                     messagebox.showinfo(title="File Not Found", message="The requested file could not be found, download stopped.")
+                    self.downloadFileButton.configure(state="normal")
                 self.downloading = False
             if messageParts[1] == "delete":
                 if messageParts[2] == "nofile":
@@ -558,11 +574,17 @@ class mainWindow(tkinter.Frame):
         #If it is part of the file download sequence
         if len(messageParts) > 1 and messageParts[0] == "download":
             #If it is a new file
-            if len(messageParts) > 2 and messageParts[1] == "start":
+            if len(messageParts) > 3 and messageParts[1] == "start":
                 #Reset the file data
                 self.fileDataToSave = ""
                 #Currently downloading a file
                 self.downloading = True
+                #Get the total number of characters to be received
+                totalCharacters = int(messageParts[3])
+                #Configure the progress bar correctly
+                self.setupProgressBar(totalCharacters)
+                #No characters have been downloaded yet
+                self.downloadedCharacters = 0
             #If it is the end of a file
             elif messageParts[1] == "stop":
                 #Attempt to save the file
@@ -582,10 +604,15 @@ class mainWindow(tkinter.Frame):
                 #No longer downloading or waiting for a response
                 self.downloading = False
                 self.awaiting = False
+                #Remove the progress bar
+                self.setdownProgressBar()
+                #Reset the download button
+                self.downloadFileButton.configure(state="normal")
             #Otherwise it is a line in the file (if currently expecting data)
             elif self.downloading:
                 #Iterate through parts (except for first)
                 for i in range(1, len(messageParts)):
+                    self.downloadedCharacters = self.downloadedCharacters + len(messageParts[i]) + 1
                     #Remove any carriage returns
                     self.fileDataToSave = self.fileDataToSave + messageParts[i].replace("\r", "")
                     #If this is not the last in the message
@@ -595,46 +622,58 @@ class mainWindow(tkinter.Frame):
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
+                
+                #Set the progress bar number and position
+                self.updateProgressBar(self.downloadedCharacters)
 
+        #If this is information regarding the memory
         if len(messageParts) > 2 and messageParts[0] == "memory":
             try:
+                #Attempt to convert values to integers
                 total = int(messageParts[1])
                 used = int(messageParts[2])
+                #Calculate percentage used
                 percentage = int((used / total) * 100)
+                #Calculate the total memory in MegaBytes
                 total = int(total / 100000) / 10
+                #Calculate the used memory in MegaBytes
                 used = int(used / 100000) / 10
+                #Display the memory usage and display it
                 message = "Port " + self.connectedPort + " " + str(used) + "/" + str(total) + "MB (" + str(percentage) + "%)"
                 self.openPortLabel.configure(text=message)
             except:
+                #If something went wrong (not an integer) do not update the memory
                 pass
                     
     def filePressed(self, index : int) -> None:
         '''When a file is clicked on'''
-        #If this is the currently selected file
-        if index == self.selectedFile:
-            #If it is a valid index
-            if index > -1 and index < len(self.fileButtons):
-                #Reset button colour to default
-                self.fileButtons[index].configure(bg=self.defaultButtonColour)
-            #Reset selected file index and label
-            self.selectedFile = -1
-            self.fileLabel.configure(text="No file selected")
-            self.downloadFileButton.configure(state="disabled")
-            self.deleteFileButton.configure(state="disabled")
-        else:
-            #If the index is valid
-            if index < len(self.files):
-                #If there is currently a selected file
-                if self.selectedFile != -1:
-                    #Deselect current file
-                    self.fileButtons[self.selectedFile].configure(bg=self.defaultButtonColour)
-                #Select new file
-                self.selectedFile = index
-                self.fileLabel.configure(text=self.files[index])
-                #Enable button actions
-                self.downloadFileButton.configure(state="normal")
-                self.deleteFileButton.configure(state="normal")
-                self.fileButtons[index].configure(bg=self.selectedButtonColour)
+        #If not currently waiting
+        if not self.awaiting:
+            #If this is the currently selected file
+            if index == self.selectedFile:
+                #If it is a valid index
+                if index > -1 and index < len(self.fileButtons):
+                    #Reset button colour to default
+                    self.fileButtons[index].configure(bg=self.defaultButtonColour)
+                #Reset selected file index and label
+                self.selectedFile = -1
+                self.fileLabel.configure(text="No file selected")
+                self.downloadFileButton.configure(state="disabled")
+                self.deleteFileButton.configure(state="disabled")
+            else:
+                #If the index is valid
+                if index < len(self.files):
+                    #If there is currently a selected file
+                    if self.selectedFile != -1:
+                        #Deselect current file
+                        self.fileButtons[self.selectedFile].configure(bg=self.defaultButtonColour)
+                    #Select new file
+                    self.selectedFile = index
+                    self.fileLabel.configure(text=self.files[index])
+                    #Enable button actions
+                    self.downloadFileButton.configure(state="normal")
+                    self.deleteFileButton.configure(state="normal")
+                    self.fileButtons[index].configure(bg=self.selectedButtonColour)
 
     def disconnectPressed(self) -> None:
         '''Close connection to port'''
@@ -749,6 +788,42 @@ class mainWindow(tkinter.Frame):
         
         #self.openFilesButton.configure(text="Close Files")
     
+    def setupProgressBar(self, maxValue: int) -> None:
+        '''Configure the progress bar and place it into the UI'''
+        #Set its maximum value
+        self.progressBar.configure(maximum = maxValue)
+        #Store the number that will be downloaded (for calculating percentages)
+        self.charactersToDownload = maxValue
+        #Set the value and text to 0 downloaded
+        self.progressBar["value"] = 0
+        styles.configure("ProgressbarLabeled", text="Downloading...00%")
+        #Place progress bar into UI
+        self.progressBar.grid()
+
+    def updateProgressBar(self, value: int) -> None:
+        '''Update the value currently being shown by the progress bar'''
+        #Set the value
+        self.progressBar["value"] = value
+        #If the download is done
+        if value >= self.charactersToDownload:
+            #Display that the download is complete
+            styles.configure("ProgressbarLabeled", text="Download Complete")
+        else:
+            #Calculate the percentage downloaded and convert to string
+            percentage = str(int((value / self.charactersToDownload) * 100))
+            #If it has less than 2 digits
+            if len(percentage) < 2:
+                #Add a leading zero
+                percentage = "0" + percentage
+            #Display the percentage downloaded
+            styles.configure("ProgressbarLabeled", text="Downloading..." + percentage + "%")
+
+    def setdownProgressBar(self):
+        '''Remove the progress bar from the UI and reset it'''
+        self.progressBar.grid_remove()
+        self.progressBar["value"] = 0
+        styles.configure("ProgressbarLabeled", text="Downloading...00%")
+    
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
         #Update canvas bounding box
@@ -787,6 +862,11 @@ class mainWindow(tkinter.Frame):
 if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
+    styles = Style(root)
+    #Create layout for progress bar with a label
+    styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
+    #Set the bar colour of the progress bar
+    styles.configure("ProgressbarLabeled", background="lightgreen")
     #Set the shape of the window
     root.geometry("400x500")
     root.minsize(400, 500)
@@ -798,6 +878,7 @@ if __name__ == "__main__":
     #Add the editor to the root windows
     window = mainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
+    #If the window is attempted to be closed, call the close window function
     root.protocol("WM_DELETE_WINDOW", window.closeWindow)
     #Start running the root
     root.mainloop()
