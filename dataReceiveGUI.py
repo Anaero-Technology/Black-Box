@@ -56,10 +56,17 @@ class mainWindow(tkinter.Frame):
         self.openPortLabel = tkinter.Label(self, text="Not connected")
         self.openPortLabel.grid(row=1, column=0, columnspan=2, sticky="NESW")
 
+        #Get the style object for the parent window
+        self.styles = Style(self.parent)
+        #Create layout for progress bar with a label
+        self.styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
+        #Set the bar colour of the progress bar
+        self.styles.configure("ProgressbarLabeled", background="lightgreen")
+
         #Create a progress bar
         self.progressBar = Ttk.Progressbar(self, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
         #Set the text
-        styles.configure("ProgressbarLabeled", text = "Downloading...00%")
+        self.styles.configure("ProgressbarLabeled", text = "Downloading...00%")
         self.progressBar.grid(row=4, column=0, columnspan=4, sticky="NESW")
         self.progressBar.grid_remove()
 
@@ -796,7 +803,7 @@ class mainWindow(tkinter.Frame):
         self.charactersToDownload = maxValue
         #Set the value and text to 0 downloaded
         self.progressBar["value"] = 0
-        styles.configure("ProgressbarLabeled", text="Downloading...00%")
+        self.styles.configure("ProgressbarLabeled", text="Downloading...00%")
         #Place progress bar into UI
         self.progressBar.grid()
 
@@ -807,7 +814,7 @@ class mainWindow(tkinter.Frame):
         #If the download is done
         if value >= self.charactersToDownload:
             #Display that the download is complete
-            styles.configure("ProgressbarLabeled", text="Download Complete")
+            self.styles.configure("ProgressbarLabeled", text="Download Complete")
         else:
             #Calculate the percentage downloaded and convert to string
             percentage = str(int((value / self.charactersToDownload) * 100))
@@ -816,13 +823,13 @@ class mainWindow(tkinter.Frame):
                 #Add a leading zero
                 percentage = "0" + percentage
             #Display the percentage downloaded
-            styles.configure("ProgressbarLabeled", text="Downloading..." + percentage + "%")
+            self.styles.configure("ProgressbarLabeled", text="Downloading..." + percentage + "%")
 
     def setdownProgressBar(self):
         '''Remove the progress bar from the UI and reset it'''
         self.progressBar.grid_remove()
         self.progressBar["value"] = 0
-        styles.configure("ProgressbarLabeled", text="Downloading...00%")
+        self.styles.configure("ProgressbarLabeled", text="Downloading...00%")
     
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
@@ -862,11 +869,6 @@ class mainWindow(tkinter.Frame):
 if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
-    styles = Style(root)
-    #Create layout for progress bar with a label
-    styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
-    #Set the bar colour of the progress bar
-    styles.configure("ProgressbarLabeled", background="lightgreen")
     #Set the shape of the window
     root.geometry("400x500")
     root.minsize(400, 500)
