@@ -629,9 +629,6 @@ class mainWindow(tkinter.Frame):
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
-                
-                #Set the progress bar number and position
-                self.updateProgressBar(self.downloadedCharacters)
 
         #If this is information regarding the memory
         if len(messageParts) > 2 and messageParts[0] == "memory":
@@ -806,9 +803,14 @@ class mainWindow(tkinter.Frame):
         self.styles.configure("ProgressbarLabeled", text="Downloading...00%")
         #Place progress bar into UI
         self.progressBar.grid()
+        #Create a separate thread to control the progress bar
+        progressThread = Thread(target=self.updateProgressBar, daemon=True)
+        #Start the progress bar thread
+        progressThread.start()
 
-    def updateProgressBar(self, value: int) -> None:
+    def updateProgressBar(self) -> None:
         '''Update the value currently being shown by the progress bar'''
+        value = self.downloadedCharacters
         #Set the value
         self.progressBar["value"] = value
         #If the download is done
@@ -824,6 +826,8 @@ class mainWindow(tkinter.Frame):
                 percentage = "0" + percentage
             #Display the percentage downloaded
             self.styles.configure("ProgressbarLabeled", text="Downloading..." + percentage + "%")
+            #Repeat this after 10 ms
+            self.after(10, self.updateProgressBar)
 
     def setdownProgressBar(self):
         '''Remove the progress bar from the UI and reset it'''
