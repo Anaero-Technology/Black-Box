@@ -458,14 +458,14 @@ class mainWindow(tkinter.Frame):
             if messageParts[1] == "1":
                 #Set UI to correct states
                 self.receiving = True
-                self.toggleButton.configure(text="Stop", state="normal")
+                self.toggleButton.configure(text="Stop Data Logging", state="normal")
                 #If a filename is provided, store it
                 if len(messageParts) > 2:
                     self.currentFileName = messageParts[2]
             else:
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
-                self.toggleButton.configure(text="Start", state="normal")
+                self.toggleButton.configure(text="Start Data Logging", state="normal")
             
             #No longer waiting for a response
             self.awaiting = False
@@ -482,7 +482,7 @@ class mainWindow(tkinter.Frame):
             if messageParts[1] == "start":
                 #Configure UI state
                 self.receiving = True
-                self.toggleButton.configure(text="Stop")
+                self.toggleButton.configure(text="Stop Data Logging")
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.fileTogglePressed()
@@ -490,7 +490,7 @@ class mainWindow(tkinter.Frame):
             if messageParts[1] == "stop":
                 #Configure UI state
                 self.receiving = False
-                self.toggleButton.configure(text="Start")
+                self.toggleButton.configure(text="Start Data Logging")
                 #Reset current file
                 self.currentFileName = ""
                 #Cycle the files so they are up to date
@@ -513,11 +513,11 @@ class mainWindow(tkinter.Frame):
             #Was already receiving data
             if messageParts[1] == "start":
                 self.receiving = True
-                self.toggleButton.configure(text="Stop")
+                self.toggleButton.configure(text="Stop Data Logging")
             #Was already stopped
             if messageParts[1] == "stop":
                 self.receiving = False
-                self.toggleButton.configure(text="Start")
+                self.toggleButton.configure(text="Start Data Logging")
             
             #No longer waiting for a response
             self.awaiting = False
@@ -539,7 +539,7 @@ class mainWindow(tkinter.Frame):
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
                 #Set UI for stopped
                 self.receiving = False
-                self.toggleButton.configure(text="Start")
+                self.toggleButton.configure(text="Start Data Logging")
             if messageParts[1] == "stop":
                 if messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please reconnect esp32 and try again.")
