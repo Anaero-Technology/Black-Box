@@ -41,6 +41,9 @@ class mainWindow(tkinter.Frame):
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
         self.exitButton.grid(row=4, column=0)
 
+        #Get the centre of the screen
+        self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
+
         #Variables to hold the different windows currently in use
         self.setupWindow = None
         self.communicationWindow = None
@@ -59,7 +62,7 @@ class mainWindow(tkinter.Frame):
             #If unable to do so, create a new setup window
             self.setupWindow = tkinter.Toplevel(self.parent)
             self.setupWindow.transient(self.parent)
-            self.setupWindow.geometry("600x610")
+            self.setupWindow.geometry("600x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
             self.setupWindow.minsize(550, 400)
             self.setupWindow.title("Setup GFM")
             self.setupWindow.grid_rowconfigure(0, weight=1)
@@ -77,7 +80,7 @@ class mainWindow(tkinter.Frame):
             #If unable to do so, create a new setup window
             self.communicationWindow = tkinter.Toplevel(self.parent)
             self.communicationWindow.transient(self.parent)
-            self.communicationWindow.geometry("400x500")
+            self.communicationWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 200), int(self.screenCentre[1] - 250)))
             self.communicationWindow.minsize(400, 500)
             self.communicationWindow.title("GFM Data Receive")
             self.communicationWindow.grid_rowconfigure(0, weight=1)
@@ -97,7 +100,7 @@ class mainWindow(tkinter.Frame):
             #If unable to do so, create a new processing window
             self.dataProcessWindow = tkinter.Toplevel(self.parent)
             self.dataProcessWindow.transient(self.parent)
-            self.dataProcessWindow.geometry("1095x620")
+            self.dataProcessWindow.geometry("1095x620+{0}+{1}".format(int(self.screenCentre[0] - 547), int(self.screenCentre[1] - 310)))
             self.dataProcessWindow.minsize(800, 300)
             self.dataProcessWindow.title("Process GFM Data")
             self.dataProcessWindow.grid_rowconfigure(0, weight=1)
@@ -115,7 +118,7 @@ class mainWindow(tkinter.Frame):
             #If unable to do so, create a new processing window
             self.graphWindow = tkinter.Toplevel(self.parent)
             self.graphWindow.transient(self.parent)
-            self.graphWindow.geometry("800x575")
+            self.graphWindow.geometry("800x575+{0}+{1}".format(int(self.screenCentre[0] - 400), int(self.screenCentre[1] - 287)))
             self.graphWindow.minsize(800, 575)
             self.graphWindow.title("GFM Graph Creator")
             self.graphWindow.grid_rowconfigure(0, weight=1)
@@ -137,8 +140,10 @@ class mainWindow(tkinter.Frame):
 if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
-    #Set the shape of the window
-    root.geometry("400x500")
+    #Calculate the position of the centre of the screen
+    screenMiddle = [root.winfo_screenwidth() / 2, root.winfo_screenheight() / 2]
+    #Set the shape of the window and place it in the centre of the screen
+    root.geometry("400x500+{0}+{1}".format(int(screenMiddle[0] - 200), int(screenMiddle[1] - 250)))
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
