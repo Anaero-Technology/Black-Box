@@ -117,6 +117,8 @@ class mainWindow(tkinter.Frame):
 
         #The message that is being read
         self.currentMessage = ""
+        #A list of messages that were previously read but not processed yet
+        self.receivedMessages = []
         #If waiting for a response from the esp32 (possibly add a timeout)
         self.awaiting = False
         self.downloading = False
@@ -209,6 +211,9 @@ class mainWindow(tkinter.Frame):
                     #Start reading from the port
                     readThread = Thread(target=self.readSerial, daemon=True)
                     readThread.start()
+                    #Start handling incoming messages
+                    messageThread = Thread(target=self.checkMessages, daemon=True)
+                    messageThread.start()
                     #Send connection information request after a short time - allows for boot messages to clear
                     self.after(200, self.sendInfoRequest)
                 else:
@@ -411,7 +416,8 @@ class mainWindow(tkinter.Frame):
                             #Attempt from byte to string and print
                             ch = char.decode("utf-8")
                             if ch == "\n":
-                                self.messageReceived()
+                                #Add to list of messages
+                                self.receivedMessages.append(self.currentMessage)
                                 self.currentMessage = ""
                             else:
                                 self.currentMessage = self.currentMessage + ch
@@ -439,11 +445,26 @@ class mainWindow(tkinter.Frame):
                 messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
                 self.performScan()
 
-    def messageReceived(self):
+    def checkMessages(self):
+        '''Repeatedly check for a new message and handle it'''
+        #If there is a message
+        if len(self.receivedMessages) > 0:
+            #Get the message
+            nextMessage = self.receivedMessages[0]
+            #Handle based on what the message is
+            self.messageReceived(nextMessage)
+            #Remove message from the list
+            del self.receivedMessages[0]
+        #If there is still a connection
+        if self.serialConnection != None:
+            #Repeat after a short delay
+            self.after(1, self.checkMessages)
+
+    def messageReceived(self, message):
         #DEBUG display the message
         #print(self.currentMessage)
         #Split up the message into parts on spaces
-        messageParts = self.currentMessage.split(" ")
+        messageParts = message.split(" ")
         #If this is the information about the state of the esp32
         if len(messageParts) > 1 and messageParts[0] == "info":
 
