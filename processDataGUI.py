@@ -38,6 +38,13 @@ class mainWindow(tkinter.Frame):
         self.eventLabel = tkinter.Label(self, text="No event file loaded")
         self.eventLabel.grid(row=1, column=1, columnspan=3, sticky="NESW")
 
+        self.commaSeparated = tkinter.IntVar()
+        self.commaSeparated.set(1)
+        self.commaSeparatedOption = tkinter.Radiobutton(self, text="Comma Separated", variable=self.commaSeparated, value=1)
+        self.commaSeparatedOption.grid(row=0, column=8, sticky="NSW")
+        self.commaSeparatedOption = tkinter.Radiobutton(self, text="Semi Colon Separated", variable=self.commaSeparated, value=2)
+        self.commaSeparatedOption.grid(row=1, column=8, sticky="NSW")
+
         #Create process data button - starts disabled (need to have two files loaded)
         self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.processInformation)
         self.processButton.grid(row=0, column=9, rowspan=2, columnspan=3, sticky="NESW")
@@ -207,7 +214,6 @@ class mainWindow(tkinter.Frame):
         #Switch to the days highlighted colours
         self.hoursButton.config(bg=self.otherButtonColour)
         self.daysButton.config(bg=self.defaultButtonColour)
-
 
     def loadSetup(self) -> None:
         '''Load a setup file'''
@@ -456,6 +462,10 @@ class mainWindow(tkinter.Frame):
             
             #Convert the data to be saved to a string
             dataToSave = createSetup.convertArrayToString(exportArray)
+
+            if self.commaSeparated.get() == 2:
+                dataToSave = dataToSave.replace(",", ";").replace(".", ",")
+
             #Ask the user to give a save location
             path = filedialog.asksaveasfilename(title="Save processed information to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
 
