@@ -5,6 +5,7 @@ import setupGUI
 import dataReceiveGUI
 import processDataGUI
 import graphCreatorGUI
+import configureClockGUI
 
 
 class mainWindow(tkinter.Frame):
@@ -14,7 +15,7 @@ class mainWindow(tkinter.Frame):
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Rows needed for this frame
-        self.numberRows = 5
+        self.numberRows = 6
 
         #Setup rows and column
         for row in range(0, self.numberRows):
@@ -37,9 +38,12 @@ class mainWindow(tkinter.Frame):
         #Creating graphs
         self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
         self.graphsButton.grid(row=3, column=0)
+        #Setting clock time
+        self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
+        self.clockButton.grid(row=4, column=0)
         #Quit all
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
-        self.exitButton.grid(row=4, column=0)
+        self.exitButton.grid(row=5, column=0)
 
         #Get the centre of the screen
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -49,6 +53,7 @@ class mainWindow(tkinter.Frame):
         self.communicationWindow = None
         self.dataProcessWindow = None
         self.graphWindow = None
+        self.clockWindow = None
 
         self.dataReceiveTopLevel = None
     
@@ -125,6 +130,24 @@ class mainWindow(tkinter.Frame):
             self.graphWindow.grid_columnconfigure(0, weight=1)
             graphCreatorGUI.mainWindow(self.graphWindow).grid(row = 0, column=0, sticky="NESW")
             self.graphWindow.focus()
+
+    def openClockWindow(self) -> None:
+        '''Create a new instance of the time configuration window, or list and focus the current one'''
+        try:
+            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            self.clockWindow.lift()
+            self.clockWindow.focus()
+        except:
+            #If unable to do so, create a new processing window
+            self.clockWindow = tkinter.Toplevel(self.parent)
+            self.clockWindow.transient(self.parent)
+            self.clockWindow.geometry("400x400+{0}+{1}".format(int(self.screenCentre[0] - 200), int(self.screenCentre[1] - 200)))
+            self.clockWindow.minsize(400, 400)
+            self.clockWindow.title("Clock Time Configuration")
+            self.clockWindow.grid_rowconfigure(0, weight=1)
+            self.clockWindow.grid_columnconfigure(0, weight=1)
+            configureClockGUI.mainWindow(self.clockWindow).grid(row = 0, column=0, sticky="NESW")
+            self.clockWindow.focus()
 
     def closeAll(self) -> None:
         '''Close all the tkinter windows - terminates the program'''
