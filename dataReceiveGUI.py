@@ -580,8 +580,8 @@ class mainWindow(tkinter.Frame):
         if len(messageParts) > 1 and messageParts[0] == "file":
             #If this is not the start of the files
             if messageParts[1] != "start":
-                #If it is not the configuration file
-                if messageParts[1] != "/setup.txt":
+                #If it is not the configuration files
+                if messageParts[1] not in ["/setup.txt", "/time.txt"]:
                     #Add to the list
                     self.files.append(messageParts[1])
                     size = -1
