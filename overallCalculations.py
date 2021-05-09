@@ -71,10 +71,10 @@ def performGeneralCalculations(setupData, eventData) -> [list, str]:
         #Iterate through the events that occured
         for event in eventData:
             #Add relevant data for each event - update as each hour passes and each day (also store innoculum data and averages then adjust hourly values at threshold)
-            #Event - event id, time (s), bucket number, temperature (deg C), pressure (hPa)
+            #Event - event id time(YYYY:MM:DD:HH:MM:SS), time (s), bucket number, temperature (deg C), pressure (hPa)
 
             #Get the time that the event occurred at
-            time = int(float(event[1]))
+            time = int(float(event[2]))
             #if another hour has passed
             if time - lastHour > hourLength:
 
@@ -107,9 +107,9 @@ def performGeneralCalculations(setupData, eventData) -> [list, str]:
                     lastHour = lastHour + hourLength
             
             #Get the id of the channel
-            idNum = int(event[2]) - 1
+            idNum = int(event[3]) - 1
             #Calculate the volume - using gass constant, temperature and pressure
-            volume = gassConstants[idNum] * (float(event[3]) + 237.13) / float(event[4])
+            volume = gassConstants[idNum] * (float(event[4]) + 237.13) / float(event[5])
             #Add this amount to the current hourly value for that channel
             currentHour[idNum] = currentHour[idNum] + volume
         
