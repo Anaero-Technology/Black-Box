@@ -4,11 +4,7 @@ This is a collection of tools for creating and processing data files that are as
 ## Usage
 To access the tools just run the mainMenu.pyw file, a menu will open giving access to all of the different tools.
 
-### Configure Setup
-Used to create, edit and export setup configurations for the Gas Flow Meter. Storing information about the different tubes and what they contain.
-Data can be entered manually and then exported or can be loaded in from a correctly formatted .csv file for editing and viewing.
-
-### ESP Communication
+### Connect To GFM
 Used to configure the ESP data logging and to download files from the ESP memory.
 Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
 If the connection is successfull, the disconnect and start buttons should activate; as well as the file system openning.
@@ -16,6 +12,10 @@ Start is used to beigin a test and will ask for a unique file name (alphanumeric
 Disconnect can be called at any time to terminate the connection (as long as it has power the ESP will continue to log data).
 The files will be open at all times and are refreshed whenever a new connection is made or the logging is started / stopped.
 Downloads can be performed at any time while deletes must be performed while the ESP is not logging data to prevent memory problems.
+
+### Configure Setup
+Used to create, edit and export setup configurations for the Gas Flow Meter. Storing information about the different tubes and what they contain.
+Data can be entered manually and then exported or can be loaded in from a correctly formatted .csv file for editing and viewing.
 
 ### Perform Calculations
 Used to combine a setup and event log file together to produce the hourly and daily results, volumes and totals.
@@ -33,8 +33,13 @@ All One Channel - show all the values for a single channel. Select the channel f
 For any of these the view may be switched between hourly data and daily data as well as the grid and legend (if there is one) toggled on or off.
 Using the toolbar on the graph it is possible to zoom and manipulate the graph as well as save it as an image.
 
+### Set Date/time
+Used to adjust the time and date settings on the ESP device.
+Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
+Either set the desired time and date manually using the arrows or check the 'System Time' box which will disable the arrows and keep the time up to date with the computer time.
+The 'Get Time From Clock' button will read the current time from the ESP clock and enter it into the input fields.
+The 'Set Clock Time' button will attempt to write the currently input time to the ESP. A message will be displayed to indicate if this was successful. 
+
 ## Future ideas or plans
-Add multithreading to prevent UI freezes while the program is doing something - Not currently necessary but may be in future.
 Wireless connection to ESP from laptop.
-SD card attached to ESP for greater size/more stable data storage.
-Integration for Gass Composition Analysis.
+Integration for Gas Composition Analysis.
