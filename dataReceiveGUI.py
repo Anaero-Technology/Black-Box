@@ -462,7 +462,7 @@ class mainWindow(tkinter.Frame):
 
     def messageReceived(self, message):
         #DEBUG display the message
-        #print(self.currentMessage)
+        #print(message)
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
