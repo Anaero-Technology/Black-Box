@@ -618,7 +618,6 @@ class mainWindow(tkinter.Frame):
                 self.setupProgressBar(totalCharacters)
                 #No characters have been downloaded yet
                 self.downloadedCharacters = 0
-                self.serialConnection.write("next\n".encode("utf-8"))
             #If it is the end of a file
             elif messageParts[1] == "stop":
                 #Attempt to save the file
@@ -664,7 +663,7 @@ class mainWindow(tkinter.Frame):
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
                     
-                    self.serialConnection.write("next\n".encode("utf-8"))
+                self.serialConnection.write("next\n".encode("utf-8"))
 
         #If this is information regarding the memory
         if len(messageParts) > 2 and messageParts[0] == "memory":
