@@ -642,6 +642,13 @@ class mainWindow(tkinter.Frame):
                 self.setdownProgressBar()
                 #Reset the download button
                 self.downloadFileButton.configure(state="normal")
+            elif messageParts[1] == "failed":
+                #Something went wrong - failed message
+                messagebox.showinfo(title="Download Failed", message="File was not downloaded correctly, timeout occurred.")
+                self.downloading = False
+                self.awaiting = False
+                self.setdownProgressBar()
+                self.downloadFileButton.configure(state="normal")
             #Otherwise it is a line in the file (if currently expecting data)
             elif self.downloading:
                 #Iterate through parts (except for first)
