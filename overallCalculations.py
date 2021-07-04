@@ -1,4 +1,4 @@
-def performGeneralCalculations(setupData, eventData) -> [list, str]:
+def performGeneralCalculations(setupData, eventData):
     '''Take in the setup information and list of events and convert to hourly volumes produced'''
     #List to contain data to be returned
     completeData = []
