@@ -240,7 +240,7 @@ class settingsWindow(tkinter.Frame):
             return False
 
         #String of characters that cannot be used
-        disallowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
+        disallowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -"
 
         #If the value given is any of the characters in the string
         if any(d in value for d in disallowed):
