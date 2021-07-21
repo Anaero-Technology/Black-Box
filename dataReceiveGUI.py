@@ -5,6 +5,7 @@ from tkinter import messagebox, simpledialog, filedialog
 import serial
 from serial.tools import list_ports
 from threading import Thread
+import readSeparators
 
 class mainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -21,6 +22,9 @@ class mainWindow(tkinter.Frame):
         self.grid_columnconfigure(1, weight=2)
         self.grid_columnconfigure(2, weight=1)
         self.grid_columnconfigure(3, weight=1)
+
+        #Get Separators from file
+        self.column, self.decimal = readSeparators.read()
 
         #Setup port drop down (with debug values)
         self.selectedPort = tkinter.StringVar()
@@ -653,12 +657,14 @@ class mainWindow(tkinter.Frame):
                 #Iterate through parts (except for first)
                 for i in range(1, len(messageParts)):
                     self.downloadedCharacters = self.downloadedCharacters + len(messageParts[i]) + 1
+                    messageParts[i] = messageParts[i].replace(".", self.decimal)
                     #Remove any carriage returns
                     self.fileDataToSave = self.fileDataToSave + messageParts[i].replace("\r", "")
                     #If this is not the last in the message
                     if i != len(messageParts) - 1:
                         #Add a comma
-                        self.fileDataToSave = self.fileDataToSave + ","
+                        #self.fileDataToSave = self.fileDataToSave + ","
+                        self.fileDataToSave = self.fileDataToSave + self.column
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
