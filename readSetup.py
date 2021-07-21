@@ -1,11 +1,19 @@
+import readSeparators
+
 def getFile(fileName: str) -> list:
     '''Open a file from a path and read all the data from it as a list of strings'''
+
+    #Get separators from file
+    column, decimal = readSeparators.read()
+
     #Attempt to open the file
     try:
         #Open file as read mode
         setupFile = open(fileName, "r")
         #Read the data and split into a list
-        setupData = setupFile.read().split(",")
+        setupData = setupFile.read()
+        setupData.replace(decimal, ".")
+        setupData = setupData.split(column)
         #Return the list
         return setupData
     except: 
