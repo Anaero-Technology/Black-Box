@@ -2,6 +2,7 @@ import tkinter
 from tkinter import filedialog, messagebox
 import readSetup
 import createSetup
+import readSeparators
 
 class mainWindow(tkinter.Frame):
     '''Class to contain all of the editor for the csv files'''
@@ -16,6 +17,10 @@ class mainWindow(tkinter.Frame):
         #Number of rows and columns present
         self.numberRows = 17
         self.numberColumns = 6
+
+        #Get separators from file
+        self.column, self.decimal = readSeparators.read()
+
         #Configure all the rows and columns
         for rowNumber in range(0, self.numberRows):
             #Increase size of first row
@@ -142,9 +147,9 @@ class mainWindow(tkinter.Frame):
         #Iterate characters in the string
         for char in message:
             #If it is a number or the first decimal point or a minus sign at the beginning
-            if char in allowed or (char == "." and not decimalFound) or (char == "-" and firstCharacter):
+            if char in allowed or (char == self.decimal and not decimalFound) or (char == "-" and firstCharacter):
                 #If it is a decimal point
-                if char == ".":
+                if char == self.decimal:
                     #A decimal point has been found - do not allow another
                     decimalFound = True
             else:
@@ -163,8 +168,8 @@ class mainWindow(tkinter.Frame):
         
         #Iterate characters in the string
         for char in message:
-            #If it is a comma
-            if char == ",":
+            #If it is a column separator
+            if char == self.column:
                 #It is not a valid description
                 valid = False
 
@@ -243,9 +248,9 @@ class mainWindow(tkinter.Frame):
                 #If it is a number
                 if colIndex > 2:
                     try:
-                        #Attempt to convert to float and back to string to check it is valid
-                        value = float(value)
-                        value = str(value)
+                        #Attempt to convert to float and back to string to check it is valid (account for separator)
+                        value = float(value.replace(self.decimal, "."))
+                        value = str(value).replace(".", self.decimal)
                     except:
                         #Otherwise an error occurred - log it if another error is not already present
                         if errorAt[0] == -1:
