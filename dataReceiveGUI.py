@@ -657,7 +657,7 @@ class mainWindow(tkinter.Frame):
                 #Iterate through parts (except for first)
                 for i in range(1, len(messageParts)):
                     self.downloadedCharacters = self.downloadedCharacters + len(messageParts[i]) + 1
-                    messageParts[i] = messageParts[i].replace(".", self.decimal)
+                    messageParts[i] = messageParts[i].replace(".", self.decimal).replace(":", self.decimal)
                     #Remove any carriage returns
                     self.fileDataToSave = self.fileDataToSave + messageParts[i].replace("\r", "")
                     #If this is not the last in the message
