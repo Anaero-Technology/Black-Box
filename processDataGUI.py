@@ -4,6 +4,7 @@ import readSetup
 import createSetup
 import overallCalculations
 from tkinter import messagebox
+import readSeparators
 
 
 class mainWindow(tkinter.Frame):
@@ -38,19 +39,24 @@ class mainWindow(tkinter.Frame):
         self.eventLabel = tkinter.Label(self, text="No event file loaded")
         self.eventLabel.grid(row=1, column=1, columnspan=3, sticky="NESW")
 
-        self.commaSeparated = tkinter.IntVar()
-        self.commaSeparated.set(1)
-        self.commaSeparatedOption = tkinter.Radiobutton(self, text="Comma Separated", variable=self.commaSeparated, value=1)
-        self.commaSeparatedOption.grid(row=0, column=8, sticky="NSW")
-        self.commaSeparatedOption = tkinter.Radiobutton(self, text="Semi Colon Separated", variable=self.commaSeparated, value=2)
-        self.commaSeparatedOption.grid(row=1, column=8, sticky="NSW")
+        self.column, self.decimal = readSeparators.read()
 
         #Create process data button - starts disabled (need to have two files loaded)
         self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.processInformation)
         self.processButton.grid(row=0, column=9, rowspan=2, columnspan=3, sticky="NESW")
-        #Create export data button - starts disabled (need to have processed data successfully first)
-        self.exportButton = tkinter.Button(self, text="Export Data", bg="#DDEEFF", state="disabled", command=self.exportInformation)
-        self.exportButton.grid(row=0, column=12, rowspan=2, columnspan=3, sticky="NESW")
+        
+        #Create export data buttons - starts disabled (need to have processed data successfully first)
+        self.exportDataLogButton = tkinter.Button(self, text="Export Data Log", bg="#DDEEFF", state="disabled", command=self.exportEventLog)
+        self.exportDataLogButton.grid(row=0, column=12, columnspan=3, sticky="NESW")
+        self.exportHourDayFrame = tkinter.Frame(self)
+        self.exportHourDayFrame.grid(row=1, column=12, columnspan=3, sticky="NESW")
+        self.exportHourDayFrame.grid_rowconfigure(0, weight=1)
+        self.exportHourDayFrame.grid_columnconfigure(0, weight=1)
+        self.exportHourDayFrame.grid_columnconfigure(1, weight=1)
+        self.exportHourButton = tkinter.Button(self.exportHourDayFrame, text="Export Hour Log", bg="#DDEEFF", state="disabled", command=self.exportHourLog)
+        self.exportDayButton = tkinter.Button(self.exportHourDayFrame, text="Export Day Log", bg="#DDEEFF", state="disabled", command=self.exportDayLog)
+        self.exportHourButton.grid(row=0, column=0, sticky="NESW")
+        self.exportDayButton.grid(row=0, column=1, sticky="NESW")
 
         #List to contain buttons for the different channels
         self.channelButtons = []
@@ -114,6 +120,10 @@ class mainWindow(tkinter.Frame):
         self.setupData = None
         self.eventData = None
 
+        self.eventLog = None
+        self.hourLog = None
+        self.dayLog = None
+
         #Canvases, scrollbars and labels used for each of the displays (None at start as nothing has been processed)
         self.hourCanvas = None
         self.dayCanvas = None
@@ -131,7 +141,7 @@ class mainWindow(tkinter.Frame):
 
         #Flag to indicate if a data processing pass is currently underway
         self.processing = False
-
+        
         self.exportData = []
 
         self.populateWindows(48, 2)
@@ -291,11 +301,14 @@ class mainWindow(tkinter.Frame):
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
             #Call for the calculations and receive the results and any errors
-            results, error = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
+            results, error, events, hours, days = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
             #If there are no errors
             if error == None:
                 #Disable the export button until the process is complete
-                self.exportButton.configure(state="disabled")
+                #self.exportButton.configure(state="disabled")
+                self.exportDataLogButton.configure(state="disabled")
+                self.exportHourButton.configure(state="disabled")
+                self.exportDayButton.configure(state="disabled")
                 #Reset the export data
                 self.exportData = []
                 #Split the results into parts
@@ -391,8 +404,14 @@ class mainWindow(tkinter.Frame):
                         #Store the day data so it can be exported
                         self.exportData[listNum].append(dayDataList)
                 
+                self.eventLog = events
+                self.hourLog = hours
+                self.dayLog = days
+
                 #Allow for the export of the information
-                self.exportButton.configure(state="normal")
+                self.exportDataLogButton.configure(state="normal")
+                self.exportHourButton.configure(state="normal")
+                self.exportDayButton.configure(state="normal")
             else:
                 #Display the error if it occurred
                 messagebox.showinfo(title="Error", message=error)
@@ -408,83 +427,63 @@ class mainWindow(tkinter.Frame):
 
         self.channelChoiceVar.set(self.channelLabels[0])
         self.processing = False
-
     
-    def exportInformation(self) -> None:
-        '''Export all the information in the tables as a csv file'''
-        #Export only if not currently processing information and there is data to be exported
-        if not self.processing and len(self.exportData) > 0:
-            #Group data by tube then hour and day
-            exportArray = []
-            #Iterate through the different channels
-            for tube in self.exportData:
-                #Add a new row
-                exportArray.append([])
-                #Iterate through the setup data
-                for item in tube[0]:
-                    #If it is a boolean
-                    if type(item) == bool:
-                        #Convert to integer 1 or 0 for true or false
-                        if item:
-                            item = 1
-                        else:
-                            item = 0
-                    #Add the item to the row
-                    exportArray[-1].append(str(item))
-                #Add a new row
-                exportArray.append([])
-                #Iterate through hour headers
-                for header in self.hourHeaders:
-                    #Add the header to the row
-                    exportArray[-1].append(header)
-                #Iterate through the hours
-                for row in tube[1]:
-                    #Add a new row
-                    exportArray.append([])
-                    #Iterate through the items for this hour
-                    for item in row:
-                        #Add the item to the row
-                        exportArray[-1].append(str(item))
-                #Add a new row
-                exportArray.append([])
-                #Iterate through the day headers
-                for header in self.dayHeaders:
-                    #Add the header to the row
-                    exportArray[-1].append(header)
-                #Iterate through the days
-                for row in tube[2]:
-                    #Add a new row
-                    exportArray.append([])
-                    #Iterate through the items for this day
-                    for item in row:
-                        #Add the items to the row
-                        exportArray[-1].append(str(item))
-            
-            #Convert the data to be saved to a string
-            dataToSave = createSetup.convertArrayToString(exportArray)
-
-            if self.commaSeparated.get() == 2:
-                dataToSave = dataToSave.replace(",", ";").replace(".", ",")
-
-            #Ask the user to give a save location
-            path = filedialog.asksaveasfilename(title="Save processed information to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
-
-            #If a path was given (not canceled)
-            if path != "":
-                #Attempt to save file - store result in success
-                success = createSetup.saveAsFile(path, dataToSave)
-                #If saved successfully
-                if success:
-                    #Display message to indicate file has been saved
-                    messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
-                else:
-                    #Display message to indicate file was not saved
-                    messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
-
+    def exportEventLog(self):
+        if not self.processing:
+            if self.eventLog != None:
+                dataToSave = createSetup.convertArrayToString(self.eventLog)
+                path = filedialog.asksaveasfilename(title="Save event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                #If a path was given (not canceled)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
         else:
-            #If currently processing data - display error message (Should never happen but will prevent crashes if it occurs)
-            messagebox.showinfo(title="Error", message="Currently processing data, please wait and try again.")
+            messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
+
+    def exportHourLog(self):
+        if not self.processing:
+            if self.hourLog != None:
+                dataToSave = createSetup.convertArrayToString(self.hourLog)
+                path = filedialog.asksaveasfilename(title="Save hour log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                #If a path was given (not canceled)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+        else:
+            messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
+    def exportDayLog(self):
+        if not self.processing:
+            if self.dayLog != None:
+                dataToSave = createSetup.convertArrayToString(self.dayLog)
+                path = filedialog.asksaveasfilename(title="Save event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                #If a path was given (not canceled)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+        else:
+            messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
     def unpopulateWindows(self) -> None:
         '''Remove all canvases and scroll bars and delete all references'''
