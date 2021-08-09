@@ -12,8 +12,10 @@ def getFile(fileName: str) -> list:
         setupFile = open(fileName, "r")
         #Read the data and split into a list
         setupData = setupFile.read()
-        setupData.replace(decimal, ".")
+        #setupData.replace(decimal, ".")
         setupData = setupData.split(column)
+        for i in range(0, len(setupData)):
+            setupData[i] = setupData[i].replace(decimal, ".")
         #Return the list
         return setupData
     except: 

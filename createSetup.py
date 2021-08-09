@@ -13,7 +13,8 @@ def convertArrayToString(data: list) -> str:
         #Iterate through the indexes in the row
         for itemIndex in range(0, len(row)):
             #Get the part - remove any commas or newlines
-            part = row[itemIndex].replace(",", "").replace("\n", "")
+            #part = row[itemIndex].replace(",", "").replace("\n", "")
+            part = row[itemIndex].replace(column, "").replace("\n", "")
             #Convert decimal point to decimal separator
             part = part.replace(".", decimal)
             #Add the part to the stream
