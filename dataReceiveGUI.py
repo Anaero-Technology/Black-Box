@@ -322,7 +322,10 @@ class mainWindow(tkinter.Frame):
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
-                        #If the name is allowed to be used
+                        if allowed:
+                            gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
+
+                        #If the name is allowed to be used and an answer was given to gas analysis
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
                             message = "start " + self.currentFileName + "\n"
