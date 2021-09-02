@@ -46,17 +46,20 @@ class mainWindow(tkinter.Frame):
         self.processButton.grid(row=0, column=9, rowspan=2, columnspan=3, sticky="NESW")
         
         #Create export data buttons - starts disabled (need to have processed data successfully first)
-        self.exportDataLogButton = tkinter.Button(self, text="Export Data Log", bg="#DDEEFF", state="disabled", command=self.exportEventLog)
-        self.exportDataLogButton.grid(row=0, column=12, columnspan=3, sticky="NESW")
-        self.exportHourDayFrame = tkinter.Frame(self)
-        self.exportHourDayFrame.grid(row=1, column=12, columnspan=3, sticky="NESW")
-        self.exportHourDayFrame.grid_rowconfigure(0, weight=1)
-        self.exportHourDayFrame.grid_columnconfigure(0, weight=1)
-        self.exportHourDayFrame.grid_columnconfigure(1, weight=1)
-        self.exportHourButton = tkinter.Button(self.exportHourDayFrame, text="Export Hour Log", bg="#DDEEFF", state="disabled", command=self.exportHourLog)
-        self.exportDayButton = tkinter.Button(self.exportHourDayFrame, text="Export Day Log", bg="#DDEEFF", state="disabled", command=self.exportDayLog)
-        self.exportHourButton.grid(row=0, column=0, sticky="NESW")
-        self.exportDayButton.grid(row=0, column=1, sticky="NESW")
+        self.exportFrame = tkinter.Frame(self)
+        self.exportFrame.grid(row=0, column=12, columnspan=3, rowspan=2, sticky="NESW")
+        self.exportFrame.grid_rowconfigure(0, weight=1)
+        self.exportFrame.grid_rowconfigure(1, weight=1)
+        self.exportFrame.grid_columnconfigure(0, weight=1)
+        self.exportFrame.grid_columnconfigure(1, weight=1)
+        self.exportDataLogButton = tkinter.Button(self.exportFrame, text="Export Data Log", bg="#DDEEFF", state="disabled", command=self.exportEventLog)
+        self.exportDataLogButton.grid(row=0, column=0, sticky="NESW")
+        self.exportContinuousButton = tkinter.Button(self.exportFrame, text="Export Continuous Log", bg="#DDEEFF", state="disabled", command=self.exportContinuousLog)
+        self.exportContinuousButton.grid(row=0, column=1, sticky="NESW")
+        self.exportHourButton = tkinter.Button(self.exportFrame, text="Export Hour Log", bg="#DDEEFF", state="disabled", command=self.exportHourLog)
+        self.exportDayButton = tkinter.Button(self.exportFrame, text="Export Day Log", bg="#DDEEFF", state="disabled", command=self.exportDayLog)
+        self.exportHourButton.grid(row=1, column=0, sticky="NESW")
+        self.exportDayButton.grid(row=1, column=1, sticky="NESW")
 
         #List to contain buttons for the different channels
         self.channelButtons = []
@@ -307,6 +310,7 @@ class mainWindow(tkinter.Frame):
                 #Disable the export button until the process is complete
                 #self.exportButton.configure(state="disabled")
                 self.exportDataLogButton.configure(state="disabled")
+                self.exportContinuousButton.configure(state="disabled")
                 self.exportHourButton.configure(state="disabled")
                 self.exportDayButton.configure(state="disabled")
                 #Reset the export data
@@ -410,6 +414,7 @@ class mainWindow(tkinter.Frame):
 
                 #Allow for the export of the information
                 self.exportDataLogButton.configure(state="normal")
+                self.exportContinuousButton.configure(state="normal")
                 self.exportHourButton.configure(state="normal")
                 self.exportDayButton.configure(state="normal")
             else:
@@ -433,6 +438,40 @@ class mainWindow(tkinter.Frame):
             if self.eventLog != None:
                 dataToSave = createSetup.convertArrayToString(self.eventLog)
                 path = filedialog.asksaveasfilename(title="Save event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                #If a path was given (not canceled)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+        else:
+            messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
+
+    def exportContinuousLog(self):
+        if not self.processing:
+            if self.eventLog != None:
+                #Array to hold continuous results
+                continuousLog = []
+
+                #Iterate through events
+                for e in self.eventLog:
+                    record = []
+                    #Get setup data, time stamp and stp volumes
+                    for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
+                        #Add to the row
+                        record.append(e[i])
+                    #Add the row to the array
+                    continuousLog.append(record)
+                
+                #Convert data to string
+                dataToSave = createSetup.convertArrayToString(continuousLog)
+                #Get path to save file
+                path = filedialog.asksaveasfilename(title="Save continuous event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
                 #If a path was given (not canceled)
                 if path != "":
                     #Attempt to save file - store result in success
