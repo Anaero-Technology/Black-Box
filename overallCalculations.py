@@ -132,6 +132,7 @@ def performGeneralCalculations(setupData, eventData):
                 #Use the inoculum mass
                 mass = inoculumMass[tipChannel]
 
+            #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
             if mass == 0:
                 mass = math.inf
             
@@ -148,7 +149,7 @@ def performGeneralCalculations(setupData, eventData):
                     thisMass = sampleMass[bucketId]
                     if inoculumOnly[bucketId]:
                         thisMass = inoculumMass[bucketId]
-
+                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if thisMass == 0:
                         thisMass = math.inf
                     
@@ -176,6 +177,7 @@ def performGeneralCalculations(setupData, eventData):
                     thisMass = sampleMass[bucketIndex]
                     if inoculumOnly[bucketIndex]:
                         thisMass = inoculumMass[bucketIndex]
+                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if thisMass == 0:
                         thisMass = math.inf
                     #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
@@ -200,6 +202,7 @@ def performGeneralCalculations(setupData, eventData):
                     thisMass = sampleMass[tipChannel]
                     if inoculumOnly[bucketId]:
                         thisMass = inoculumMass[bucketId]
+                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if thisMass == 0:
                         thisMass = math.inf
                     #Create the event data
@@ -226,6 +229,7 @@ def performGeneralCalculations(setupData, eventData):
                     thisMass = sampleMass[bucketIndex]
                     if inoculumOnly[bucketIndex]:
                         thisMass = inoculumMass[bucketIndex]
+                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if thisMass == 0:
                         thisMass = math.inf
                     #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
@@ -271,6 +275,7 @@ def performGeneralCalculations(setupData, eventData):
                     #If this is one of the innculum only channels - add its value (of volume per gram) to the list
                     if inoculumOnly[hourId]:
                         inocMass = inoculumMass[hourId]
+                        #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                         if inocMass == 0:
                             inocMass = math.inf
                         hourinoculum[-1].append(currentHour[hourId] / inocMass)
@@ -316,14 +321,15 @@ def performGeneralCalculations(setupData, eventData):
                     hourinoculum[-1].append(currentHour[hourId] / inocMass)
         
         #If the last inoculum value set is not filled - remove it
+        #Removed as it changes nothing and causes a crash if there is no inoculum only channel
         '''if len(hourinoculum[-1]) == 0:
             del hourinoculum[-1]'''
-
 
         #Iterate through the hours
         for hourId in range(0, len(hourinoculum)):
             #Calculate the average gass volume produced of inoculum (per gram)
             average = 0
+            #If there is data present
             if len(hourinoculum[hourId]) > 0:
                 average = sum(hourinoculum[hourId]) / len(hourinoculum[hourId])
             hourinoculumAvg.append(average)
@@ -340,6 +346,7 @@ def performGeneralCalculations(setupData, eventData):
                 if not inoculumOnly[tubeId] and sampleMass[tubeId] > 0:
                     #Divide by the mass in the tube to get volume per gram
                     tubeMass = sampleMass[tubeId]
+                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if tubeMass == 0:
                         tubeMass = math.inf
                     extraGassEvolvedPerGram = extraGassEvolved / tubeMass
@@ -405,6 +412,7 @@ def performGeneralCalculations(setupData, eventData):
             if inoculumOnly[bucketId]:
                 #Add to inoculum net volume total
                 inocMass = inoculumMass[bucketId]
+                #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                 if inocMass == 0:
                     inocMass = math.inf
                 inoculumTotalNetVolume = inoculumTotalNetVolume + (e[10] / inocMass)
@@ -412,6 +420,7 @@ def performGeneralCalculations(setupData, eventData):
         
         #Calculate average volume per gram of inoculum
         inoculumAverage = 0
+        #Only calculate if there were tips
         if numberInoculumTips > 0:
             inoculumAverage = inoculumTotalNetVolume / numberInoculumTips
 
@@ -423,6 +432,7 @@ def performGeneralCalculations(setupData, eventData):
             if not inoculumOnly[bucketId]:
                 #Subtract the inoculum volume (based on amount of inoculum present) from net volume
                 bucketMass = sampleMass[bucketId]
+                #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                 if bucketMass == 0:
                     bucketMass = math.inf
                 eventLog[index][16] = ( (eventLog[index][16] * sampleMass[bucketId]) - (inoculumAverage * inoculumMass[bucketId]) ) / bucketMass
