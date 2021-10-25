@@ -322,13 +322,15 @@ class mainWindow(tkinter.Frame):
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
+                        gasAnalysis = False
+
                         if allowed:
                             gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
 
                         #If the name is allowed to be used and an answer was given to gas analysis
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
-                            message = "start " + self.currentFileName + "\n"
+                            message = "start " + self.currentFileName + " " + str(gasAnalysis) + "\n"
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
@@ -570,6 +572,12 @@ class mainWindow(tkinter.Frame):
                     messagebox.showinfo(title="File Already Exists", message="A file with that name already exists, please choose a different name or delete the existing file.")
                 elif messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
+                elif messageParts[2] == "noanalyser":
+                    messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
+                elif messageParts[2] == "analysercalibrating":
+                    messagebox.showinfo(title="Gas Analyser Calibrating", message="The gas analyser is currently in calibration mode, please complete calibration and try again.")
+                elif messageParts[2] == "analysernocalibration":
+                    messagebox.showinfo(title="Gas Analyser Not Calibrated", message="The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging")
