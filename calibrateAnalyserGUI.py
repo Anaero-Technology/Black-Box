@@ -447,6 +447,22 @@ class mainWindow(tkinter.Frame):
                     #Reset tries and wait for analyser check
                     self.timesTried = 0
                     self.serialConnection.write("checkanalyser\n".encode("utf-8"))
+
+        #If something whent wrong
+        if len(messageParts) > 1 and messageParts[0] == "failed":
+            #Connection to the gas analyser could not be made
+            if messageParts[2] == "noanalyser":
+                messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
+                self.messageLabel.configure(text="Analyser connection error, please try again.", fg="red")
+                self.awaiting = False
+
+        #If the system is already running an experiment
+        if len(messageParts) > 1 and messageParts[0] == "already":
+            #Cannot perform action due to experiment running
+            if messageParts[2] == "start":
+                self.messageLabel.configure(text="Experiment currently running, analyser calibration cannot be changed.", fg="red")
+                messagebox.showinfo(title="Experiment running", message="The experiment is currently running, please stop it before adjusting the calibration.")
+                self.awaiting = False
             
         #If this is a calibration data point
         if len(messageParts) > 1 and messageParts[0] == "point":
