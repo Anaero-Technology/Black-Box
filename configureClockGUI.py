@@ -385,12 +385,14 @@ class mainWindow(tkinter.Frame):
         if self.serialConnection == None:
             #List to contain available ports
             found = ["No Port Selected"]
+            descs = [""]
             #Scan to find all available ports
             portData = list_ports.comports()
             #Iterate through ports
             for data in portData:
                 #Add the device name of the port to the list (can be used to connect to it)
                 found.append(data.device)
+                descs.append("(" + data.description + ")")
             
             #If the old and new lists are different
             different = False
@@ -412,10 +414,13 @@ class mainWindow(tkinter.Frame):
                 #Delete the old menu options
                 menu = self.portOption["menu"]
                 menu.delete(0, tkinter.END)
+
+                i = 0
                 #Iterate through labels
                 for name in self.portLabels:
                     #Add the labels to the list
-                    menu.add_command(label=name, command=lambda v=self.selectedPort, l=name: v.set(l))
+                    menu.add_command(label=name + " " + descs[i], command=lambda v=self.selectedPort, l=name: v.set(l))
+                    i = i + 1
 
                 #If the selected item is still available
                 if self.selectedPort.get() in self.portLabels:
