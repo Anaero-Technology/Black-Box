@@ -751,7 +751,6 @@ class mainWindow(tkinter.Frame):
             self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
-            #self.performScan()
             self.parent.destroy()
 
     def setdownFiles(self) -> None:
