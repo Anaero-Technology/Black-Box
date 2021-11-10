@@ -330,7 +330,7 @@ class mainWindow(tkinter.Frame):
                         #If the name is allowed to be used and an answer was given to gas analysis
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
-                            message = "start " + self.currentFileName + " " + str(gasAnalysis) + "\n"
+                            message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
