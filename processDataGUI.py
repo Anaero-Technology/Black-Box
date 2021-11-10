@@ -434,6 +434,7 @@ class mainWindow(tkinter.Frame):
         self.processing = False
     
     def exportEventLog(self):
+        '''Export the full event log as a file'''
         if not self.processing:
             if self.eventLog != None:
                 dataToSave = createSetup.convertArrayToString(self.eventLog)
@@ -453,6 +454,7 @@ class mainWindow(tkinter.Frame):
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
 
     def exportContinuousLog(self):
+        '''Export the continuous data as a file'''
         if not self.processing:
             if self.eventLog != None:
                 #Array to hold continuous results
@@ -487,6 +489,7 @@ class mainWindow(tkinter.Frame):
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
 
     def exportHourLog(self):
+        '''Export the hour log as a file'''
         if not self.processing:
             if self.hourLog != None:
                 dataToSave = createSetup.convertArrayToString(self.hourLog)
@@ -506,6 +509,7 @@ class mainWindow(tkinter.Frame):
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
     def exportDayLog(self):
+        '''Export the day log as a file'''
         if not self.processing:
             if self.dayLog != None:
                 dataToSave = createSetup.convertArrayToString(self.dayLog)
