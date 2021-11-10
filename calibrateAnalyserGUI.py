@@ -94,6 +94,9 @@ class mainWindow(tkinter.Frame):
         #If currently performing a calibration
         self.calibrating = False
 
+        self.xMin = None
+        self.xMax = None
+
         #Most recent percentage value
         self.lastPercent = 0
         #Total number of calibrated points
@@ -105,6 +108,7 @@ class mainWindow(tkinter.Frame):
     def clearPlot(self) -> None:
         '''Clear the graph ready for new data'''
         self.subPlot.clear()
+        self.subPlot.legend()
         self.graphCanvas.draw()
 
     def addPoint(self) -> None:
@@ -144,17 +148,31 @@ class mainWindow(tkinter.Frame):
         #Plot point as a blue circle
         self.subPlot.plot(x, y, "bo")
         #Update the canvas
+        self.subPlot.legend()
         self.graphCanvas.draw()
 
-    def drawLine(self, m : float, c : float, l : str) -> None:
+    def drawLine(self, m : float, c : float, l : str, colour : str) -> None:
         '''Add a line to the graph'''
         #Create 100 points from minimum to maximum
         x = numpy.linspace(self.xMin, self.xMax, 100)
         #Calculate y values using gradient and intercept
         y = (m * x) + c
         #Add line to plot with name label
-        self.subPlot.plot(x, y, "-r", label=l)
+        self.subPlot.plot(x, y, colour, label=l)
         #Update the canvas
+        self.subPlot.legend()
+        self.graphCanvas.draw()
+
+    def drawLineFromY(self, m : float, c : float, l : str, colour : str) -> None:
+        '''Add a line  to the graph without x end points'''
+        #Create 100 points for y
+        y = numpy.linspace(0, 100, 100)
+        #Calculate x values using gradient and intercept
+        x = (y - c) / m
+        #Add line to plot with name label
+        self.subPlot.plot(x, y, colour, label=l)
+        #Update the canvas
+        self.subPlot.legend()
         self.graphCanvas.draw()
 
     def startCalibrationCo2(self) -> None:
@@ -317,7 +335,7 @@ class mainWindow(tkinter.Frame):
                     messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is correct port and try again.")
                     self.messageLabel.configure(text="", fg="black")
                 else:
-                    messagebox.showinfo(title="Connection Failed", message="Connection tp gas analyser could not be established, please check it is connected and try again.")
+                    messagebox.showinfo(title="Connection Failed", message="Connection to gas analyser could not be established, please check it is connected and try again.")
                     self.messageLabel.configure(text="", fg="black")
                 self.performScan()
             else:
@@ -421,6 +439,7 @@ class mainWindow(tkinter.Frame):
     
     def messageReceived(self, message: str):
         #Split up the message into parts on spaces
+        print("Message: {0}".format(message))
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
         if len(messageParts) > 1 and messageParts[0] == "info":
@@ -453,7 +472,7 @@ class mainWindow(tkinter.Frame):
                 if self.awaitingCommunication:
                     #Reset tries and wait for analyser check
                     self.timesTried = 0
-                    self.serialConnection.write("checkanalyser\n".encode("utf-8"))
+                    self.serialConnection.write("checkAnalyser\n".encode("utf-8"))
 
         #If something whent wrong
         if len(messageParts) > 1 and messageParts[0] == "failed":
@@ -504,23 +523,28 @@ class mainWindow(tkinter.Frame):
                         m = 0
                         c = 0
                         label = ""
+                        lineColour = "-r"
                         if self.co2:
-                            m = messageParts[2]
-                            c = messageParts[3]
+                            m = float(messageParts[2])
+                            c = float(messageParts[3])
                             label = "Co2"
+                            lineColour = "-y"
                         else:
-                            m = messageParts[4]
-                            c = messageParts[5]
+                            m = float(messageParts[4])
+                            c = float(messageParts[5])
                             label = "Ch4"
-                        
+                            lineColour = "-g"
+
                         #Add line to chart
-                        self.drawLine(m, c, label)
+                        self.drawLine(m, c, label, lineColour)
                     except:
                         pass
                     
                     #Set state of start buttons to enabled
                     self.calibrationStartCo2Button.configure(state="normal")
                     self.calibrationStartCh4Button.configure(state="normal")
+                    #Send message to request plots
+                    self.serialConnection.write("checkAnalyser\n".encode("utf-8"))
             #If the calibration failed
             elif messageParts[1] == "failed":
                 #Show failed messages
@@ -534,6 +558,7 @@ class mainWindow(tkinter.Frame):
                 #Enable add and end buttons
                 self.addPointButton.configure(state="normal")
                 self.calibrationEndButton.configure(state="normal")
+                self.awaiting = False
 
             #Check the state of the analyer
             self.serialConnection.write("checkanalyser\n".encode("utf-8"))
@@ -580,7 +605,7 @@ class mainWindow(tkinter.Frame):
                 self.awaitingCommunication = False
             except:
                 #Message for failing to connect correctly
-                messagebox.showinfo(title="Error Connecting To Analyser", message="Something went wrong connecting to the analyser, pleas try again.")
+                messagebox.showinfo(title="Error Connecting To Analyser", message="Something went wrong connecting to the analyser, please try again.")
                 self.messageLabel.configure(text="Analyser connection error, please try again.", fg="red")
                 #Disable buttons
                 self.calibrationStartCo2Button.configure(state="disabled")
@@ -645,8 +670,8 @@ class mainWindow(tkinter.Frame):
                 ch4m = float(messageParts[3])
                 ch4c = float(messageParts[4])
                 #Plot the lines with their labels
-                self.drawLine(co2m, co2c, "CO2")
-                self.drawLine(ch4m, ch4c, "CH4")
+                self.drawLineFromY(co2m, co2c, "CO2", "-y")
+                self.drawLineFromY(ch4m, ch4c, "CH4", "-g")
             except:
                 pass
             
