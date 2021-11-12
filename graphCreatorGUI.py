@@ -192,6 +192,7 @@ class mainWindow(tkinter.Frame):
             return "Data not found, please check separators and file format are correct."
 
         for c in range(0, len(self.loadedData[0])):
+            #Select only valid output columns based on the file type
             self.information.append([])
             if self.loadedType == 1 and c > 6:
                 self.typeList.append(self.loadedData[0][c])
