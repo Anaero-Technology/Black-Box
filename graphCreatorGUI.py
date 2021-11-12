@@ -54,11 +54,13 @@ class mainWindow(tkinter.Frame):
         self.loadEventButton = tkinter.Button(self, text="Load Event Log", command=lambda: self.loadFile(0))
         self.loadHourButton = tkinter.Button(self, text="Load Hour Log", command=lambda: self.loadFile(1))
         self.loadDayButton = tkinter.Button(self, text="Load Day Log", command=lambda: self.loadFile(1))
-        self.loadEventButton.grid(row=0, column=0, sticky="NSEW")
-        self.loadHourButton.grid(row=0, column=1, sticky="NSEW")
-        self.loadDayButton.grid(row=0, column=2, sticky="NSEW")
+        self.loadGasButton = tkinter.Button(self, text="Load Gas Log", command=lambda: self.loadFile(2))
+        self.loadEventButton.grid(row=0, column=0, sticky="NESW")
+        self.loadHourButton.grid(row=0, column=1, sticky="NESW")
+        self.loadDayButton.grid(row=0, column=2, sticky="NESW")
+        self.loadGasButton.grid(row=0, column=3, sticky="NESW")
         self.loadedFileLabel = tkinter.Label(self, text="No file loaded")
-        self.loadedFileLabel.grid(row=0, column=3, columnspan=3, sticky="NESW")
+        self.loadedFileLabel.grid(row=0, column=4, columnspan=2, sticky="NESW")
 
         #Mode drop down - select what type of graph is wanted
         self.graphMode = tkinter.StringVar()
@@ -151,7 +153,7 @@ class mainWindow(tkinter.Frame):
             if allData != [] and len(allData) > 0 and len(allData[0]) > 0:
                 #Convert data into two dimensional array
                 self.loadedData = readSetup.formatData(allData)
-                types = [" Event ", " Hour ", " Day "]
+                types = [" Event ", " Hour ", " Day ", " Gas "]
                 #Set the label
                 self.loadedFileLabel.configure(text=fileName + types[loadType] + "Data Loaded", fg=self.green)
                 self.loadedType = loadType
@@ -191,10 +193,13 @@ class mainWindow(tkinter.Frame):
 
         for c in range(0, len(self.loadedData[0])):
             self.information.append([])
-            if self.loadedType > 0 and c > 6:
+            if self.loadedType == 1 and c > 6:
                 self.typeList.append(self.loadedData[0][c])
                 self.typeToListPos.append(c)
             elif self.loadedType == 0 and c > 8:
+                self.typeList.append(self.loadedData[0][c])
+                self.typeToListPos.append(c)
+            elif self.loadedType == 2 and c > 5:
                 self.typeList.append(self.loadedData[0][c])
                 self.typeToListPos.append(c)
 
@@ -399,7 +404,7 @@ class mainWindow(tkinter.Frame):
                 
                 #Set the x label and plot title accordingly
                 self.subPlot.set_xlabel("Time")
-                self.subPlot.set_title("All " + self.channelInfo[self.channelIndex][0] + " Data")
+                self.subPlot.set_title("All " + self.channelInfo[self.channelIndex] + " Data")
                 
                 #Display no y axis label (all different)
                 self.subPlot.set_ylabel("")
