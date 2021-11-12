@@ -108,7 +108,6 @@ class mainWindow(tkinter.Frame):
     def clearPlot(self) -> None:
         '''Clear the graph ready for new data'''
         self.subPlot.clear()
-        self.subPlot.legend()
         self.graphCanvas.draw()
 
     def addPoint(self) -> None:
@@ -148,7 +147,6 @@ class mainWindow(tkinter.Frame):
         #Plot point as a blue circle
         self.subPlot.plot(x, y, "bo")
         #Update the canvas
-        self.subPlot.legend()
         self.graphCanvas.draw()
 
     def drawLine(self, m : float, c : float, l : str, colour : str) -> None:
