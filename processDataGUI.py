@@ -67,6 +67,10 @@ class mainWindow(tkinter.Frame):
         #Setup the font for the headers
         self.headerFont = ("courier", 10, "bold")
 
+        #Seutp the gas composition export button
+        self.exportGasButton = tkinter.Button(self, text="Export Gas Composition", bg="#DDEEFF", state="disabled", command=self.exportGasLog)
+        self.exportGasButton.grid(row=2, column=11, sticky="NESW")
+
         #Create the hours and days buttons
         self.hoursButton = tkinter.Button(self, text="Per Hour", relief="ridge", command=self.changeToHours)
         self.hoursButton.grid(row=2, column=13, sticky="NESW")
@@ -75,6 +79,7 @@ class mainWindow(tkinter.Frame):
 
         #Currently viewing the first channel in hours mode
         self.hours = True
+        self.gas = False
         self.currentScreen = 0
 
         self.channelLabels = []
@@ -97,6 +102,7 @@ class mainWindow(tkinter.Frame):
         #Create the day frame
         self.channelDayFrame = tkinter.Frame(self)
         self.channelDayFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
+
         #Create and place the setup frame and label
         self.channelSetupFrame = tkinter.Frame(self)
         self.channelSetupLabel = tkinter.Label(self.channelSetupFrame, font=self.headerFont)
@@ -126,6 +132,7 @@ class mainWindow(tkinter.Frame):
         self.eventLog = None
         self.hourLog = None
         self.dayLog = None
+        self.gasLog = None
 
         #Canvases, scrollbars and labels used for each of the displays (None at start as nothing has been processed)
         self.hourCanvas = None
@@ -304,7 +311,7 @@ class mainWindow(tkinter.Frame):
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
             #Call for the calculations and receive the results and any errors
-            results, error, events, hours, days = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
+            results, error, events, hours, days, gas = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
             #If there are no errors
             if error == None:
                 #Disable the export button until the process is complete
@@ -313,6 +320,7 @@ class mainWindow(tkinter.Frame):
                 self.exportContinuousButton.configure(state="disabled")
                 self.exportHourButton.configure(state="disabled")
                 self.exportDayButton.configure(state="disabled")
+                self.exportGasButton.configure(state="disabled")
                 #Reset the export data
                 self.exportData = []
                 #Split the results into parts
@@ -411,12 +419,28 @@ class mainWindow(tkinter.Frame):
                 self.eventLog = events
                 self.hourLog = hours
                 self.dayLog = days
+                self.gasLog = gas
 
                 #Allow for the export of the information
                 self.exportDataLogButton.configure(state="normal")
                 self.exportContinuousButton.configure(state="normal")
                 self.exportHourButton.configure(state="normal")
                 self.exportDayButton.configure(state="normal")
+                
+                anyGas = False
+                try:
+                    rowNumber = 0
+                    for row in self.gasLog:
+                        if rowNumber != 0:
+                            if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                anyGas = True
+                        rowNumber = rowNumber + 1
+                except:
+                    anyGas = False
+                
+                if anyGas:
+                    self.exportGasButton.configure(state="normal")
+                
             else:
                 #Display the error if it occurred
                 messagebox.showinfo(title="Error", message=error)
@@ -528,6 +552,37 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
+    def exportGasLog(self) -> None:
+        if not self.processing:
+            if self.gasLog != None:
+
+                anyGas = False
+                try:
+                    rowNumber = 0
+                    for row in self.gasLog:
+                        if rowNumber != 0:
+                            if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                anyGas = True
+                        rowNumber = rowNumber + 1
+                except:
+                    anyGas = False
+                
+                if anyGas:
+                    dataToSave = createSetup.convertArrayToString(self.gasLog)
+                    path = filedialog.asksaveasfilename(title="Save gas log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                    #If a path was given (not canceled)
+                    if path != "":
+                        #Attempt to save file - store result in success
+                        success = createSetup.saveAsFile(path, dataToSave)
+                        #If saved successfully
+                        if success:
+                            #Display message to indicate file has been saved
+                            messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                        else:
+                            #Display message to indicate file was not saved
+                            messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+                
+
     def unpopulateWindows(self) -> None:
         '''Remove all canvases and scroll bars and delete all references'''
         #Delete all the created parts
