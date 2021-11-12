@@ -314,10 +314,11 @@ class mainWindow(tkinter.Frame):
                 #Iterate through rows
                 for index in range(0, len(data)):
                     if self.channelIndex == channelIds[index] - 1:
-                        #Add the time point
-                        xData.append(float(times[index]))
-                        #Add the information
-                        yData.append(float(data[index]))
+                        if self.loadedType != 2 or float(data[index]) >= 0:
+                            #Add the time point
+                            xData.append(float(times[index]))
+                            #Add the information
+                            yData.append(float(data[index]))
                 
                 #Remove the old graph and create the new one
                 self.subPlot.clear()
@@ -350,10 +351,11 @@ class mainWindow(tkinter.Frame):
                     #Iterate through rows
                     for rowIndex in range(0, len(data)):
                         if channelIds[rowIndex] - 1 == channelIndex:
-                            #Add the time
-                            xData.append(float(times[rowIndex]))
-                            #Add the data
-                            yData.append(float(data[rowIndex]))
+                            if self.loadedType != 2 or float(data[rowIndex]) >= 0:
+                                #Add the time
+                                xData.append(float(times[rowIndex]))
+                                #Add the data
+                                yData.append(float(data[rowIndex]))
                     #If there was data to plot
                     if len(xData) > 0:
                         #Add the data to the plot with a label for the channel
@@ -395,10 +397,11 @@ class mainWindow(tkinter.Frame):
                     #Iterate through the rows
                     for rowIndex in range(0, len(data)):
                         if channelIds[rowIndex] -1 == self.channelIndex:
-                            #Add the time
-                            xData.append(times[rowIndex])
-                            #Add the data from the array
-                            yData.append(float(data[rowIndex]))
+                            if self.loadedType != 2 or float(data[rowIndex]) >= 0:
+                                #Add the time
+                                xData.append(times[rowIndex])
+                                #Add the data from the array
+                                yData.append(float(data[rowIndex]))
                     
                     #Plot the new data with the correct label
                     self.subPlot.plot(xData, yData, label=name)
