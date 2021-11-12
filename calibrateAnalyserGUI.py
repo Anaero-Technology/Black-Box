@@ -438,8 +438,9 @@ class mainWindow(tkinter.Frame):
             self.after(1, self.checkMessages)
     
     def messageReceived(self, message: str):
+        #DEBUG output the message coming from GFM ESP
+        #print("Message: {0}".format(message))
         #Split up the message into parts on spaces
-        print("Message: {0}".format(message))
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
         if len(messageParts) > 1 and messageParts[0] == "info":
