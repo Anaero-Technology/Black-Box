@@ -22,10 +22,12 @@ Used to combine a setup and event log file together to produce the hourly and da
 Setup and Event log files are loaded in using the buttons in the top left.
 The 'process data' button can then be pressed. The calculations are then performed, this may cause tkinter to freeze temporarily.
 Once complete the information will be displayed in the tables which an be navigated using the channel, hour and day buttons.
-Once processed data is present the 'export data' button can be pressed to save it into a .csv file.
+Once processed data is present the export data buttons can be pressed to save it into a .csv file, the whole data log, hourly data, daily data or continuous data may be exported.
+If there is any gas analysis data within the event log file the gas composition data will also be able to be exported
 
 ### Create Graphs
 Used to produce a variety of graphs from a processed information file (created by the Perform Calculations section).
+Files must be loaded from one of the following: full event log, hour log, day log or the gas log. Press the correct button and choose the file.
 Once the file has been loaded several choices can be made as to the type of graph displayed:
 Single Plot - shows one set of values for one channel, choose channel from first drop down and which value from the lower drop down.
 Compare Channels - show one set of values for two channels on the same axes. Select channels from two drop downs and value from the third.
