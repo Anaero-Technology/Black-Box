@@ -230,17 +230,14 @@ class mainWindow(tkinter.Frame):
         dayType = "th"
         #Get the correct day extension
         if day[-1] == "1":
-            dayType = "st"
-            if day == "11":
-                dayType = "th"
+            if day != "11":
+                dayType = "st"
         if day[-1] == "2":
-            dayType = "nd"
-            if day == "12":
-                dayType = "th"
+            if day != "12":
+                dayType = "nd"
         if day[-1] == "3":
-            dayType = "rd"
-            if day == "13":
-                dayType = "th"
+            if day != "13":
+                dayType = "rd"
 
         #Get the correct month as a word
         month = months[int(self.month.get()) - 1]
