@@ -451,7 +451,8 @@ def performGeneralCalculations(setupData, eventData):
 
     #Group setup data and results into a list
     completeData = [setup, hourList, hourListWithoutinoculum, hourListWithoutinoculumPerGram, dayList, dayListWithoutinoculum, dayListWithoutinoculumPerGram, hourinoculum, hourinoculumAvg, dayinoculumAvg]
-
+    
+    #Convert all values to strings (so that they can be output to a file neatly)
     for r in range(0, len(eventLog)):
         for c in range(0, len(eventLog[r])):
             eventLog[r][c] = str(eventLog[r][c])
