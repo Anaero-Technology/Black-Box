@@ -490,6 +490,16 @@ class mainWindow(tkinter.Frame):
             windowsPresent = windowsPresent + 1
         except:
             pass
+        try:
+            self.clockWindow.lift()
+            windowsPresent = windowsPresent + 1
+        except:
+            pass
+        try:
+            self.calibrateWindow.lift()
+            windowsPresent = windowsPresent  + 1
+        except:
+            pass
         
         #If there were any other windows open
         if windowsPresent > 0:
