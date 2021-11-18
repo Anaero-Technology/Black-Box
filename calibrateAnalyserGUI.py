@@ -661,7 +661,7 @@ class mainWindow(tkinter.Frame):
                         pass
         
         #If this is a set of calibration values
-        if len(messageParts) > 4 and messageParts[0] == "calValues":
+        if len(messageParts) > 4 and messageParts[0] == "calvalues":
             try:
                 #Convert to floats for gradients and intercepts
                 co2m = float(messageParts[1])
