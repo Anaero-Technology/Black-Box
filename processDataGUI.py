@@ -329,34 +329,44 @@ class mainWindow(tkinter.Frame):
             self.after(100, self.checkDisplay)
     
     def checkDisplay(self):
+        '''Repeatedly check if the display needs to be updated'''
         if self.needToUpdateDisplay:
             #Populate the windows to a correct size
             self.populateWindows(int((len(self.hourLog) - 1) / 15), int(((len(self.dayLog) - 1) / 15)))
+            #Update the menu options for the channels
             menu = self.channelChoice["menu"]
             menu.delete(0, tkinter.END)
             for value in self.channelLabels:
                 menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
-
+            
+            #Switch to the first channel (this will repopulate the values too)
             self.channelChoiceVar.set(self.channelLabels[0])
+            #End processing
             self.processing = False
             self.needToUpdateDisplay = False
+            #Hide the progress bar
             self.progressBar.grid_remove()
         else:
             self.after(100, self.checkDisplay)
     
     def updateProgressBar(self):
+        '''Update the progress bar'''
         value = 0
         limit = 100
         message = "Processing data..."
+        #Repeat until processing ends
         while self.processing:
+            #If the value has changed
             if self.progress[0] != value:
                 value = self.progress[0]
                 self.progressBar["value"] = value
+            #If the maximum value has changed
             if self.progress[1] != limit:
                 limit = self.progress[1]
                 self.progressBar.configure(maximum=limit)
                 self.progressBar["value"] = 0
                 value = 0
+            #If the text has changed
             if self.progress[2] != message:
                 message = self.progress[2]
                 self.styles.configure("ProgressbarLabeled", text=message)
@@ -402,40 +412,52 @@ class mainWindow(tkinter.Frame):
                     #Add the text to the label
                     self.setupTexts.append(msg)
 
+                #Lists of each of the data arrays for hours
                 hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
                 #Iterate through the lists of hour data
                 for hour in range(1, len(hours)):
-                    #List to hold the current hour's data
+                    #Get the data for this hour
                     thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
                     hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
 
+                #Set the display data
                 self.displayData[0] = hourDataList
                 
+                #Lists for each of the channels for day data
                 dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
                 #Iterate through lists of day data
                 for day in range(1, len(days)):
-                    #List to hold the current day's data
+                    #Get the data for this day
                     thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
                     dayDataList[int(days[day][0]) - 1].append(thisDayData)
                 
+                #Set the display data
                 self.displayData[1] = dayDataList
                 
+                #Store each of the logs
                 self.eventLog = events
                 self.hourLog = hours
                 self.dayLog = days
                 self.gasLog = gas
                 
                 anyGas = False
+                #Check if there was any gas composition data
                 try:
                     rowNumber = 0
+                    #Iterate through gas
                     for row in self.gasLog:
+                        #If is is not the header
                         if rowNumber != 0:
+                            #If there was any data
                             if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                #Gas is present
                                 anyGas = True
+                        #Next row
                         rowNumber = rowNumber + 1
                 except:
+                    #If the file was not formatted correctly
                     anyGas = False
                 
                 #Allow for the export of the information
@@ -444,6 +466,7 @@ class mainWindow(tkinter.Frame):
                 self.exportHourButton.configure(state="normal")
                 self.exportDayButton.configure(state="normal")
 
+                #Allow for gas export if there was any
                 if anyGas:
                     self.exportGasButton.configure(state="normal")
                 
@@ -454,7 +477,8 @@ class mainWindow(tkinter.Frame):
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
-
+        
+        #An update to the display is needed
         self.needToUpdateDisplay = True
     
     def exportEventLog(self):
