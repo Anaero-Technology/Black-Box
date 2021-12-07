@@ -1,7 +1,7 @@
 import readSeparators
 import math
 
-def performGeneralCalculations(setupData, eventData):
+def performGeneralCalculations(setupData, eventData, progress):
     '''Take in the setup information and list of events and convert to hourly volumes produced'''
     #List to contain data to be returned
     completeData = []
@@ -16,9 +16,9 @@ def performGeneralCalculations(setupData, eventData):
     #2d list to contain the volumes produced for each hour
     hourList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
     #A list to contain the inoculum volumes for each hour
-    hourinoculum = [[]]
+    hourInoculum = [[]]
     #List to contain the average inoculum volumes for each hour
-    hourinoculumAvg = []
+    hourInoculumAvg = []
     #List to contain the average inoculum volumes for each day
     dayinoculumAvg = []
     #The volume procuded each hour with the average inoculum subtracted
@@ -31,15 +31,17 @@ def performGeneralCalculations(setupData, eventData):
     dayListWithoutinoculum = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
     #The volume produced, without inoculum, per day, per gram for each channel
     dayListWithoutinoculumPerGram = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-    #The constant gass value for a given channel
+    #The constant gas value for a given channel
     gasConstants = []
 
     eventLog = []
     cumulativeTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     hourlyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     hourlyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    hourlyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     dailyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     dailyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    dailyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     totalVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     totalNetVol = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     dailyHours = 0
@@ -87,8 +89,8 @@ def performGeneralCalculations(setupData, eventData):
         
         #Go through all the tubes
         for tubeId in range(0, len(tumblerVolume)):
-            #Calculate the gass constant for the tube P * V / T - so that the volume can be derrived from temperature and pressure easily upon tip
-            stpConst = (1013.2501 * tumblerVolume[tubeId]) / 273.13
+            #Calculate the gas constant for the tube P * V / T - so that the volume can be derrived from temperature and pressure easily upon tip
+            stpConst = (273 * tumblerVolume[tubeId]) / 1013.25
             gasConstants.append(stpConst)
 
     except:
@@ -97,7 +99,10 @@ def performGeneralCalculations(setupData, eventData):
 
     #Attempt to process the event data
     #try:
-    startTime = int(eventData[0][2])
+    startTime = 0
+    #Previous hour and day values to check for days/hours passing
+    lastDayValue = 0
+    lastHourValue = 0
     #Iterate through the events that occured
     for event in eventData:
         #Add relevant data for each event - update as each hour passes and each day (also store inoculum data and averages then adjust hourly values at threshold)
@@ -139,7 +144,9 @@ def performGeneralCalculations(setupData, eventData):
         
         #Checks for resets due to hour and day rollovers
         #If an hour has elapsed
-        if time - lastHour > hourLength:
+        if lastHourValue != hoursElapsed:
+            #Update value for hours that have elapsed
+            lastHourValue = hoursElapsed
             #Variables to store the inoculum volume, net volume and number of channels
             inocVol = 0
             inocNetVol = 0
@@ -156,7 +163,8 @@ def performGeneralCalculations(setupData, eventData):
                 
                 #Create the event data
                 #Channel, channel name, timestamp (of hour), days, hours, minutes, in service (1/0), no.tips, vol this hour, cumulative net vol (ml/g), cumulative vol 
-                hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyVolume[bucketId] / thisMass, 3), totalNetVol[bucketId], round(totalVolume[bucketId], 3)]
+                #hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyVolume[bucketId] / thisMass, 3), totalNetVol[bucketId], round(totalVolume[bucketId], 3)]
+                hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
                 hourLog.append(hourEvent)
                 #If this is an inoculum channel
                 if inoculumOnly[bucketId]:
@@ -178,21 +186,29 @@ def performGeneralCalculations(setupData, eventData):
                 thisMass = sampleMass[bucketIndex]
                 if inoculumOnly[bucketIndex]:
                     thisMass = inoculumMass[bucketIndex]
-                #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
+                #If no mass, set to 0
                 if thisMass == 0:
-                    thisMass = math.inf
-                #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
-                #net volume per gram * sample mass - net volume inoculum per gram * inoculum mass = net volume evolved
-                #net volume evolved / sample mass = net volume evolved per gram
-                hourLog[hourEventIndex][9] = round(((hourLog[hourEventIndex][9] * thisMass) - (inoculumMass[bucketIndex] * inoculumValues[0][-1][1])) / thisMass, 3)
+                    hourLog[hourEventIndex][10] = 0
+                else:
+                    #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
+                    #net volume per gram * sample mass - net volume inoculum per gram * inoculum mass = net volume evolved
+                    #net volume evolved / sample mass = net volume evolved per gram
+                    '''if inoculumMass[bucketIndex] > 0 and inoculumValues[0][-1][1] > 0:
+                        oldHour = round(hourLog[hourEventIndex][9], 3)
+                        hourLog[hourEventIndex][9] = round(((hourLog[hourEventIndex][9] * thisMass) - (inoculumMass[bucketIndex] * inoculumValues[0][-1][1])) / thisMass, 3)
+                    else:
+                        hourLog[hourEventIndex][10] = round(hourLog[hourEventIndex][9], 3)'''
             #Reset the hourly tip count and volume evolved
             hourlyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             hourlyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            hourlyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             #Add one to the hour count
             dailyHours = dailyHours + 1
         
         #If a day has elapsed
-        if dailyHours >= 24:
+        if lastDayValue != daysElapsed:
+            #Update value for days that have passed
+            lastDayValue = daysElapsed
             #Variables to store the inoculum volume, net volume and number of channels
             inocVol = 0
             inocNetVol = 0
@@ -207,8 +223,9 @@ def performGeneralCalculations(setupData, eventData):
                 if thisMass == 0:
                     thisMass = math.inf
                 #Create the event data
-                #Channel, channel name, timestamp (of day), days, hours, minutes, in service (1/0), no.tips, vol this day, cumulative net vol (ml/g), cumulative vol 
-                dayEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], dailyTips[bucketId], round(dailyVolume[bucketId], 3), round(dailyVolume[bucketId] / thisMass, 3), totalNetVol[bucketId], round(totalVolume[bucketId], 3)]
+                #Channel, channel name, timestamp (of day), days, hours, minutes, in service (1/0), no.tips, vol this day (STP), cumulative net vol (ml/g), cumulative vol (STP)
+                #dayEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], dailyTips[bucketId], round(dailyVolume[bucketId], 3), round(dailyVolume[bucketId] / thisMass, 3), totalNetVol[bucketId], round(totalVolume[bucketId], 3)]
+                dayEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], dailyTips[bucketId], round(dailyVolume[bucketId], 3), round(dailyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
                 dayLog.append(dayEvent)
                 #If this is an inoculum only channel
                 if inoculumOnly[bucketId]:
@@ -230,16 +247,22 @@ def performGeneralCalculations(setupData, eventData):
                 thisMass = sampleMass[bucketIndex]
                 if inoculumOnly[bucketIndex]:
                     thisMass = inoculumMass[bucketIndex]
-                #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
+                #If no mass set net value to 0
                 if thisMass == 0:
-                    thisMass = math.inf
-                #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
-                #net volume per gram * sample mass - net volume inoculum per gram * inoculum mass = net volume evolved
-                #net volume evolved / sample mass = net volume evolved per gram
-                dayLog[dayEventIndex][9] = round((dayLog[dayEventIndex][9] * thisMass) - (inoculumMass[bucketIndex] * inoculumValues[1][-1][1]), 3)
+                    dayLog[dayEventIndex][10] = 0
+                else:
+                    #Subtract the average net volume of inoculum from the net volume evolved - adjusted for the mass of inoculum in the channel
+                    #net volume per gram * sample mass - net volume inoculum per gram * inoculum mass = net volume evolved
+                    #net volume evolved / sample mass = net volume evolved per gram
+                    '''if inoculumMass[bucketIndex] > 0 and inoculumValues[1][-1][1] > 0:
+                        oldDay = round(dayLog[dayEventIndex][9], 3)
+                        dayLog[dayEventIndex][9] = round((dayLog[dayEventIndex][9] * thisMass) - (inoculumMass[bucketIndex] * inoculumValues[1][-1][1]), 3)
+                    else:
+                        dayLog[dayEventIndex][9] = round(dayLog[dayEventIndex][10], 3)'''
             #Reset the daily tip count and volume evolved
             dailyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             dailyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            dailyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             dailyHours = 0
         
         #Add one to the hourly and daily tips counts for this channel
@@ -248,7 +271,7 @@ def performGeneralCalculations(setupData, eventData):
 
         #Calculate the volume of the tip (at STP)
         #Gas Constant * temp (K) / pressure (hPA) = volume
-        tipVolume = gasConstants[tipChannel] * (float(event[4]) + 237.13) / float(event[5])
+        tipVolume = gasConstants[tipChannel] * (float(event[5]) / (float(event[4]) + 273)) 
         #Add to the hourly and daily volume for this channel
         hourlyVolume[tipChannel] = hourlyVolume[tipChannel] + tipVolume
         dailyVolume[tipChannel] = dailyVolume[tipChannel] + tipVolume
@@ -257,10 +280,38 @@ def performGeneralCalculations(setupData, eventData):
         totalVolume[tipChannel] = totalVolume[tipChannel] + tipVolume
 
         #Calculate the net volume (per gram)
-        totalNetVol[tipChannel] = totalNetVol[tipChannel] + (tipVolume / mass)
+        #totalNetVol[tipChannel] = totalNetVol[tipChannel] + (tipVolume / mass)
+
+        inocTotalNetVolume = 0.0
+        numberChannels = 0
+        for channelNumber in range(0, 15):
+            if inoculumOnly[channelNumber] and inUse[channelNumber]:
+                inocTotalNetVolume = inocTotalNetVolume + (totalVolume[channelNumber] / inoculumMass[channelNumber])
+                numberChannels = numberChannels + 1
+        
+        inoculumAveragePerGram = 0.0
+
+        if numberChannels > 0:
+            inoculumAveragePerGram = inocTotalNetVolume / float(numberChannels)
+        
+        totalNetVolumeAtThisTip = 0
+        netVolumeFromThisTip = 0
+
+        if not inoculumOnly[tipChannel] and mass > 0 and mass != math.inf and inoculumMass[tipChannel] > 0 and inUse[tipChannel]:
+            totalNetVolumeAtThisTip = (totalVolume[tipChannel]  - (inoculumMass[tipChannel] * inoculumAveragePerGram)) / mass
+            netVolumeFromThisTip = (tipVolume - (inoculumMass[tipChannel] * inoculumAveragePerGram)) / mass
+        else:
+            if inoculumOnly[tipChannel] and inoculumMass[tipChannel] > 0 and inUse[tipChannel]:
+                totalNetVolumeAtThisTip = totalVolume[tipChannel] / inoculumMass[tipChannel]
+                netVolumeFromThisTip = tipVolume / inoculumMass[tipChannel]
+        
+        totalNetVol[tipChannel] = totalNetVolumeAtThisTip
+        hourlyNetVolume[tipChannel] = hourlyNetVolume[tipChannel] + netVolumeFromThisTip
+        dailyNetVolume[tipChannel] = dailyNetVolume[tipChannel] + netVolumeFromThisTip
 
         #Bucket ID, tube name, timestamp(s), day, hour, min, tumbler volume, temp, press, cumul tips (this bucket), tip vol, total vol, no. tips day, vol day, no. tips hour, vol hour, net vol/gm
-        loggedEvent = [tipChannel + 1, names[tipChannel], int(event[2]), daysElapsed, hoursElapsed, minutesElapsed, tumblerVolume[tipChannel], round(float(event[4]),2), round(float(event[5]),1), cumulativeTips[tipChannel], round(tipVolume,3), round(totalVolume[tipChannel], 3), dailyTips[tipChannel], round(dailyVolume[tipChannel],3), hourlyTips[tipChannel], round(hourlyVolume[tipChannel],3), round(totalNetVol[tipChannel],3)]
+        #loggedEvent = [tipChannel + 1, names[tipChannel], int(event[2]), daysElapsed, hoursElapsed, minutesElapsed, tumblerVolume[tipChannel], round(float(event[4]),2), round(float(event[5]),2), cumulativeTips[tipChannel], round(tipVolume,3), round(totalVolume[tipChannel], 3), dailyTips[tipChannel], round(dailyVolume[tipChannel],3), hourlyTips[tipChannel], round(hourlyVolume[tipChannel],3), round(totalNetVol[tipChannel],3)]
+        loggedEvent = [tipChannel + 1, names[tipChannel], int(event[2]), daysElapsed, hoursElapsed, minutesElapsed, tumblerVolume[tipChannel], round(float(event[4]),2), round(float(event[5]),2), cumulativeTips[tipChannel], round(tipVolume,3), round(totalVolume[tipChannel], 3), dailyTips[tipChannel], round(dailyVolume[tipChannel],3), hourlyTips[tipChannel], round(hourlyVolume[tipChannel],3), round(totalNetVolumeAtThisTip, 3)]
         eventLog.append(loggedEvent)
 
         #Add the gas percentage data
@@ -283,7 +334,7 @@ def performGeneralCalculations(setupData, eventData):
                     #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                     if inocMass == 0:
                         inocMass = math.inf
-                    hourinoculum[-1].append(currentHour[hourId] / inocMass)
+                    hourInoculum[-1].append(currentHour[hourId] / inocMass)
 
                 #Reset the current hour ready for the next one
                 currentHour[hourId] = 0
@@ -294,10 +345,10 @@ def performGeneralCalculations(setupData, eventData):
                     hourList[hourId].append(0)
                     #If this is inoculum - nothing passed here too
                     if inoculumOnly[hourId]:
-                        hourinoculum[-1].append(0)
+                        hourInoculum[-1].append(0)
             
             #Add a new list to the hourly inocculum totals (for the new hour)
-            hourinoculum.append([])
+            hourInoculum.append([])
             
             #Add the necessary amount to the number of hours passed
             for _ in range(0, int((time - lastHour) / hourLength)):
@@ -305,11 +356,15 @@ def performGeneralCalculations(setupData, eventData):
         
         #Get the id of the channel
         idNum = int(event[3]) - 1
-        #Calculate the volume - using gass constant, temperature and pressure
+        #Calculate the volume - using gas constant, temperature and pressure
         volume = gasConstants[idNum] * (float(event[4]) + 237.13) / float(event[5])
         #Add this amount to the current hourly value for that channel
         currentHour[idNum] = currentHour[idNum] + volume
+
+        progress[0] = progress[0] + 1
     
+    #Old and unused calculations start here
+    '''
     #If there were tips that were not added
     if sum(currentHour) > 0:
         #Iterate through the tubes
@@ -323,30 +378,39 @@ def performGeneralCalculations(setupData, eventData):
                 inocMass = inoculumMass[hourId]
                 if inocMass == 0:
                     inocMass = math.inf
-                hourinoculum[-1].append(currentHour[hourId] / inocMass)
+                hourInoculum[-1].append(currentHour[hourId] / inocMass)
     
     #If the last inoculum value set is not filled - remove it
     #Removed as it changes nothing and causes a crash if there is no inoculum only channel
-    '''if len(hourinoculum[-1]) == 0:
-        del hourinoculum[-1]'''
+    #if len(hourInoculum[-1]) == 0:
+        #del hourInoculum[-1]
+
+    print("{0} Hours".format(len(hourList[0])))
+    print("{0} Inoculum Hours".format(len(hourInoculum)))
 
     #Iterate through the hours
-    for hourId in range(0, len(hourinoculum)):
-        #Calculate the average gass volume produced of inoculum (per gram)
+    for hourId in range(0, len(hourInoculum)):
+        #Calculate the average gas volume produced of inoculum (per gram)
         average = 0
         #If there is data present
-        if len(hourinoculum[hourId]) > 0:
-            average = sum(hourinoculum[hourId]) / len(hourinoculum[hourId])
-        hourinoculumAvg.append(average)
+        if len(hourInoculum[hourId]) > 0:
+            average = sum(hourInoculum[hourId]) / len(hourInoculum[hourId])
+        hourInoculumAvg.append(average)
+    
+    print("{0} Inoculum Average Hours".format(len(hourInoculumAvg)))
     
     #Iterate through the tubes
     for tubeId in range(0, len(hourList)):
         #Iterate through the hours
         for hourId in range(0, len(hourList[tubeId])):
-            #Calculate the total gass evolved that hour: volume - (average volume per g of inoculum * mass of inoculum)
-            extraGassEvolved = hourList[tubeId][hourId] - (hourinoculumAvg[hourId] * inoculumMass[tubeId])
+            #Calculate the total gas evolved that hour: volume - (average volume per g of inoculum * mass of inoculum)
+            #print("Tube {0} of {1}".format(tubeId, len(hourList)))
+            #print("Hour {0} of {1}".format(hourId, len(hourList[tubeId])))
+            #print("Inoculum Average {0} of {1}".format(hourId, len(hourInoculumAvg)))
+            #print("Inoculum Mass {0} of {1}".format(tubeId, len(inoculumMass)))
+            extragasEvolved = hourList[tubeId][hourId] - (hourInoculumAvg[hourId] * inoculumMass[tubeId])
             #Default volume of 0 per gram
-            extraGassEvolvedPerGram = 0
+            extragasEvolvedPerGram = 0
             #If this tube contains a sample
             if not inoculumOnly[tubeId] and sampleMass[tubeId] > 0:
                 #Divide by the mass in the tube to get volume per gram
@@ -354,12 +418,12 @@ def performGeneralCalculations(setupData, eventData):
                 #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
                 if tubeMass == 0:
                     tubeMass = math.inf
-                extraGassEvolvedPerGram = extraGassEvolved / tubeMass
+                extragasEvolvedPerGram = extragasEvolved / tubeMass
             #Add volumes to lists total volume and per gram
             if not inoculumOnly[tubeId]:
                 #If it is a sample tube
-                hourListWithoutinoculum[tubeId].append(extraGassEvolved)
-                hourListWithoutinoculumPerGram[tubeId].append(extraGassEvolvedPerGram)
+                hourListWithoutinoculum[tubeId].append(extragasEvolved)
+                hourListWithoutinoculumPerGram[tubeId].append(extragasEvolvedPerGram)
             else:
                 #If this is an inoculum tube
                 hourListWithoutinoculum[tubeId].append(0)
@@ -379,7 +443,7 @@ def performGeneralCalculations(setupData, eventData):
             dayVal = dayVal + hourList[tubeId][hourNumber]
             dayValWithoutI = dayValWithoutI + hourListWithoutinoculum[tubeId][hourNumber]
             dayValWithoutIPerGram = dayValWithoutIPerGram + hourListWithoutinoculumPerGram[tubeId][hourNumber]
-            dayValinoculumAvg = dayValinoculumAvg + hourinoculumAvg[hourNumber]
+            dayValinoculumAvg = dayValinoculumAvg + hourInoculumAvg[hourNumber]
 
             #Incrament hour
             hourCount = hourCount + 1
@@ -405,42 +469,8 @@ def performGeneralCalculations(setupData, eventData):
             dayListWithoutinoculum[tubeId].append(dayValWithoutI)
             dayListWithoutinoculumPerGram[tubeId].append(dayValWithoutIPerGram)
             dayinoculumAvg.append(dayValinoculumAvg)
-
-    inoculumTotalNetVolume = 0
-    numberInoculumTips = 0
-
-    #Iterate through all events
-    for e in eventLog:
-        #Get channel index
-        bucketId = e[0] - 1
-        #If this is an inoculum channel
-        if inoculumOnly[bucketId]:
-            #Add to inoculum net volume total
-            inocMass = inoculumMass[bucketId]
-            #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
-            if inocMass == 0:
-                inocMass = math.inf
-            inoculumTotalNetVolume = inoculumTotalNetVolume + (e[10] / inocMass)
-            numberInoculumTips = numberInoculumTips + 1
-    
-    #Calculate average volume per gram of inoculum
-    inoculumAverage = 0
-    #Only calculate if there were tips
-    if numberInoculumTips > 0:
-        inoculumAverage = inoculumTotalNetVolume / numberInoculumTips
-
-    #Iterate through event indexes
-    for index in range(0, len(eventLog)):
-        #Get the channel index
-        bucketId = eventLog[index][0] - 1
-        #If this is not inoculum
-        if not inoculumOnly[bucketId]:
-            #Subtract the inoculum volume (based on amount of inoculum present) from net volume
-            bucketMass = sampleMass[bucketId]
-            #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
-            if bucketMass == 0:
-                bucketMass = math.inf
-            eventLog[index][16] = ( (eventLog[index][16] * sampleMass[bucketId]) - (inoculumAverage * inoculumMass[bucketId]) ) / bucketMass
+    '''
+    #Old calculations end
         
     #except:
         #Something is wrong with the way the event log file is formatted - report error and stop
@@ -450,7 +480,7 @@ def performGeneralCalculations(setupData, eventData):
     setup = [names, inUse, inoculumOnly, inoculumMass, sampleMass, tumblerVolume]
 
     #Group setup data and results into a list
-    completeData = [setup, hourList, hourListWithoutinoculum, hourListWithoutinoculumPerGram, dayList, dayListWithoutinoculum, dayListWithoutinoculumPerGram, hourinoculum, hourinoculumAvg, dayinoculumAvg]
+    completeData = [setup, hourList, hourListWithoutinoculum, hourListWithoutinoculumPerGram, dayList, dayListWithoutinoculum, dayListWithoutinoculumPerGram, hourInoculum, hourInoculumAvg, dayinoculumAvg]
     
     #Convert all values to strings (so that they can be output to a file neatly)
     for r in range(0, len(eventLog)):

@@ -1,10 +1,13 @@
 import tkinter
 from tkinter import filedialog
+import tkinter.ttk as Ttk
+from tkinter.ttk import Style
 import readSetup
 import createSetup
 import overallCalculations
 from tkinter import messagebox
 import readSeparators
+from threading import Thread
 
 
 class mainWindow(tkinter.Frame):
@@ -42,7 +45,7 @@ class mainWindow(tkinter.Frame):
         self.column, self.decimal = readSeparators.read()
 
         #Create process data button - starts disabled (need to have two files loaded)
-        self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.processInformation)
+        self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.startProcessing)
         self.processButton.grid(row=0, column=9, rowspan=2, columnspan=3, sticky="NESW")
         
         #Create export data buttons - starts disabled (need to have processed data successfully first)
@@ -153,6 +156,21 @@ class mainWindow(tkinter.Frame):
         self.processing = False
         
         self.exportData = []
+
+        #Get the style object for the parent window
+        self.styles = Style(self.parent)
+        #Create layout for progress bar with a label
+        self.styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
+        #Set the bar colour of the progress bar
+        self.styles.configure("ProgressbarLabeled", background="lightgreen")
+
+        #Create a progress bar
+        self.progressBar = Ttk.Progressbar(self, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
+        #Set the text
+        self.styles.configure("ProgressbarLabeled", text = "Processing Data ...")
+        self.progressBar.grid(row=20, column=0, columnspan=16, sticky="NESW")
+        self.progressBar.grid_remove()
+        self.progress = [0, 100, "Processing data..."]
 
         self.populateWindows(48, 2)
         self.unpopulateWindows()
@@ -303,15 +321,41 @@ class mainWindow(tkinter.Frame):
             #Deactivate process button
             self.processButton.config(state="disabled")
 
+    def startProcessing(self):
+        if not self.processing:
+            self.progressBar["value"] = 0
+            self.progress = [0, 100, "Processing data..."]
+            self.progressBar.grid()
+            self.processing = True
+            processThread = Thread(target=self.processInformation, daemon=True)
+            processThread.start()
+            progressThread = Thread(target=self.updateProgressBar, daemon=True)
+            progressThread.start()
+    
+    def updateProgressBar(self):
+        value = 0
+        limit = 100
+        message = "Processing data..."
+        while self.processing:
+            if self.progress[0] != value:
+                value = self.progress[0]
+                self.progressBar["value"] = value
+            if self.progress[1] != limit:
+                limit = self.progress[1]
+                self.progressBar.configure(maximum=limit)
+                self.progressBar["value"] = 0
+                value = 0
+            if self.progress[2] != message:
+                message = self.progress[2]
+                self.styles.configure("ProgressbarLabeled", text=message)
     
     def processInformation(self) -> None:
         '''Perform a data processing pass'''
-        self.processing = True
-        #TODO Add separate thread and block window to prevent 'not responding'
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
+            self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors
-            results, error, events, hours, days, gas = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
+            results, error, events, hours, days, gas = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
             if error == None:
                 #Disable the export button until the process is complete
@@ -322,6 +366,8 @@ class mainWindow(tkinter.Frame):
                 self.exportDayButton.configure(state="disabled")
                 self.exportGasButton.configure(state="disabled")
                 #Reset the export data
+                #Comment from here
+                '''
                 self.exportData = []
                 #Split the results into parts
                 setup = results[0]
@@ -415,6 +461,8 @@ class mainWindow(tkinter.Frame):
                     if listNum < len(self.exportData):
                         #Store the day data so it can be exported
                         self.exportData[listNum].append(dayDataList)
+                    '''
+                    #Comment to here
                 
                 self.eventLog = events
                 self.hourLog = hours
@@ -456,6 +504,7 @@ class mainWindow(tkinter.Frame):
 
         self.channelChoiceVar.set(self.channelLabels[0])
         self.processing = False
+        self.progressBar.grid_remove()
     
     def exportEventLog(self):
         '''Export the full event log as a file'''
@@ -537,7 +586,7 @@ class mainWindow(tkinter.Frame):
         if not self.processing:
             if self.dayLog != None:
                 dataToSave = createSetup.convertArrayToString(self.dayLog)
-                path = filedialog.asksaveasfilename(title="Save event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                path = filedialog.asksaveasfilename(title="Save day log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
                 #If a path was given (not canceled)
                 if path != "":
                     #Attempt to save file - store result in success
