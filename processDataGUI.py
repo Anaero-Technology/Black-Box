@@ -149,13 +149,15 @@ class mainWindow(tkinter.Frame):
         self.gridFrameDay = None
 
         #Column headers for hours and days
-        self.hourHeaders = ["Hour", "Volume(ml)", "Volume From Sample(ml)", "Volume/Gram(ml/g)", "Innoculum Avg(ml/g)", "Total Evolved(ml)"]
-        self.dayHeaders = ["Day", "Volume(ml)", "Volume From Sample(ml)", "Volume/Gram(ml/g)", "Innoculum Avg(ml/g)", "Total Evolved(ml)"]
+        self.hourHeaders = ["Hour", "Volume(ml)", "Total Evolved(ml)", "Net Evolved(ml/g)"]
+        self.dayHeaders = ["Day", "Volume(ml)", "Total Evolved(ml)", "Net Evolved(ml/g)"]
 
         #Flag to indicate if a data processing pass is currently underway
         self.processing = False
+
+        self.needToUpdateDisplay = False
         
-        self.exportData = []
+        self.displayData = [[], []]
 
         #Get the style object for the parent window
         self.styles = Style(self.parent)
@@ -186,31 +188,20 @@ class mainWindow(tkinter.Frame):
         if len(self.setupTexts) > self.currentScreen:
             self.channelSetupLabel.config(text=self.setupTexts[self.currentScreen])
         #Add in the hour data
-        if len(self.exportData) > self.currentScreen:
-            channelData = self.exportData[self.currentScreen]
-            channelHourData = channelData[1]
+        if len(self.displayData[0]) > self.currentScreen:
+            channelHourData = self.displayData[0][self.currentScreen]
             hour = 0
             for thisHourData in channelHourData:
-                self.hourLabels[0][hour].config(text=str(thisHourData[0]))
-                self.hourLabels[1][hour].config(text=str(thisHourData[1]))
-                self.hourLabels[2][hour].config(text=str(thisHourData[2]))
-                #Show innoculum average per gram for that hour and then the actual ml using the mass of innoculum
-                innoculumMessage = str(thisHourData[3]) + " (" + str(thisHourData[4]) + "ml)"
-                self.hourLabels[3][hour].config(text=innoculumMessage)
-                self.hourLabels[4][hour].config(text=str(thisHourData[5]))
+                for index in range(0, 4):
+                    self.hourLabels[index][hour].config(text=str(thisHourData[index]))
                 hour = hour + 1
         
             #Add in the day data
-            channelDayData = channelData[2]
+            channelDayData = self.displayData[1][self.currentScreen]
             day = 0
             for thisDayData in channelDayData:
-                self.dayLabels[0][day].config(text=str(thisDayData[0]))
-                self.dayLabels[1][day].config(text=str(thisDayData[1]))
-                self.dayLabels[2][day].config(text=str(thisDayData[2]))
-                #Show innoculum average per gram for that day and then the actual ml using the mass of innoculum
-                innoculumMessage = str(thisDayData[3]) + " (" + str(thisDayData[4]) + "ml)"
-                self.dayLabels[3][day].config(text=innoculumMessage)
-                self.dayLabels[4][day].config(text=str(thisDayData[5]))
+                for index in range(0, 4):
+                    self.dayLabels[index][day].config(text=str(thisDayData[index]))
                 day = day + 1
 
 
@@ -255,60 +246,64 @@ class mainWindow(tkinter.Frame):
 
     def loadSetup(self) -> None:
         '''Load a setup file'''
-        #Get the path to the file from the user
-        filePath = filedialog.askopenfilename(title="Select setup csv file", filetypes=self.fileTypes)
-        #Split the file into parts
-        pathParts = filePath.split("/")
-        fileName = ""
-        #If there is a file present
-        if filePath != "" and len(pathParts) > 0:
-            #Reset the setup data
-            self.setupData = None
-            #Get the file's name from the end of the path
-            fileName = pathParts[-1]
-            #Attempt to read the file
-            allFileData = readSetup.getFile(filePath)
-            if allFileData != []:
-                #If there was data to be read
-                #Format the data into an array
-                self.setupData = readSetup.formatData(allFileData)
-                #Set the text of the label
-                self.setupLabel.config(text=fileName, fg=self.green)
-            else:
-                #Display error
-                self.setupLabel.config(text="File could not be read.", fg=self.red)
+        #If not currently processing data
+        if not self.processing:
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select setup csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            fileName = ""
+            #If there is a file present
+            if filePath != "" and len(pathParts) > 0:
+                #Reset the setup data
+                self.setupData = None
+                #Get the file's name from the end of the path
+                fileName = pathParts[-1]
+                #Attempt to read the file
+                allFileData = readSetup.getFile(filePath)
+                if allFileData != []:
+                    #If there was data to be read
+                    #Format the data into an array
+                    self.setupData = readSetup.formatData(allFileData)
+                    #Set the text of the label
+                    self.setupLabel.config(text=fileName, fg=self.green)
+                else:
+                    #Display error
+                    self.setupLabel.config(text="File could not be read.", fg=self.red)
 
-        #Perform a check to see if the data can be processed
-        self.checkReady()
+            #Perform a check to see if the data can be processed
+            self.checkReady()
 
 
     def loadEvent(self) -> None:
         '''Load an event log file'''
-        #Get the path to the file from the user
-        filePath = filedialog.askopenfilename(title="Select event log csv file", filetypes=self.fileTypes)
-        #Split the file into parts
-        pathParts = filePath.split("/")
-        fileName = ""
-        #If there i sa file present
-        if filePath != "" and len(pathParts) > 0:
-            #Reset the event data
-            self.eventData = None
-            #Get the file's name from the end of the path
-            fileName = pathParts[-1]
-            #Attempt to read the file data
-            allFileData = readSetup.getFile(filePath)
-            #If there was data present
-            if allFileData != []:
-                #Format the data as an array and store it
-                self.eventData = readSetup.formatData(allFileData)
-                #Set the text of the display label
-                self.eventLabel.config(text=fileName, fg=self.green)
-            else:
-                #Display an error message
-                self.eventLabel.config(text="File could not be read.", fg=self.red)
-        
-        #Perform a check to see if the data can be processed
-        self.checkReady()
+        #If not currently processing data
+        if not self.processing:
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select event log csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            fileName = ""
+            #If there i sa file present
+            if filePath != "" and len(pathParts) > 0:
+                #Reset the event data
+                self.eventData = None
+                #Get the file's name from the end of the path
+                fileName = pathParts[-1]
+                #Attempt to read the file data
+                allFileData = readSetup.getFile(filePath)
+                #If there was data present
+                if allFileData != []:
+                    #Format the data as an array and store it
+                    self.eventData = readSetup.formatData(allFileData)
+                    #Set the text of the display label
+                    self.eventLabel.config(text=fileName, fg=self.green)
+                else:
+                    #Display an error message
+                    self.eventLabel.config(text="File could not be read.", fg=self.red)
+            
+            #Perform a check to see if the data can be processed
+            self.checkReady()
 
 
     def checkReady(self) -> None:
@@ -331,6 +326,23 @@ class mainWindow(tkinter.Frame):
             processThread.start()
             progressThread = Thread(target=self.updateProgressBar, daemon=True)
             progressThread.start()
+            self.after(100, self.checkDisplay)
+    
+    def checkDisplay(self):
+        if self.needToUpdateDisplay:
+            #Populate the windows to a correct size
+            self.populateWindows(int((len(self.hourLog) - 1) / 15), int(((len(self.dayLog) - 1) / 15)))
+            menu = self.channelChoice["menu"]
+            menu.delete(0, tkinter.END)
+            for value in self.channelLabels:
+                menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
+
+            self.channelChoiceVar.set(self.channelLabels[0])
+            self.processing = False
+            self.needToUpdateDisplay = False
+            self.progressBar.grid_remove()
+        else:
+            self.after(100, self.checkDisplay)
     
     def updateProgressBar(self):
         value = 0
@@ -353,41 +365,19 @@ class mainWindow(tkinter.Frame):
         '''Perform a data processing pass'''
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
+            #Disable the export buttons until the process is complete
+            self.exportDataLogButton.configure(state="disabled")
+            self.exportContinuousButton.configure(state="disabled")
+            self.exportHourButton.configure(state="disabled")
+            self.exportDayButton.configure(state="disabled")
+            self.exportGasButton.configure(state="disabled")
             self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors
-            results, error, events, hours, days, gas = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            error, events, hours, days, gas, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
             if error == None:
-                #Disable the export button until the process is complete
-                #self.exportButton.configure(state="disabled")
-                self.exportDataLogButton.configure(state="disabled")
-                self.exportContinuousButton.configure(state="disabled")
-                self.exportHourButton.configure(state="disabled")
-                self.exportDayButton.configure(state="disabled")
-                self.exportGasButton.configure(state="disabled")
-                #Reset the export data
-                #Comment from here
-                '''
-                self.exportData = []
-                #Split the results into parts
-                setup = results[0]
-                hourLists = results[1]
-                hourListsWOI = results[2]
-                hourListsWOIGram = results[3]
-                dayLists = results[4]
-                dayListsWOI = results[5]
-                dayListsWOIGram = results[6]
-                hourlyInnoculumAvg = results[8]
-                daylyInnoculumAvg = results[9]
-                #Cumulative totals
-                hourEvolved = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                dayEvolved = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                #Populate the windows to a correct size
-                self.populateWindows(len(hourLists[0]), len(dayLists[0]))
                 #Iterate through the setup data and labels
                 for setupNum in range(0, len(setup[0])):
-                    #Add the setup information
-                    self.exportData.append([[setup[0][setupNum], setup[1][setupNum], setup[2][setupNum], setup[3][setupNum], setup[4][setupNum], setup[5][setupNum]]])
                     #Message to display - the name of the tube
                     msg = setup[0][setupNum]
                     #Update drop down labels
@@ -412,68 +402,30 @@ class mainWindow(tkinter.Frame):
                     #Add the text to the label
                     self.setupTexts.append(msg)
 
+                hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+
                 #Iterate through the lists of hour data
-                for listNum in range(0, len(hourLists)):
-                    #List to hold hour data for export
-                    hourDataList = []
-                    #Iterate through the hours
-                    for hour in range(0, len(hourLists[listNum])):
-                        #List to hold the current hour's data
-                        thisHourData = []
-                        #Calculate the cumulative volume evolved
-                        hourEvolved[listNum] = hourEvolved[listNum] + hourListsWOI[listNum][hour]
-                        #Calculate each of the values
-                        thisHourData.append(round(hourLists[listNum][hour], 3)) #Volume
-                        thisHourData.append(round(hourListsWOI[listNum][hour], 3)) #Volume - innoculum average
-                        thisHourData.append(round(hourListsWOIGram[listNum][hour], 3)) #Volume produced per gram of sample
-                        thisHourData.append(round(hourlyInnoculumAvg[hour], 3)) #Innoculum average volume per gram
-                        thisHourData.append(round(hourlyInnoculumAvg[hour] * setup[3][listNum], 3)) #Innoculum average volume for this tube
-                        thisHourData.append(round(hourEvolved[listNum], 3)) #Total gas evolved by sample in this tube
-                        #Add this hour's information to the overall list
-                        hourDataList.append(thisHourData)
-                    
-                    #If there is a channel to add this to
-                    if listNum < len(self.exportData):
-                        #Store the hour data so it can be exported
-                        self.exportData[listNum].append(hourDataList)
+                for hour in range(1, len(hours)):
+                    #List to hold the current hour's data
+                    thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
+                    hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
+
+                self.displayData[0] = hourDataList
+                
+                dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
                 #Iterate through lists of day data
-                for listNum in range(0, len(dayLists)):
-                    #List to hold day data for export
-                    dayDataList = []
-                    #Iterate through the days
-                    for day in range(0, len(dayLists[listNum])):
-                        #List to hold the current day's data
-                        thisDayData = []
-                        #Calculate the cumulative volume evolved
-                        dayEvolved[listNum] = dayEvolved[listNum] + dayListsWOI[listNum][day]
-                        #Calculate each of the values
-                        thisDayData.append(round(dayLists[listNum][day], 3))
-                        thisDayData.append(round(dayListsWOI[listNum][day], 3))
-                        thisDayData.append(round(dayListsWOIGram[listNum][day], 3))
-                        thisDayData.append(round(daylyInnoculumAvg[day], 3))
-                        thisDayData.append(round(daylyInnoculumAvg[day] * setup[3][listNum], 3))
-                        thisDayData.append(round(dayEvolved[listNum], 3))
-                        #Add this day's information to the overall list
-                        dayDataList.append(thisDayData)
-                    
-                    #If there is a channel to add this to
-                    if listNum < len(self.exportData):
-                        #Store the day data so it can be exported
-                        self.exportData[listNum].append(dayDataList)
-                    '''
-                    #Comment to here
+                for day in range(1, len(days)):
+                    #List to hold the current day's data
+                    thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
+                    dayDataList[int(days[day][0]) - 1].append(thisDayData)
+                
+                self.displayData[1] = dayDataList
                 
                 self.eventLog = events
                 self.hourLog = hours
                 self.dayLog = days
                 self.gasLog = gas
-
-                #Allow for the export of the information
-                self.exportDataLogButton.configure(state="normal")
-                self.exportContinuousButton.configure(state="normal")
-                self.exportHourButton.configure(state="normal")
-                self.exportDayButton.configure(state="normal")
                 
                 anyGas = False
                 try:
@@ -486,6 +438,12 @@ class mainWindow(tkinter.Frame):
                 except:
                     anyGas = False
                 
+                #Allow for the export of the information
+                self.exportDataLogButton.configure(state="normal")
+                self.exportContinuousButton.configure(state="normal")
+                self.exportHourButton.configure(state="normal")
+                self.exportDayButton.configure(state="normal")
+
                 if anyGas:
                     self.exportGasButton.configure(state="normal")
                 
@@ -497,14 +455,7 @@ class mainWindow(tkinter.Frame):
             #Display error that files need to be loaded (should not generally occur but in case)
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
 
-        menu = self.channelChoice["menu"]
-        menu.delete(0, tkinter.END)
-        for value in self.channelLabels:
-            menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
-
-        self.channelChoiceVar.set(self.channelLabels[0])
-        self.processing = False
-        self.progressBar.grid_remove()
+        self.needToUpdateDisplay = True
     
     def exportEventLog(self):
         '''Export the full event log as a file'''
@@ -671,17 +622,17 @@ class mainWindow(tkinter.Frame):
         self.gridFrameHour = tkinter.Frame(self.hourCanvas)
 
         #Iterate through the rows of data and columns and set up grid in frame
-        for col in range(0, 6):
+        for col in range(0, 4):
             self.gridFrameHour.grid_columnconfigure(col, weight=1)
         for row in range(0, rowsHours + 1):
             self.gridFrameHour.grid_rowconfigure(row, weight=1)
 
         #List to hold all the labels
-        labelsHour = [[], [], [], [], []]
-        
+        labelsHour = [[], [], [], []]
+
         #Iterate through the rows
         for row in range(0, rowsHours + 1):
-            for col in range(0, 6):
+            for col in range(0, 4):
                 #Create labels
                 label = tkinter.Label(self.gridFrameHour, text="")
                 if row % 2 == 0:
@@ -689,13 +640,8 @@ class mainWindow(tkinter.Frame):
                 label.grid(row=row, column=col, sticky="NESW")
                 #If is is not a header
                 if row != 0:
-                    #If it is not the numbering column
-                    if col > 0:
-                        #Add to list of labels
-                        labelsHour[col - 1].append(label)
-                    else:
-                        #Add the current hour number
-                        label.configure(text=row)
+                    #Add to list of labels
+                    labelsHour[col].append(label)
                 else:
                     #Set the text to the header and change the font
                     label.configure(text=self.hourHeaders[col], font=("courier", 10, "bold"))
@@ -734,17 +680,17 @@ class mainWindow(tkinter.Frame):
         self.gridFrameDay = tkinter.Frame(self.dayCanvas)
 
         #Iterate through columns and rows to create grid
-        for col in range(0, 6):
+        for col in range(0, 4):
             self.gridFrameDay.grid_columnconfigure(col, weight=1)
         for row in range(0, rowsDays + 1):
             self.gridFrameDay.grid_rowconfigure(row, weight=1)
 
         #List to hold the created labels
-        labelsDay = [[], [], [], [], []]
+        labelsDay = [[], [], [], []]
         
         #Iterate through the rows and columns
         for row in range(0, rowsDays + 1):
-            for col in range(0, 6):
+            for col in range(0, 4):
                 #Create a labels
                 label = tkinter.Label(self.gridFrameDay, text="")
                 if row % 2 == 0:
@@ -752,13 +698,8 @@ class mainWindow(tkinter.Frame):
                 label.grid(row=row, column=col, sticky="NESW")
                 #If this is not the header row
                 if row != 0:
-                    #If this is not the day number row
-                    if col > 0:
-                        #Add the label to the list
-                        labelsDay[col - 1].append(label)
-                    else:
-                        #Add the day number to the label
-                        label.configure(text=row)
+                    #Add the label to the list
+                    labelsDay[col].append(label)
                 else:
                     #Add the header text to the label and change the font
                     label.configure(text=self.dayHeaders[col], font=self.headerFont)
