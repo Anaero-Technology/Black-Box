@@ -577,22 +577,34 @@ class mainWindow(tkinter.Frame):
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
     def exportGasLog(self) -> None:
+        '''Export the gas log as a file'''
+        #If not currently processing data
         if not self.processing:
+            #If there is gas data
             if self.gasLog != None:
 
                 anyGas = False
+                #Attempt (will fail if the file is not formatted correctly)
                 try:
                     rowNumber = 0
+                    #Iterate through the gas data
                     for row in self.gasLog:
+                        #If it is not the header row
                         if rowNumber != 0:
+                            #If there is a value that is not negative
                             if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                #There is gas data
                                 anyGas = True
                         rowNumber = rowNumber + 1
                 except:
+                    #There is not valid gas data
                     anyGas = False
                 
+                #If there was a valid file with some data in it
                 if anyGas:
+                    #Format the data for the file
                     dataToSave = createSetup.convertArrayToString(self.gasLog)
+                    #Get the file path
                     path = filedialog.asksaveasfilename(title="Save gas log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
                     #If a path was given (not canceled)
                     if path != "":
