@@ -321,7 +321,7 @@ def performGeneralCalculations(setupData, eventData, progress):
                 
                 #Create the event data
                 #Channel, channel name, timestamp (of hour), days, hours, minutes, in service (1/0), no.tips, vol this hour, cumulative net vol (ml/g), cumulative vol 
-                hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed + 1, minutesElapsed, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
+                hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed + 1, 0, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
                 hourLog.append(hourEvent)
             #Iterate through each channel event that was just added
             for hourEventIndex in range(len(hourEvent) - 15, len(hourEvent)):
