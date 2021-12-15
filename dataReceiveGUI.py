@@ -151,6 +151,8 @@ class mainWindow(tkinter.Frame):
         self.downloadedCharacters = 0
         self.charactersToDownload = 0
 
+        self.currentLine = 0
+
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
         #If still waiting
@@ -633,6 +635,7 @@ class mainWindow(tkinter.Frame):
                 self.setupProgressBar(totalCharacters)
                 #No characters have been downloaded yet
                 self.downloadedCharacters = 0
+                self.currentLine = 0
             #If it is the end of a file
             elif messageParts[1] == "stop":
                 #Attempt to save the file
@@ -679,8 +682,10 @@ class mainWindow(tkinter.Frame):
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
-                    
+                
+                self.currentLine = self.currentLine + 1
                 self.serialConnection.write("next\n".encode("utf-8"))
+                self.after(3000, self.reattemptNextLine, self.currentLine)
 
         #If this is information regarding the memory
         if len(messageParts) > 2 and messageParts[0] == "memory":
@@ -700,6 +705,10 @@ class mainWindow(tkinter.Frame):
             except:
                 #If something went wrong (not an integer) do not update the memory
                 pass
+        
+    def reattemptNextLine(self, lineNumber):
+        if lineNumber == self.currentLine and self.downloading and self.serialConnection != None:
+            self.serialConnection.write("next\n".encode("utf-8"))
                     
     def filePressed(self, index : int) -> None:
         '''When a file is clicked on'''
