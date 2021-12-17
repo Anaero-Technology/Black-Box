@@ -130,73 +130,87 @@ def performGeneralCalculations(setupData, eventData, progress):
             #Checks for resets due to hour and day rollovers
             #If an hour has elapsed
             if lastHourValue != hoursElapsed:
+                #Repeat for all hours passed
+                for hourChange in range(1, (hoursElapsed - lastHourValue) + 1):
+                    #Iterate through each channel
+                    for bucketId in range(0, 15):
+                        #Get the mass of sample (or inoculum)
+                        thisMass = sampleMass[bucketId]
+                        if inoculumOnly[bucketId]:
+                            thisMass = inoculumMass[bucketId]
+                        #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
+                        if thisMass == 0:
+                            thisMass = math.inf
+                        
+                        #Create the event data
+                        #Channel, channel name, timestamp (of hour), days, hours, minutes, in service (1/0), no.tips, vol this hour, cumulative net vol (ml/g), cumulative vol 
+                        #hourEvent = [bucketId + 1, names[bucketId], lastHour + (hourLength * hourChange), daysElapsed, lastHourValue + hourChange, 0, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
+                        hourEvent = [bucketId + 1, names[bucketId], lastHour + (hourLength * hourChange), lastDayValue, lastHourValue + hourChange, 0, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
+                        hourLog.append(hourEvent)
+                    #Iterate through each channel event that was just added
+                    for hourEventIndex in range(len(hourEvent) - 15, len(hourEvent)):
+                        #Get the index for the channel
+                        bucketIndex = hourLog[hourEventIndex][0] - 1
+                        #Get the mass (or inoculum mass) for the channel
+                        thisMass = sampleMass[bucketIndex]
+                        if inoculumOnly[bucketIndex]:
+                            thisMass = inoculumMass[bucketIndex]
+                        #If no mass, set to 0
+                        if thisMass == 0:
+                            hourLog[hourEventIndex][10] = 0
+                    #Reset the hourly tip count and volume evolved
+                    hourlyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    hourlyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    hourlyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    #Add one to the hour count
+                    dailyHours = dailyHours + 1
                 #Update value for hours that have elapsed
                 lastHourValue = hoursElapsed
-                #Iterate through each channel
-                for bucketId in range(0, 15):
-                    #Get the mass of sample (or inoculum)
-                    thisMass = sampleMass[bucketId]
-                    if inoculumOnly[bucketId]:
-                        thisMass = inoculumMass[bucketId]
-                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
-                    if thisMass == 0:
-                        thisMass = math.inf
-                    
-                    #Create the event data
-                    #Channel, channel name, timestamp (of hour), days, hours, minutes, in service (1/0), no.tips, vol this hour, cumulative net vol (ml/g), cumulative vol 
-                    hourEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], hourlyTips[bucketId], round(hourlyVolume[bucketId], 3), round(hourlyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
-                    hourLog.append(hourEvent)
-                #Iterate through each channel event that was just added
-                for hourEventIndex in range(len(hourEvent) - 15, len(hourEvent)):
-                    #Get the index for the channel
-                    bucketIndex = hourLog[hourEventIndex][0] - 1
-                    #Get the mass (or inoculum mass) for the channel
-                    thisMass = sampleMass[bucketIndex]
-                    if inoculumOnly[bucketIndex]:
-                        thisMass = inoculumMass[bucketIndex]
-                    #If no mass, set to 0
-                    if thisMass == 0:
-                        hourLog[hourEventIndex][10] = 0
-                #Reset the hourly tip count and volume evolved
-                hourlyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                hourlyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                hourlyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                #Add one to the hour count
-                dailyHours = dailyHours + 1
             
             #If a day has elapsed
             if lastDayValue != daysElapsed:
+                #Repeat for all days passed
+                for dayChange in range(1, (daysElapsed - lastDayValue) + 1):
+                    #Iterate through each channel
+                    for bucketId in range(0, 15):
+                        #Get the mass of sample (or inoculum) for this channel
+                        thisMass = sampleMass[tipChannel]
+                        if inoculumOnly[bucketId]:
+                            thisMass = inoculumMass[bucketId]
+                        #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
+                        if thisMass == 0:
+                            thisMass = math.inf
+                        #Create the event data
+                        #Channel, channel name, timestamp (of day), days, hours, minutes, in service (1/0), no.tips, vol this day (STP), cumulative net vol (ml/g), cumulative vol (STP)
+                        dayEvent = [bucketId + 1, names[bucketId], (lastDayValue + dayChange) * dayLength, lastDayValue + dayChange, 0, 0, inUse[bucketId], dailyTips[bucketId], round(dailyVolume[bucketId], 3), round(dailyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
+                        dayLog.append(dayEvent)
+                    #Iterate through each channel event that was just added
+                    for dayEventIndex in range(len(dayEvent) - 15, len(dayEvent)):
+                        #Get the id for the channel
+                        bucketIndex = dayLog[dayEventIndex][0] - 1
+                        #Get the mass of the sample (or inoculum)
+                        thisMass = sampleMass[bucketIndex]
+                        if inoculumOnly[bucketIndex]:
+                            thisMass = inoculumMass[bucketIndex]
+                        #If no mass set net value to 0
+                        if thisMass == 0:
+                            dayLog[dayEventIndex][10] = 0
+                    if dailyHours < 23:
+                        for hourIndex in range(dailyHours, 24):
+                            #Add blank hours
+                            for channelIndex in range(0, 15):
+                                hourEvent = [channelIndex + 1, names[channelIndex], ((lastDayValue + dayChange - 1) * dayLength) + (hourIndex * hourLength), lastDayValue + dayChange - 1, hourIndex, 0, inUse[channelIndex], hourlyTips[channelIndex], round(hourlyVolume[channelIndex], 3), round(hourlyNetVolume[channelIndex], 3), round(totalNetVol[channelIndex], 3), round(totalVolume[channelIndex], 3)]
+                                hourLog.append(hourEvent)
+                            hourlyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                            hourlyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                            hourlyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    #Reset the daily tip count and volume evolved
+                    dailyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    dailyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    dailyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    dailyHours = 0
                 #Update value for days that have passed
                 lastDayValue = daysElapsed
-                #Iterate through each channel
-                for bucketId in range(0, 15):
-                    #Get the mass of sample (or inoculum) for this channel
-                    thisMass = sampleMass[tipChannel]
-                    if inoculumOnly[bucketId]:
-                        thisMass = inoculumMass[bucketId]
-                    #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
-                    if thisMass == 0:
-                        thisMass = math.inf
-                    #Create the event data
-                    #Channel, channel name, timestamp (of day), days, hours, minutes, in service (1/0), no.tips, vol this day (STP), cumulative net vol (ml/g), cumulative vol (STP)
-                    dayEvent = [bucketId + 1, names[bucketId], lastHour + hourLength, daysElapsed, hoursElapsed, minutesElapsed, inUse[bucketId], dailyTips[bucketId], round(dailyVolume[bucketId], 3), round(dailyNetVolume[bucketId], 3), round(totalNetVol[bucketId], 3), round(totalVolume[bucketId], 3)]
-                    dayLog.append(dayEvent)
-                #Iterate through each channel event that was just added
-                for dayEventIndex in range(len(dayEvent) - 15, len(dayEvent)):
-                    #Get the id for the channel
-                    bucketIndex = dayLog[dayEventIndex][0] - 1
-                    #Get the mass of the sample (or inoculum)
-                    thisMass = sampleMass[bucketIndex]
-                    if inoculumOnly[bucketIndex]:
-                        thisMass = inoculumMass[bucketIndex]
-                    #If no mass set net value to 0
-                    if thisMass == 0:
-                        dayLog[dayEventIndex][10] = 0
-                #Reset the daily tip count and volume evolved
-                dailyTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                dailyVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                dailyNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                dailyHours = 0
             
             #Add one to the hourly and daily tips counts for this channel
             hourlyTips[tipChannel] = hourlyTips[tipChannel] + 1
@@ -266,35 +280,6 @@ def performGeneralCalculations(setupData, eventData, progress):
 
             #if another hour has passed
             if time - lastHour > hourLength:
-
-                #For each of the channels
-                for hourId in range(0, len(currentHour)):
-
-                    #Add the current hour value to the list of hours
-                    hourList[hourId].append(currentHour[hourId])
-
-                    #If this is one of the innculum only channels - add its value (of volume per gram) to the list
-                    if inoculumOnly[hourId]:
-                        inocMass = inoculumMass[hourId]
-                        #If no mass, set to infinity (will set values to 0 when divided by not cause an error)
-                        if inocMass == 0:
-                            inocMass = math.inf
-                        hourInoculum[-1].append(currentHour[hourId] / inocMass)
-
-                    #Reset the current hour ready for the next one
-                    currentHour[hourId] = 0
-
-                    #Iterate through 1 to number of hours passed (in case multiple hours pass between tips)
-                    for _ in range(1, int((time - lastHour) / hourLength)):
-                        #Add a 0 to the hour list
-                        hourList[hourId].append(0)
-                        #If this is inoculum - nothing passed here too
-                        if inoculumOnly[hourId]:
-                            hourInoculum[-1].append(0)
-                
-                #Add a new list to the hourly inocculum totals (for the new hour)
-                hourInoculum.append([])
-                
                 #Add the necessary amount to the number of hours passed
                 for _ in range(0, int((time - lastHour) / hourLength)):
                     lastHour = lastHour + hourLength

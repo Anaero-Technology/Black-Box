@@ -469,6 +469,9 @@ class mainWindow(tkinter.Frame):
                 #Allow for gas export if there was any
                 if anyGas:
                     self.exportGasButton.configure(state="normal")
+
+                #An update to the display is needed
+                self.needToUpdateDisplay = True
                 
             else:
                 #Display the error if it occurred
@@ -477,9 +480,7 @@ class mainWindow(tkinter.Frame):
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
-        
-        #An update to the display is needed
-        self.needToUpdateDisplay = True
+    
     
     def exportEventLog(self):
         '''Export the full event log as a file'''
@@ -666,6 +667,10 @@ class mainWindow(tkinter.Frame):
         #List to hold all the labels
         labelsHour = [[], [], [], []]
 
+        self.progress[0] = 0
+        self.progress[1] = rowsHours + rowsDays
+        self.progress[2] = "Setting up display..."
+
         #Iterate through the rows
         for row in range(0, rowsHours + 1):
             for col in range(0, 4):
@@ -681,6 +686,8 @@ class mainWindow(tkinter.Frame):
                 else:
                     #Set the text to the header and change the font
                     label.configure(text=self.hourHeaders[col], font=("courier", 10, "bold"))
+            
+            self.progress[0] = row + 1
 
         #Add the frame to the window of the canvas
         self.hourCanvasWindow = self.hourCanvas.create_window(0, 0, window=self.gridFrameHour, anchor="nw")
@@ -739,6 +746,8 @@ class mainWindow(tkinter.Frame):
                 else:
                     #Add the header text to the label and change the font
                     label.configure(text=self.dayHeaders[col], font=self.headerFont)
+            
+            self.progress[0] = rowsHours + row + 1
 
         #Add the frame to the window of the canvas
         self.dayCanvasWindow = self.dayCanvas.create_window(0, 0, window=self.gridFrameDay, anchor="nw")
