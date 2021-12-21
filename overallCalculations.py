@@ -10,13 +10,6 @@ def performGeneralCalculations(setupData, eventData, progress):
     dayLength = hourLength * 24
     #Time of the last hour start
     lastHour = 0
-
-    #List to contain volumes for the current hour
-    currentHour = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    #2d list to contain the volumes produced for each hour
-    hourList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-    #A list to contain the inoculum volumes for each hour
-    hourInoculum = [[]]
     #The constant gas value for a given channel
     gasConstants = []
 
@@ -283,13 +276,6 @@ def performGeneralCalculations(setupData, eventData, progress):
                 #Add the necessary amount to the number of hours passed
                 for _ in range(0, int((time - lastHour) / hourLength)):
                     lastHour = lastHour + hourLength
-            
-            #Get the id of the channel
-            idNum = int(event[3]) - 1
-            #Calculate the volume - using gas constant, temperature and pressure
-            volume = gasConstants[idNum] * (float(event[4]) + 237.13) / float(event[5])
-            #Add this amount to the current hourly value for that channel
-            currentHour[idNum] = currentHour[idNum] + volume
 
             progress[0] = progress[0] + 1
         
