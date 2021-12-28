@@ -2,7 +2,6 @@ import tkinter
 from tkinter.font import Font
 from tkinter import messagebox
 import setupGUI
-#import eventLogGUI
 import dataReceiveGUI
 import processDataGUI
 import graphCreatorGUI
