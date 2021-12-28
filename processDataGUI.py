@@ -316,7 +316,7 @@ class mainWindow(tkinter.Frame):
             #Deactivate process button
             self.processButton.config(state="disabled")
 
-    def startProcessing(self):
+    def startProcessing(self) -> None:
         if not self.processing:
             self.progressBar["value"] = 0
             self.progress = [0, 100, "Processing data..."]
@@ -328,7 +328,7 @@ class mainWindow(tkinter.Frame):
             progressThread.start()
             self.after(100, self.checkDisplay)
     
-    def checkDisplay(self):
+    def checkDisplay(self) -> None:
         '''Repeatedly check if the display needs to be updated'''
         if self.needToUpdateDisplay:
             #Populate the windows to a correct size
@@ -349,7 +349,7 @@ class mainWindow(tkinter.Frame):
         else:
             self.after(100, self.checkDisplay)
     
-    def updateProgressBar(self):
+    def updateProgressBar(self) -> None:
         '''Update the progress bar'''
         value = 0
         limit = 100
@@ -482,7 +482,7 @@ class mainWindow(tkinter.Frame):
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
     
     
-    def exportEventLog(self):
+    def exportEventLog(self) -> None:
         '''Export the full event log as a file'''
         if not self.processing:
             if self.eventLog != None:
@@ -502,7 +502,7 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
 
-    def exportContinuousLog(self):
+    def exportContinuousLog(self) -> None:
         '''Export the continuous data as a file'''
         if not self.processing:
             if self.eventLog != None:
@@ -537,7 +537,7 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
 
-    def exportHourLog(self):
+    def exportHourLog(self) -> None:
         '''Export the hour log as a file'''
         if not self.processing:
             if self.hourLog != None:
@@ -557,7 +557,7 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
-    def exportDayLog(self):
+    def exportDayLog(self) -> None:
         '''Export the day log as a file'''
         if not self.processing:
             if self.dayLog != None:
