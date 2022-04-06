@@ -8,7 +8,7 @@ import graphCreatorGUI
 import configureClockGUI
 import calibrateAnalyserGUI
 
-class settingsWindow(tkinter.Frame):
+class SettingsWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
     def __init__ (self, parent, *args, **kwargs):
         #Initialise parent class
@@ -262,7 +262,7 @@ class settingsWindow(tkinter.Frame):
 
 
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs):
         #Setup parent configuration
@@ -518,7 +518,7 @@ class mainWindow(tkinter.Frame):
                 self.settingsWindow.grid_rowconfigure(0, weight=1)
                 self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
                 self.settingsWindow.title("Settings")
-                settingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
                 self.settingsWindow.focus()
 
     def closeAll(self) -> None:
@@ -545,6 +545,6 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("Setup GFM")
     #Add the editor to the root windows
-    mainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
     root.mainloop()
