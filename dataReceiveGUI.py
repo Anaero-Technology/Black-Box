@@ -7,9 +7,9 @@ from serial.tools import list_ports
 from threading import Thread
 import readSeparators
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
-    def __init__(self, parent, *args, **kwargs) -> None:
+    def __init__(self, parent, initialTarget = None, *args, **kwargs) -> None:
         #Setup parent configuration
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
@@ -113,7 +113,7 @@ class mainWindow(tkinter.Frame):
         self.currentFileName = ""
 
         #Perform a first time scan
-        self.performScan()
+        self.performScan(target = initialTarget)
 
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
@@ -234,7 +234,7 @@ class mainWindow(tkinter.Frame):
                     messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
                     self.performScan()
     
-    def performScan(self) -> None:
+    def performScan(self, target = None) -> None:
         '''Perform a scan of available ports and update option list accordingly'''
         if not self.connected:
             #List to contain available ports
@@ -276,16 +276,28 @@ class mainWindow(tkinter.Frame):
                     menu.add_command(label=name + " " + descs[i], command=lambda v=self.selectedPort, l=name: v.set(l))
                     i = i + 1
 
-                #If the selected item is still available
-                if self.selectedPort.get() in self.portLabels:
-                    #Set the drop down value to what it was
-                    self.selectedPort.set(self.selectedPort.get())
-                else:
-                    #Set selected option to none
-                    self.selectedPort.set(self.portLabels[0])
+                targetFound = False
+
+                if target != None:
+                    if target in self.portLabels:
+                        self.selectedPort.set(target)
+                
+                if not targetFound:
+                    #If the selected item is still available
+                    if self.selectedPort.get() in self.portLabels:
+                        #Set the drop down value to what it was
+                        self.selectedPort.set(self.selectedPort.get())
+                    else:
+                        #Set selected option to none
+                        self.selectedPort.set(self.portLabels[0])
             
             #Scan again shortly
             self.after(150, self.performScan)
+
+    def trySelectPort(self, portName):
+        if not self.connected:
+            if portName in self.portLabels:
+                self.selectedPort.set(portName)
 
     def togglePressed(self) -> None:
         '''When button pressed to start/stop communications'''
@@ -499,6 +511,8 @@ class mainWindow(tkinter.Frame):
                 #If a filename is provided, store it
                 if len(messageParts) > 2:
                     self.currentFileName = messageParts[2]
+                    if self.currentFileName == "none":
+                        self.currentFileName = ""
             else:
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
@@ -944,7 +958,7 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("GFM Data Receive")
     #Add the editor to the root windows
-    window = mainWindow(root)
+    window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
     #If the window is attempted to be closed, call the close window function
     root.protocol("WM_DELETE_WINDOW", window.closeWindow)

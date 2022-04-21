@@ -9,7 +9,7 @@ from tkinter import messagebox
 import readSetup
 import readSeparators
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs) -> None:
         #Setup parent configuration
@@ -504,6 +504,6 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("GFM Graph Creator")
     #Add the editor to the root windows
-    mainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
     root.mainloop()
