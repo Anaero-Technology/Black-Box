@@ -3,6 +3,7 @@ from tkinter.font import Font
 from tkinter import messagebox
 import setupGUI
 import dataReceiveGUI
+import networkViewGUI
 import processDataGUI
 import graphCreatorGUI
 import configureClockGUI
@@ -269,7 +270,7 @@ class MainWindow(tkinter.Frame):
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Rows needed for this frame
-        self.numberRows = 7
+        self.numberRows = 8
         self.numberColumns = 7
 
         #Setup rows and columns
@@ -287,28 +288,31 @@ class MainWindow(tkinter.Frame):
         #Event log configuration
         self.eventLogButton = tkinter.Button(self, text="Connect to GFM", command=self.openCommunicationWindow, font=self.buttonFont)
         self.eventLogButton.grid(row=0, column=1, columnspan=5)
+        #Network Device Connection
+        self.networkButton = tkinter.Button(self, text="View Connected Devices", command=self.openNetworkWindow, font=self.buttonFont)
+        self.networkButton.grid(row=1, column=1, columnspan=5)
         #Setup file configuration
         self.setupButton = tkinter.Button(self, text="Experiment Settings", command=self.openSetupWindow, font=self.buttonFont)
-        self.setupButton.grid(row=1, column=1, columnspan = 5)
+        self.setupButton.grid(row=2, column=1, columnspan = 5)
         #Performing calculations
         self.calculationsButton = tkinter.Button(self, text="Analyse Data", command=self.openCalculationsWindow, font=self.buttonFont)
-        self.calculationsButton.grid(row=2, column=1, columnspan=5)
+        self.calculationsButton.grid(row=3, column=1, columnspan=5)
         #Creating graphs
         self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
-        self.graphsButton.grid(row=3, column=1, columnspan=5)
+        self.graphsButton.grid(row=4, column=1, columnspan=5)
         #Setting clock time
         self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
-        self.clockButton.grid(row=4, column=1, columnspan=5)
+        self.clockButton.grid(row=5, column=1, columnspan=5)
         #Calibrate analyser
         self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
-        self.calibrateButton.grid(row=5, column=1, columnspan=5)
+        self.calibrateButton.grid(row=6, column=1, columnspan=5)
         #Quit all
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
-        self.exitButton.grid(row=6, column=2, columnspan=3)
+        self.exitButton.grid(row=7, column=2, columnspan=3)
 
         self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
         self.settingsButton = tkinter.Button(self, image=self.settingsImage, command=self.openSettingsWindow)
-        self.settingsButton.grid(row=6, column=5)
+        self.settingsButton.grid(row=7, column=5)
 
         #Get the centre of the screen
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -316,6 +320,7 @@ class MainWindow(tkinter.Frame):
         #Variables to hold the different windows currently in use
         self.setupWindow = None
         self.communicationWindow = None
+        self.networkWindow = None
         self.dataProcessWindow = None
         self.graphWindow = None
         self.clockWindow = None
@@ -345,10 +350,45 @@ class MainWindow(tkinter.Frame):
             self.setupWindow.title("Setup GFM")
             self.setupWindow.grid_rowconfigure(0, weight=1)
             self.setupWindow.grid_columnconfigure(0, weight=1)
-            setupGUI.mainWindow(self.setupWindow).grid(row=0, column=0, sticky="NESW")
+            setupGUI.MainWindow(self.setupWindow).grid(row=0, column=0, sticky="NESW")
             self.setupWindow.focus()
 
-    def openCommunicationWindow(self) -> None:
+    def openCommunicationWindow(self, target=None) -> None:
+        '''Create a new instance of the communication window, or lift and focus the current one'''
+        try:
+            #If the settings window is open - destroy it
+            self.settingsWindow.lift()
+            self.settingsWindow.destroy()
+            self.settingsWindow = None
+        except:
+            pass
+        try:
+            self.networkWindow.lift()
+            self.networkWindow.destroy()
+            self.networkWindow = None
+        except:
+            pass
+        try:
+            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            self.communicationWindow.lift()
+            self.communicationWindow.focus()
+            if target != None and not self.dataReceiveTopLevel.connected:
+                self.dataReceiveTopLevel.trySelectPort(target)
+        except:
+            #If unable to do so, create a new communication window
+            self.communicationWindow = tkinter.Toplevel(self.parent)
+            self.communicationWindow.transient(self.parent)
+            self.communicationWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 200), int(self.screenCentre[1] - 250)))
+            self.communicationWindow.minsize(400, 500)
+            self.communicationWindow.title("GFM Data Receive")
+            self.communicationWindow.grid_rowconfigure(0, weight=1)
+            self.communicationWindow.grid_columnconfigure(0, weight=1)
+            self.dataReceiveTopLevel = dataReceiveGUI.MainWindow(self.communicationWindow, initialTarget=target)
+            self.dataReceiveTopLevel.grid(row = 0, column=0, sticky="NESW")
+            self.communicationWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveTopLevel.closeWindow)
+            self.communicationWindow.focus()
+    
+    def openNetworkWindow(self) -> None:
         '''Create a new instance of the communication window, or lift and focus the current one'''
         try:
             #If the settings window is open - destroy it
@@ -359,21 +399,19 @@ class MainWindow(tkinter.Frame):
             pass
         try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
-            self.communicationWindow.lift()
-            self.communicationWindow.focus()
+            self.networkWindow.lift()
+            self.networkWindow.focus()
         except:
             #If unable to do so, create a new communication window
-            self.communicationWindow = tkinter.Toplevel(self.parent)
-            self.communicationWindow.transient(self.parent)
-            self.communicationWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 200), int(self.screenCentre[1] - 250)))
-            self.communicationWindow.minsize(400, 500)
-            self.communicationWindow.title("GFM Data Receive")
-            self.communicationWindow.grid_rowconfigure(0, weight=1)
-            self.communicationWindow.grid_columnconfigure(0, weight=1)
-            self.dataReceiveTopLevel = dataReceiveGUI.mainWindow(self.communicationWindow)
-            self.dataReceiveTopLevel.grid(row = 0, column=0, sticky="NESW")
-            self.communicationWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveTopLevel.closeWindow)
-            self.communicationWindow.focus()
+            self.networkWindow = tkinter.Toplevel(self.parent)
+            self.networkWindow.transient(self.parent)
+            self.networkWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
+            self.networkWindow.minsize(600, 500)
+            self.networkWindow.title("Network View")
+            self.networkWindow.grid_rowconfigure(0, weight=1)
+            self.networkWindow.grid_columnconfigure(0, weight=1)
+            networkViewGUI.MainWindow(self.networkWindow, rw=self).grid(row = 0, column=0, sticky="NESW")
+            self.networkWindow.focus()
 
     def openCalculationsWindow(self) -> None:
         '''Create a new instance of the proccessing window, or lift and focus the current one'''
@@ -397,7 +435,7 @@ class MainWindow(tkinter.Frame):
             self.dataProcessWindow.title("Process GFM Data")
             self.dataProcessWindow.grid_rowconfigure(0, weight=1)
             self.dataProcessWindow.grid_columnconfigure(0, weight=1)
-            processDataGUI.mainWindow(self.dataProcessWindow).grid(row = 0, column=0, sticky="NESW")
+            processDataGUI.MainWindow(self.dataProcessWindow).grid(row = 0, column=0, sticky="NESW")
             self.dataProcessWindow.focus()
 
     def openGraphsWindow(self) -> None:
@@ -422,7 +460,7 @@ class MainWindow(tkinter.Frame):
             self.graphWindow.title("GFM Graph Creator")
             self.graphWindow.grid_rowconfigure(0, weight=1)
             self.graphWindow.grid_columnconfigure(0, weight=1)
-            graphCreatorGUI.mainWindow(self.graphWindow).grid(row = 0, column=0, sticky="NESW")
+            graphCreatorGUI.MainWindow(self.graphWindow).grid(row = 0, column=0, sticky="NESW")
             self.graphWindow.focus()
 
     def openClockWindow(self) -> None:
@@ -440,7 +478,7 @@ class MainWindow(tkinter.Frame):
             self.clockWindow.title("Clock Time Configuration")
             self.clockWindow.grid_rowconfigure(0, weight=1)
             self.clockWindow.grid_columnconfigure(0, weight=1)
-            configureClockGUI.mainWindow(self.clockWindow).grid(row = 0, column=0, sticky="NESW")
+            configureClockGUI.MainWindow(self.clockWindow).grid(row = 0, column=0, sticky="NESW")
             self.clockWindow.focus()
 
     def openCalibrateWindow(self) -> None:
@@ -458,7 +496,7 @@ class MainWindow(tkinter.Frame):
             self.calibrateWindow.title("Calibrate Gas Analyser")
             self.calibrateWindow.grid_rowconfigure(0, weight=1)
             self.calibrateWindow.grid_columnconfigure(0, weight=1)
-            calibrateAnalyserGUI.mainWindow(self.calibrateWindow).grid(row = 0, column=0, sticky="NESW")
+            calibrateAnalyserGUI.MainWindow(self.calibrateWindow).grid(row = 0, column=0, sticky="NESW")
             self.calibrateWindow.focus()
 
     def openSettingsWindow(self) -> None:
@@ -545,6 +583,6 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("Setup GFM")
     #Add the editor to the root windows
-    MainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    rootWindow = MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
     root.mainloop()
