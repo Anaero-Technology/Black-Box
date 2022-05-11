@@ -14,10 +14,10 @@ class MainWindow(tkinter.Frame):
     def __init__ (self, parent, *args, **kwargs):
         #Initialise parent class
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
         #Grid rows and columns
         self.rowCount = 5
         self.columnCount = 3
-
         for row in range(0, self.rowCount):
             self.grid_rowconfigure(row, weight = 1)
         for col in range(0, self.columnCount):
@@ -832,7 +832,7 @@ if __name__ == "__main__":
     #Calculate the position of the centre of the screen
     screenMiddle = [root.winfo_screenwidth() / 2, root.winfo_screenheight() / 2]
     #Set the shape of the window and place it in the centre of the screen
-    root.geometry("600x350+{0}+{1}".format(int(screenMiddle[0] - 350), int(screenMiddle[1] - 250)))
+    root.geometry("700x500+{0}+{1}".format(int(screenMiddle[0] - 350), int(screenMiddle[1] - 250)))
     root.minsize(700, 500)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
