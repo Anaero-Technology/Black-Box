@@ -5,6 +5,7 @@ import setupGUI
 import dataReceiveGUI
 import networkViewGUI
 import processDataGUI
+import combineDataGUI
 import graphCreatorGUI
 import configureClockGUI
 import calibrateAnalyserGUI
@@ -270,7 +271,7 @@ class MainWindow(tkinter.Frame):
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Rows needed for this frame
-        self.numberRows = 8
+        self.numberRows = 9
         self.numberColumns = 7
 
         #Setup rows and columns
@@ -297,22 +298,25 @@ class MainWindow(tkinter.Frame):
         #Performing calculations
         self.calculationsButton = tkinter.Button(self, text="Analyse Data", command=self.openCalculationsWindow, font=self.buttonFont)
         self.calculationsButton.grid(row=3, column=1, columnspan=5)
+        #Combining data
+        self.combineButton = tkinter.Button(self, text="Combine pH / Redox or Gas Data", command=self.openCombineWindow, font=self.buttonFont)
+        self.combineButton.grid(row=4, column=1, columnspan=5)
         #Creating graphs
         self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
-        self.graphsButton.grid(row=4, column=1, columnspan=5)
+        self.graphsButton.grid(row=5, column=1, columnspan=5)
         #Setting clock time
         self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
-        self.clockButton.grid(row=5, column=1, columnspan=5)
+        self.clockButton.grid(row=6, column=1, columnspan=5)
         #Calibrate analyser
         self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
-        self.calibrateButton.grid(row=6, column=1, columnspan=5)
+        self.calibrateButton.grid(row=7, column=1, columnspan=5)
         #Quit all
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
-        self.exitButton.grid(row=7, column=2, columnspan=3)
+        self.exitButton.grid(row=8, column=2, columnspan=3)
 
         self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
         self.settingsButton = tkinter.Button(self, image=self.settingsImage, command=self.openSettingsWindow)
-        self.settingsButton.grid(row=7, column=5)
+        self.settingsButton.grid(row=8, column=5)
 
         #Get the centre of the screen
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -322,6 +326,7 @@ class MainWindow(tkinter.Frame):
         self.communicationWindow = None
         self.networkWindow = None
         self.dataProcessWindow = None
+        self.combineWindow = None
         self.graphWindow = None
         self.clockWindow = None
         self.settingsWindow = None
@@ -437,6 +442,31 @@ class MainWindow(tkinter.Frame):
             self.dataProcessWindow.grid_columnconfigure(0, weight=1)
             processDataGUI.MainWindow(self.dataProcessWindow).grid(row = 0, column=0, sticky="NESW")
             self.dataProcessWindow.focus()
+    
+    def openCombineWindow(self) -> None:
+        '''Create a new instance of the graphs window, or lift and focus the current one'''
+        try:
+            #If the settings window is open - destroy it
+            self.settingsWindow.lift()
+            self.settingsWindow.destroy()
+            self.settingsWindow = None
+        except:
+            pass
+        try:
+            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            self.combineWindow.lift()
+            self.combineWindow.focus()
+        except:
+            #If unable to do so, create a new combine window
+            self.combineWindow = tkinter.Toplevel(self.parent)
+            self.combineWindow.transient(self.parent)
+            self.combineWindow.geometry("700x500+{0}+{1}".format(int(self.screenCentre[0] - 350), int(self.screenCentre[1] - 250)))
+            self.combineWindow.minsize(700, 500)
+            self.combineWindow.title("GFM Graph Creator")
+            self.combineWindow.grid_rowconfigure(0, weight=1)
+            self.combineWindow.grid_columnconfigure(0, weight=1)
+            combineDataGUI.MainWindow(self.combineWindow).grid(row = 0, column=0, sticky="NESW")
+            self.combineWindow.focus()
 
     def openGraphsWindow(self) -> None:
         '''Create a new instance of the graphs window, or lift and focus the current one'''
@@ -522,6 +552,12 @@ class MainWindow(tkinter.Frame):
         except:
             pass
         try:
+            #Try to access the combining window
+            self.combineWindow.lift()
+            windowsPresent = windowsPresent + 1
+        except:
+            pass
+        try:
             #Try to access the graphing window
             self.graphWindow.lift()
             windowsPresent = windowsPresent + 1
@@ -563,6 +599,14 @@ class MainWindow(tkinter.Frame):
         '''Close all the tkinter windows - terminates the program'''
         try:
             self.dataReceiveTopLevel.closeWindow()
+        except:
+            pass
+        try:
+            self.clockWindow.closeWindow()
+        except:
+            pass
+        try:
+            self.calibrateWindow.closeWindow()
         except:
             pass
         self.parent.destroy()
