@@ -462,7 +462,7 @@ class MainWindow(tkinter.Frame):
             self.combineWindow.transient(self.parent)
             self.combineWindow.geometry("700x500+{0}+{1}".format(int(self.screenCentre[0] - 350), int(self.screenCentre[1] - 250)))
             self.combineWindow.minsize(700, 500)
-            self.combineWindow.title("GFM Graph Creator")
+            self.combineWindow.title("Combine Data Sets")
             self.combineWindow.grid_rowconfigure(0, weight=1)
             self.combineWindow.grid_columnconfigure(0, weight=1)
             combineDataGUI.MainWindow(self.combineWindow).grid(row = 0, column=0, sticky="NESW")

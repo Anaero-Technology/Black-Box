@@ -838,7 +838,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Combine pH and Redox")
+    root.title("Combine Data Sets")
     #Add the editor to the root windows
     MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
