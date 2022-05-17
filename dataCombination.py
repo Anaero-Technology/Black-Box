@@ -196,5 +196,3 @@ def mergeDataGas(fullData, readingData, assoc, parent):
 
     #Return the processed data
     return fullData
-
-
