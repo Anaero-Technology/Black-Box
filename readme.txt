@@ -1,4 +1,4 @@
-# GFM Python Data Tools V0.2
+# GFM Python Data Tools V0.2.13
 This is a collection of tools for creating and processing data files that are associated with a Gas Flow Meter (GFM).
 
 ## Usage
@@ -13,17 +13,32 @@ Disconnect can be called at any time to terminate the connection (as long as it 
 The files will be open at all times and are refreshed whenever a new connection is made or the logging is started / stopped.
 Downloads can be performed at any time while deletes must be performed while the ESP is not logging data to prevent memory problems.
 
-### Configure Setup
+### View Connected Devices
+Used to view and manage multiple connected devices at the same time. Once opened it will shortly load a list of attached devices that are correctly functional.
+For each device the logging may be started or stopped, the device can be renamed (this is the identifier displayed on this screen) and the full connected view may be opened to download the files.
+This is most useful when running several machines at once so that the user does not have to go around and plug in to each device separately.
+This will not work with wireless connections as this would require a much more complex process which would slow down the performance significantly.
+
+### Experiment Settings
 Used to create, edit and export setup configurations for the Gas Flow Meter. Storing information about the different tubes and what they contain.
 Data can be entered manually and then exported or can be loaded in from a correctly formatted .csv file for editing and viewing.
 
-### Perform Calculations
+### Analyse Data
 Used to combine a setup and event log file together to produce the hourly and daily results, volumes and totals.
 Setup and Event log files are loaded in using the buttons in the top left.
 The 'process data' button can then be pressed. The calculations are then performed, this may cause tkinter to freeze temporarily.
 Once complete the information will be displayed in the tables which an be navigated using the channel, hour and day buttons.
 Once processed data is present the export data buttons can be pressed to save it into a .csv file, the whole data log, hourly data, daily data or continuous data may be exported.
 If there is any gas analysis data within the event log file the gas composition data will also be able to be exported
+
+### Combine pH / Redox or Gas Data
+Used to produce data files which contain the pH and redox data or the gas data for each tip from an event log file and any number of continuous logs for pH/redox/gas.
+The event file is loaded at the top using the button.
+The data files are added one at a time using the 'add pH/redox file' and 'add gas file' buttons.
+Once a data file has been loaded the association needs to be set using the boxes that appear, so that the software knows which channels should take data from where.
+Each of the channels are numbered 1 to 15 and if multiple associations are found then the first one (highest in the interface) will be used.
+Gas and pH/redox may be processed at the same time, using the process button, and two files can be exported using the buttons in the upper right.
+If any of the files are not formatted as expected the software will inform the user and the file will not be added.
 
 ### Create Graphs
 Used to produce a variety of graphs from a processed information file (created by the Perform Calculations section).
