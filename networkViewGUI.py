@@ -297,7 +297,8 @@ class MainWindow(tkinter.Frame):
         try:
             time.sleep(0.2)
             #Establish connection
-            self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+            #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+            self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
             #Start the reading thread
             readThread = Thread(target=self.readSerial, daemon=True)
             readThread.start()
@@ -537,7 +538,8 @@ class MainWindow(tkinter.Frame):
                         success = True
                         try:
                             #Open serial connection
-                            self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                            #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                            self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
                             
                             #Start reading thread
                             readThread = Thread(target=self.readSerial, daemon=True)
@@ -616,7 +618,8 @@ class MainWindow(tkinter.Frame):
                 success = True
                 try:
                     #Connect to serial
-                    self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                    #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                    self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
                     #Start reading thread
                     readThread = Thread(target=self.readSerial, daemon=True)
                     readThread.start()
@@ -728,7 +731,8 @@ class MainWindow(tkinter.Frame):
                     success = True
                     try:
                         #Establish serial connection
-                        self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                        #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                        self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
                         #Start reading thread
                         readThread = Thread(target=self.readSerial, daemon=True)
                         readThread.start()

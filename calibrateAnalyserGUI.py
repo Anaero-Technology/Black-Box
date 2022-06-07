@@ -281,7 +281,8 @@ class MainWindow(tkinter.Frame):
                 success = True
                 try:
                     #Attempt to connect
-                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
                 except:
                     #If something went wrong
                     success = False

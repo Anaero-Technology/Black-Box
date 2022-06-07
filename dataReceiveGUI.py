@@ -198,7 +198,8 @@ class MainWindow(tkinter.Frame):
                 success = True
                 try:
                     #Attempt to connect
-                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
                 except:
                     #If something went wrong
                     success = False
@@ -617,7 +618,7 @@ class MainWindow(tkinter.Frame):
             #If this is not the start of the files
             if messageParts[1] != "start":
                 #If it is not the configuration files
-                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt"]:
+                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt"]:
                     #Add to the list
                     self.files.append(messageParts[1])
                     size = -1
@@ -734,8 +735,9 @@ class MainWindow(tkinter.Frame):
             if index == self.selectedFile:
                 #If it is a valid index
                 if index > -1 and index < len(self.fileButtons):
-                    #Reset button colour to default
-                    self.fileButtons[index].configure(bg=self.defaultButtonColour)
+                    #Reset button colour to default (if it exists)
+                    if self.fileButtons[index].winfo_exists() == 1:
+                        self.fileButtons[index].configure(bg=self.defaultButtonColour)
                 #Reset selected file index and label
                 self.selectedFile = -1
                 self.fileLabel.configure(text="No file selected")
