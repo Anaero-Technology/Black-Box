@@ -71,8 +71,8 @@ class MainWindow(tkinter.Frame):
         self.headerFont = ("courier", 10, "bold")
 
         #Seutp the gas composition export button
-        self.exportGasButton = tkinter.Button(self, text="Export Gas Composition", bg="#DDEEFF", state="disabled", command=self.exportGasLog)
-        self.exportGasButton.grid(row=2, column=11, sticky="NESW")
+        #self.exportGasButton = tkinter.Button(self, text="Export Gas Composition", bg="#DDEEFF", state="disabled", command=self.exportGasLog)
+        #self.exportGasButton.grid(row=2, column=11, sticky="NESW")
 
         #Create the hours and days buttons
         self.hoursButton = tkinter.Button(self, text="Per Hour", relief="ridge", command=self.changeToHours)
@@ -82,7 +82,7 @@ class MainWindow(tkinter.Frame):
 
         #Currently viewing the first channel in hours mode
         self.hours = True
-        self.gas = False
+        #self.gas = False
         self.currentScreen = 0
 
         self.channelLabels = []
@@ -380,10 +380,11 @@ class MainWindow(tkinter.Frame):
             self.exportContinuousButton.configure(state="disabled")
             self.exportHourButton.configure(state="disabled")
             self.exportDayButton.configure(state="disabled")
-            self.exportGasButton.configure(state="disabled")
+            #self.exportGasButton.configure(state="disabled")
             self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors
-            error, events, hours, days, gas, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            #error, events, hours, days, gas, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            error, events, hours, days, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
             if error == None:
                 #Iterate through the setup data and labels
@@ -440,9 +441,9 @@ class MainWindow(tkinter.Frame):
                 self.eventLog = events
                 self.hourLog = hours
                 self.dayLog = days
-                self.gasLog = gas
+                #self.gasLog = gas
                 
-                anyGas = False
+                '''anyGas = False
                 #Check if there was any gas composition data
                 try:
                     rowNumber = 0
@@ -458,7 +459,7 @@ class MainWindow(tkinter.Frame):
                         rowNumber = rowNumber + 1
                 except:
                     #If the file was not formatted correctly
-                    anyGas = False
+                    anyGas = False'''
                 
                 #Allow for the export of the information
                 self.exportDataLogButton.configure(state="normal")
@@ -466,9 +467,9 @@ class MainWindow(tkinter.Frame):
                 self.exportHourButton.configure(state="normal")
                 self.exportDayButton.configure(state="normal")
 
-                #Allow for gas export if there was any
+                '''#Allow for gas export if there was any
                 if anyGas:
-                    self.exportGasButton.configure(state="normal")
+                    self.exportGasButton.configure(state="normal")'''
 
                 #An update to the display is needed
                 self.needToUpdateDisplay = True
@@ -577,8 +578,8 @@ class MainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
-    def exportGasLog(self) -> None:
-        '''Export the gas log as a file'''
+    '''def exportGasLog(self) -> None:
+        #Export the gas log as a file
         #If not currently processing data
         if not self.processing:
             #If there is gas data
@@ -617,7 +618,7 @@ class MainWindow(tkinter.Frame):
                             messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
                         else:
                             #Display message to indicate file was not saved
-                            messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+                            messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")'''
                 
 
     def unpopulateWindows(self) -> None:
