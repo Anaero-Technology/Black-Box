@@ -22,6 +22,8 @@ class MainWindow(tkinter.Frame):
         self.portNames = []
         self.portStates = []
         self.portObjects = []
+        self.portWifi = []
+        self.portSsids = []
 
         #The root window (of the main menu)
         self.rootWindow = rw
@@ -85,8 +87,9 @@ class MainWindow(tkinter.Frame):
         self.updateText = tkinter.Label(self.updateFrame, text="No Devices Found, Try Reconnecting")
         self.updateText.grid(row=0, column=0, sticky="NESW")
 
-        #Connection timeout
-        self.timeout = 2000000000
+        #Connection timeouts
+        self.timeout = 4000000000
+        self.longTimeout = self.timeout * 8
         #Characters that can be used for names
         self.acceptedChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijlkmnopqrstuvwxyz-_"
 
@@ -109,6 +112,10 @@ class MainWindow(tkinter.Frame):
         self.communicating = False
         #If currently scanning the ports
         self.midScan = False
+
+        #Images used to display wifi state
+        self.wifiIconOn = tkinter.PhotoImage(file="wirelessIconOn.png")
+        self.wifiIconOff = tkinter.PhotoImage(file="wirelessIconOff.png")
 
         #Make a check for any changes
         self.checkForPortChanges()
@@ -185,13 +192,13 @@ class MainWindow(tkinter.Frame):
         #Iterate through ports needing to be tested
         for port in toTest:
             #Attempt to get the port info
-            name, state = self.getPortInfo(port)
+            name, state, wifi, ssid = self.getPortInfo(port)
             #If it is unknown
             if port not in self.ports:
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of known ports
-                    self.toAdd.append((port, name, state))
+                    self.toAdd.append((port, name, state, wifi, ssid))
                 else:
                     #If it is not already ignored
                     if port not in self.ignoreList:
@@ -201,7 +208,7 @@ class MainWindow(tkinter.Frame):
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of ports to be updated
-                    self.toUpdate.append((port, name, state))
+                    self.toUpdate.append((port, name, state, wifi, ssid))
                 else:
                     #If it is not ignored
                     if port not in self.ignoreList:
@@ -241,7 +248,7 @@ class MainWindow(tkinter.Frame):
                 #If it isn't already there
                 if port[0] not in self.ports:
                     #Add the port
-                    self.addPortToList(port[0], port[1], port[2])
+                    self.addPortToList(port[0], port[1], port[2], port[3], port[4])
             
             #Clear adding list
             self.toAdd = []
@@ -249,7 +256,7 @@ class MainWindow(tkinter.Frame):
             #Iterate through updates
             for port in self.toUpdate:
                 #Update the appropriate port
-                self.updatePortInformation(port[0], port[1], port[2])
+                self.updatePortInformation(port[0], port[1], port[2], port[3], port[4])
 
             #Clear update list
             self.toUpdate = []
@@ -293,6 +300,8 @@ class MainWindow(tkinter.Frame):
         connectedSuccessfully = True
         nameReceived = None
         stateReceived = None
+        wifiReceived = None
+        ssidReceived = None
 
         try:
             time.sleep(0.2)
@@ -332,15 +341,23 @@ class MainWindow(tkinter.Frame):
                                 state = msgParts[1] == "1"
 
                                 name = None
+                                wifi = None
+                                ssid = None
                                 #If there is a name - store it
-                                if len(msgParts) > 4:
-                                    name = msgParts[4]
+                                if len(msgParts) > 3:
+                                    name = msgParts[3]
+                                #If there is wifi data - store it
+                                if len(msgParts) > 5:
+                                    wifi = msgParts[4] == "wifion"
+                                    ssid = msgParts[5]
                                 
                                 #If there is a name
-                                if name != None:
+                                if name != None and wifi != None and ssid != None:
                                     #Correctly received - completed
                                     nameReceived = name
                                     stateReceived = state
+                                    wifiReceived = wifi
+                                    ssidReceived = ssid
                                     done = True
         
         #Disconnect from serial (if there is a connection)
@@ -350,18 +367,18 @@ class MainWindow(tkinter.Frame):
         #If there was data received
         if nameReceived != None and stateReceived != None:
             #Return the information (port name is already known)
-            return nameReceived, stateReceived
+            return nameReceived, stateReceived, wifiReceived, ssidReceived
         
         #Failed - return Nones
-        return None, None
+        return None, None, None, None
 
-    def addPortToList(self, portCode : str, portName : str, portState : bool, index = -1) -> None:
+    def addPortToList(self, portCode : str, portName : str, portState : bool, wifiState : bool, ssid : str, index = -1) -> None:
         '''Add a port to the interface, if index is given that is its place in the list (used for updates)'''
         #Create frame to hold items
         portObject = tkinter.Frame(self.listGridFrame, highlightthickness=4, highlightbackground="black")
         #Configure the frames rows and columns
         portObject.grid_rowconfigure(0, weight=1)
-        for col in range(0, 5):
+        for col in range(0, 7):
             portObject.grid_columnconfigure(col, weight=1)
         #Label for the port name
         codeLabel = tkinter.Label(portObject, text="Port:\n" + portCode)
@@ -382,18 +399,42 @@ class MainWindow(tkinter.Frame):
         #Open window button
         openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode: self.openPressed(x))
         openButton.grid(row=0, column=4, sticky="NESW")
+        #Icon defaults to disabled
+        wifiIcon = self.wifiIconOff
+        #Wireless changes button
+        options = ["Enable", "Change SSID", "Change Password"]
+        #If the wifi is on
+        if wifiState:
+            #Switch to turn off and display 'on' symbol
+            options[0] = "Disable"
+            wifiIcon = self.wifiIconOn
+        #Set the option being displayed
+        portObject.optionVar = tkinter.StringVar()
+        portObject.optionVar.set("WiFi")
+        #Create drop down menu to select action
+        wifiOption = tkinter.OptionMenu(portObject, portObject.optionVar, *options, command=lambda *args: self.wifiOptionPressed(portCode, portObject.optionVar))
+        #Disable drop down indicator
+        wifiOption.configure(indicatoron=False)
+        wifiOption.grid(row=0, column=6, sticky="NSEW")
+        #Display the state of the wifi
+        wifiIndicator = tkinter.Button(portObject, text=ssid, image=wifiIcon, compound="top", state="disabled")
+        wifiIndicator.grid(row=0, column=5, sticky="NESW")
         #If no index or an invalid index was given
         if index <= -1 or len(self.portObjects) <= index:
             #Add port to end
             self.ports.append(portCode)
             self.portNames.append(portName)
             self.portStates.append(portState)
+            self.portWifi.append(wifiState)
+            self.portSsids.append(ssid)
             self.portObjects.append(portObject)
         else:
             #Add the port at the given index
             self.ports[index] = portCode
             self.portNames[index] = portName
             self.portStates[index] = portState
+            self.portWifi[index] = wifiState
+            self.portSsids[index] = ssid
             self.portObjects[index] = portObject
 
     def removePortFromList(self, portCode : str) -> None:
@@ -406,6 +447,8 @@ class MainWindow(tkinter.Frame):
             del self.ports[portId]
             del self.portNames[portId]
             del self.portStates[portId]
+            del self.portWifi[portId]
+            del self.portSsids[portId]
             #Remove the object
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
@@ -430,7 +473,7 @@ class MainWindow(tkinter.Frame):
             #Add them back to the grid
             self.portObjects[index].grid(row=index, column=0, sticky="NESW")
     
-    def updatePortInformation(self, portCode : str, portName : str, portState : bool) -> None:
+    def updatePortInformation(self, portCode : str, portName : str, portState : bool, wifiState : bool, wifiSsid : str) -> None:
         '''Update the data of a known port'''
         #Get the id for the port (index)
         portId = self.ports.index(portCode)
@@ -439,10 +482,12 @@ class MainWindow(tkinter.Frame):
             #Change the values
             self.portNames[portId] = portName
             self.portStates[portId] = portState
+            self.portWifi[portId] = wifiState
+            self.portSsids[portId] = wifiSsid
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
             #Add the port to the list with the given position
-            self.addPortToList(portCode, portName, portState, portId)
+            self.addPortToList(portCode, portName, portState, wifiState, wifiSsid, portId)
 
     def readSerial(self) -> None:
         '''Read the incoming characters from the serial connection'''
@@ -466,7 +511,7 @@ class MainWindow(tkinter.Frame):
                                 self.currentMessage = ""
                             else:
                                 #If it isnt a line feed (prevents extra characters)
-                                if ch not in ['\r']:
+                                if ch not in ['\r', '\0']:
                                     #Add character to message
                                     self.currentMessage = self.currentMessage + ch
                         except:
@@ -524,21 +569,13 @@ class MainWindow(tkinter.Frame):
                     #Add extensions
                     fileName = "/" + fileName + ".txt"
 
-                    #If the analyser is being used
-                    gasAnalysis = False
-
-                    if allowed:
-                        #Ask if the user wants to use the analyser
-                        gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
-
-                    #If the name is allowed to be used and an answer was given to gas analysis
+                    #If the name is allowed to be used
                     if allowed:
                         #Construct message to send
-                        message = "start " + fileName + " " + str(gasAnalysis).lower() + "\n"
+                        message = "start " + fileName + "\n"
                         success = True
                         try:
                             #Open serial connection
-                            #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
                             self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
                             
                             #Start reading thread
@@ -557,7 +594,7 @@ class MainWindow(tkinter.Frame):
                             done = False
                             start = time.time_ns()
                             #Repeatedly read until completed or timed out
-                            while not done and start + self.timeout * 2 > time.time_ns():
+                            while not done and start + self.longTimeout > time.time_ns():
                                 #If there is a message
                                 if len(self.messages) > 0:
                                     #Pop the message
@@ -636,7 +673,7 @@ class MainWindow(tkinter.Frame):
                     done = False
                     start = time.time_ns()
                     #Repeat until complete or timed out
-                    while not done and start + self.timeout * 2 > time.time_ns():
+                    while not done and start + self.longTimeout > time.time_ns():
                         #If there is a message
                         if len(self.messages) > 0:
                             #Pop the message
@@ -775,6 +812,211 @@ class MainWindow(tkinter.Frame):
                 #Something went wrong - probably there is no parent window (occurrs when run standalone, impossible once packaged)
                 self.displayMessage("Cannot Open", "Unable to open connection window, please try again or open the connection screen manually.")
 
+    def wifiOptionPressed(self, portCode : str, optionVar : tkinter.StringVar) -> None:
+        '''When a wifi option is selected, perform the correct action'''
+        #Get the selected option
+        option = optionVar.get()
+        #Reset the drop down - use it as a menu button rather than a multiple choice selection
+        optionVar.set("WiFi")
+        #Message to be sent to the device
+        message = ""
+        collectionRunning = False
+        #If the port is known
+        if portCode in self.ports:
+            #Get the collecting state from the device
+            index = self.ports.index(portCode)
+            collectionRunning = self.portStates[index]
+
+        #If enabling the WiFi
+        if option == "Enable":
+            message = "wifi enable\n"
+        #If disabling the WiFi
+        if option == "Disable":
+            message = "wifi disable\n"
+        #If requesting the change the device SSID
+        if option == "Change SSID":
+            #Check if running
+            if not collectionRunning:
+                #Ask user for new ssid
+                givenSSID = simpledialog.askstring("Enter New SSID", "Enter the new SSID for this device.", parent=self)
+                givenSSID.strip()
+                givenSSID.replace(" ", "")
+                allowed = True
+                #If a value was given
+                if givenSSID != "":
+                    #If the value is too long
+                    if len(givenSSID) > 31:
+                        #Error message - too long
+                        self.displayMessage("Invalid SSID", "SSID must be a maximum of 31 characters long.")
+                        allowed = False
+                    else:
+                        #Check each character
+                        for char in givenSSID:
+                            if allowed:
+                                #If the character is invalid
+                                if char not in self.acceptedChars:
+                                    #Error message - invalid characters
+                                    self.displayMessage("Invalid SSID", "Please only use alphanumeric characters, underscores and hyphens.")
+                                    allowed = False
+                else:
+                    #Error message - empty field
+                    self.displayMessage("Invalid SSID", "Please ensure you enter an SSID.")
+                    allowed = False
+                
+                #Check if allowed and store message
+                if allowed:
+                    message = "wifi rename " + givenSSID + "\n"
+            else:
+                #Error message - not possible while logging
+                self.displayMessage("Cannot Change SSID", "SSID can only be changed when not logging.")
+        #If requesting to change the password
+        if option == "Change Password":
+            #Check if running
+            if not collectionRunning:
+                #Ask user for new password
+                givenPass = simpledialog.askstring("Enter New Password", "Enter the new password for this device.", parent=self)
+                givenPass.strip()
+                givenPass.replace(" ", "")
+                allowed = True
+                #If a value was entered
+                if givenPass != "":
+                    #If the value is too long
+                    if len(givenPass) > 31:
+                        #Error message - too long
+                        self.displayMessage("Invalid Password", "Password must be a maximum of 31 characters long.")
+                        allowed = False
+                    else:
+                        #Iterate through characters
+                        for char in givenPass:
+                            if allowed:
+                                #If the character is not allowed
+                                if char not in self.acceptedChars:
+                                    #Error message - invalid characters
+                                    self.displayMessage("Invalid Password", "Please only use alphanumeric characters, underscores and hyphens.")
+                                    allowed = False
+                else:
+                    #Error message - empty field
+                    self.displayMessage("Invalid Password", "Please ensure you enter a password.")
+                    allowed = False
+
+                #Check if allowed and store message
+                if allowed:
+                    message = "wifi newpass " + givenPass + "\n" 
+            else:
+                #Report not possible
+                self.displayMessage("Cannot Change Password", "Password can only be changed when not logging.")
+
+        #If a message is stored - valid input received
+        if message != "":
+            #Prevent multiple button presses
+            if not self.communicating:
+                self.communicating = True
+                #Store start time of communication
+                startTime = time.time_ns()
+                #Wait for end of updates and scanning or for timeout
+                while (self.updatingPorts or self.midScan) and startTime + self.timeout > time.time_ns():
+                    pass
+                #If not updating or scanning
+                if not self.updatingPorts and not self.midScan:
+                    success = True
+                    try:
+                        #Connect to serial
+                        self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
+                        #Start reading thread
+                        readThread = Thread(target=self.readSerial, daemon=True)
+                        readThread.start()
+                            
+                        time.sleep(0.2)
+                    except:
+                        success = False
+                        
+                    if success:
+                        #Clear message
+                        self.purgeMessages()
+                        #Send stop message
+                        self.serialConnection.write(message.encode("utf-8"))
+                        done = False
+                        start = time.time_ns()
+                        #Repeat until complete or timed out
+                        while not done and start + self.longTimeout > time.time_ns():
+                            #If there is a message
+                            if len(self.messages) > 0:
+                                #Pop the message
+                                msg = self.messages[0]
+                                del self.messages[0]
+                                #Split into parts
+                                msgParts = msg.split(" ")
+                                if len(msgParts) > 1:
+                                    #If it is about the stop
+                                    if msgParts[0] == "wifi":
+                                        #Started WiFi correctly
+                                        if msgParts[1] == "started":
+                                            self.displayMessage("WiFi Started", "Started WiFi successfully.")
+                                            done = True
+                                        #Stopped WiFi correction
+                                        if msgParts[1] == "stopped":
+                                            self.displayMessage("WiFi Stopped", "Stopped WiFi successfully.")
+                                            done = True
+                                        #Could not start/stop as already in that state
+                                        if msgParts[1] == "already":
+                                            if msgParts[2] == "started":
+                                                self.displayMessage("WiFi Already Started", "Could not start WiFi, it is already on.")
+                                            if msgParts[2] == "stopped":
+                                                self.displayMessage("WiFi Already Stopped", "Could not stop WiFi, it is already off.")
+                                            done = True
+                                        #Error / issue occurred
+                                        if msgParts[1] == "failed" or (msgParts[1] == "unchanged" and msgParts[2] == "failed"):
+                                            #Cannot change WiFi over wifi
+                                            if msgParts[2] == "serialonly":
+                                                self.displayMessage("WiFi Cannot Change", "Cannot change WiFi settings over WiFi.")
+                                            else:
+                                                #Other unknown issue occurred
+                                                self.displayMessage("WiFi Failed", "Could not change WiFi settings, please try again.")
+                                            done = True
+                                        #Changed a value successfully
+                                        if msgParts[1] == "changed":
+                                            #SSID changed
+                                            if msgParts[2] == "name":
+                                               self.displayMessage("SSID Changed", "SSID has been successfully changed.")
+                                               done = True
+                                            #Password changed
+                                            if msgParts[2] == "pass":
+                                                self.displayMessage("Password Changed", "Password has been successfully changed.") 
+                                                done = True
+                                        #Failed to change a value
+                                        if msgParts[1] == "unchanged":
+                                            #No SIID value was given
+                                            if msgParts[2] == "noname":
+                                                self.displayMessage("No SSID Given", "A valid SSID must be entered.")
+                                                done = True
+                                            #No password value was given
+                                            if msgParts[2] == "noPass":
+                                                self.displayMessage("No Password Given", "A valid password must be entered.")
+                                                done = True
+                                            #Currently logging, SSID and password cannot be changed
+                                            if msgParts[2] == "running":
+                                                self.displayMessage("WiFi Cannot Change", "Cannot change WiFi while logging.")
+                                                done = True
+                        if not done:
+                            #No response received
+                            self.displayMessage("Timed out", "No response received, timeout occurred.")
+
+                        #Disconnect serial connection if present
+                        if self.serialConnection != None:
+                            self.serialConnection.close()
+                            self.serialConnection = None
+                else:
+                    #Unable to send message another process blocked
+                    self.displayMessage("Could Not Send", "Connection attempt timed out, please try again.")
+                
+                #Check the port for updates
+                self.updateChecks.append(portCode)
+                #No longer communicating
+                self.communicating = False
+        
+        #Dissallow change to option menu
+        return False
+
     def displayMessage(self, title : str, message : str) -> None:
         '''Display a message box - slight shorthand'''
         messagebox.showinfo(title=title, message=message)
@@ -814,13 +1056,13 @@ if __name__ == "__main__":
     #Calculate the position of the centre of the screen
     screenMiddle = [root.winfo_screenwidth() / 2, root.winfo_screenheight() / 2]
     #Set the shape of the window and place it in the centre of the screen
-    root.geometry("600x500+{0}+{1}".format(int(screenMiddle[0] - 300), int(screenMiddle[1] - 250)))
-    root.minsize(600, 500)
+    root.geometry("750x500+{0}+{1}".format(int(screenMiddle[0] - 375), int(screenMiddle[1] - 250)))
+    root.minsize(750, 500)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Network View")
+    root.title("Device Overview")
     #Add the editor to the root windows
     MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root

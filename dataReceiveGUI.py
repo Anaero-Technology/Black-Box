@@ -172,7 +172,7 @@ class MainWindow(tkinter.Frame):
                 self.toggleButton.configure(state="disabled", text="No Port")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
-                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is correct port and try again.")
+                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
                 self.performScan()
             else:
                 #Increment timeout
@@ -337,15 +337,16 @@ class MainWindow(tkinter.Frame):
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
-                        gasAnalysis = False
+                        #gasAnalysis = False
 
-                        if allowed:
-                            gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
+                        #if allowed:
+                            #gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
 
-                        #If the name is allowed to be used and an answer was given to gas analysis
+                        #If the name is allowed to be used
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
-                            message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
+                            #message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
+                            message = "start " + self.currentFileName + "\n"
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
@@ -491,7 +492,7 @@ class MainWindow(tkinter.Frame):
 
     def messageReceived(self, message):
         #DEBUG display the message
-        #print(message)
+        print(message)
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
@@ -538,6 +539,7 @@ class MainWindow(tkinter.Frame):
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.fileTogglePressed()
+                messagebox.showinfo(title="Logging Started", message="Started logging sucessfully.")
             #Stopped receiving
             if messageParts[1] == "stop":
                 #Configure UI state
@@ -548,6 +550,7 @@ class MainWindow(tkinter.Frame):
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.fileTogglePressed()
+                messagebox.showinfo(title="Logging Stopped", message="Stopped logging sucessfully.")
             #Finished sending files
             if messageParts[1] == "files":
                 #Display the files that were received
@@ -618,7 +621,7 @@ class MainWindow(tkinter.Frame):
             #If this is not the start of the files
             if messageParts[1] != "start":
                 #If it is not the configuration files
-                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt"]:
+                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt", "/wifi.txt"]:
                     #Add to the list
                     self.files.append(messageParts[1])
                     size = -1
