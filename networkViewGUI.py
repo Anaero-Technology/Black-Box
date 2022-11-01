@@ -378,7 +378,8 @@ class MainWindow(tkinter.Frame):
         portObject = tkinter.Frame(self.listGridFrame, highlightthickness=4, highlightbackground="black")
         #Configure the frames rows and columns
         portObject.grid_rowconfigure(0, weight=1)
-        for col in range(0, 7):
+        #for col in range(0, 7):
+        for col in range(0, 5):
             portObject.grid_columnconfigure(col, weight=1)
         #Label for the port name
         codeLabel = tkinter.Label(portObject, text="Port:\n" + portCode)
@@ -400,7 +401,7 @@ class MainWindow(tkinter.Frame):
         openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode: self.openPressed(x))
         openButton.grid(row=0, column=4, sticky="NESW")
         #Icon defaults to disabled
-        wifiIcon = self.wifiIconOff
+        """wifiIcon = self.wifiIconOff
         #Wireless changes button
         options = ["Enable", "Change SSID", "Change Password"]
         #If the wifi is on
@@ -418,7 +419,7 @@ class MainWindow(tkinter.Frame):
         wifiOption.grid(row=0, column=6, sticky="NSEW")
         #Display the state of the wifi
         wifiIndicator = tkinter.Button(portObject, text=ssid, image=wifiIcon, compound="top", state="disabled")
-        wifiIndicator.grid(row=0, column=5, sticky="NESW")
+        wifiIndicator.grid(row=0, column=5, sticky="NESW")"""
         #If no index or an invalid index was given
         if index <= -1 or len(self.portObjects) <= index:
             #Add port to end
@@ -741,9 +742,10 @@ class MainWindow(tkinter.Frame):
                 #Cannot be nothing (or cancel pressed)
                 if newName == None:
                     allowed = False
-
-                #Remove spaces
-                newName = newName.replace(" ", "")
+                
+                if allowed and newName != None:
+                    #Remove spaces
+                    newName = newName.replace(" ", "")
 
                 #If length requirement not met
                 if allowed and len(newName) < 3:
