@@ -592,6 +592,8 @@ class MainWindow(tkinter.Frame):
                     messagebox.showinfo(title="File Already Exists", message="A file with that name already exists, please choose a different name or delete the existing file.")
                 elif messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
+                elif messageParts[2] == "noarduino":
+                    messagebox.showinfo(title="Could Not Contact Arduino", message="A connection to the Arduino could not be established, please try again.")
                 elif messageParts[2] == "noanalyser":
                     messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
                 elif messageParts[2] == "analysercalibrating":
