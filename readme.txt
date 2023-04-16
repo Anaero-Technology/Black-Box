@@ -42,12 +42,10 @@ If any of the files are not formatted as expected the software will inform the u
 
 ### Create Graphs
 Used to produce a variety of graphs from a processed information file (created by the Perform Calculations section).
-Files must be loaded from one of the following: full event log, hour log, day log or the gas log. Press the correct button and choose the file.
-Once the file has been loaded several choices can be made as to the type of graph displayed:
-Single Plot - shows one set of values for one channel, choose channel from first drop down and which value from the lower drop down.
-Compare Channels - show one set of values for two channels on the same axes. Select channels from two drop downs and value from the third.
-All One Channel - show all the values for a single channel. Select the channel from the first drop down.
-For any of these the view may be switched between hourly data and daily data as well as the grid and legend (if there is one) toggled on or off.
+First upload the data file.
+Then select the field that you wish to be the channel identifier (you do not have to but will often want to).
+Then add as many different lines as you wish, choosing their name, colour, x and y axis data, which channel to limit it to. If set to cumulative subsequent values will be totalled.
+The graph will then be displayed, if needed you can go back and make any changes you want and view it again.
 Using the toolbar on the graph it is possible to zoom and manipulate the graph as well as save it as an image.
 
 ### Set Date/time
