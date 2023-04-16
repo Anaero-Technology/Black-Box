@@ -549,8 +549,8 @@ class MainWindow(tkinter.Frame):
             #If unable to do so, create a new graphs window
             self.graphWindow = tkinter.Toplevel(self.parent)
             self.graphWindow.transient(self.parent)
-            self.graphWindow.geometry("850x575+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 287)))
-            self.graphWindow.minsize(850, 575)
+            self.graphWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+            self.graphWindow.minsize(850, 650)
             self.graphWindow.title("GFM Graph Creator")
             self.graphWindow.grid_rowconfigure(0, weight=1)
             self.graphWindow.grid_columnconfigure(0, weight=1)
