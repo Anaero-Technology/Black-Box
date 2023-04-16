@@ -363,6 +363,14 @@ class MainWindow(tkinter.Frame):
             self.channelList.sort()
         else:
             self.channelColumn = -1
+
+        for key in self.lines:
+            self.lines[key].grid_remove()
+            self.lines[key].destroy()
+        
+        self.lines = {}
+        
+        self.updateLineList()
         
         self.moveWindows(2)
 
@@ -497,6 +505,15 @@ class MainWindow(tkinter.Frame):
             self.lineChannelVar.set(channel)
         else:
             self.lineChannelVar.set("Any")
+
+        if self.channelColumn == -1:
+            self.lineEditChannelFrame.configure(bg=self.offColour)
+            self.lineEditChannelLabel.configure(bg=self.offColour)
+            self.lineEditChannelMenu.configure(state="disabled")
+        else:
+            self.lineEditChannelFrame.configure(bg=self.onColour)
+            self.lineEditChannelLabel.configure(bg=self.onColour)
+            self.lineEditChannelMenu.configure(state="normal")
 
         self.lineCumulativeVar.set(cumulative)
 
