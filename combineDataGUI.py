@@ -476,11 +476,27 @@ class MainWindow(tkinter.Frame):
 
     def convertGasData(self, data : list) -> list:
         '''Convert gas data file list to arranged data'''
-        #Input format: [[date, time, channel, CO2, CH4], ...]
+        #Input format: [[Channel (ReactorN), date, time, CO2 val, CH4 val, CO2 percent, CH4 percent], ...]
+        movedData = []
+        for row in data:
+            movedRow = [row[1], row[2], 0, row[5], row[6]]
+            try:
+                channelText = row[0]
+                channelText = channelText.replace("Reactor", "")
+                channelNum = int(channelText)
+                movedRow[2] = channelNum
+            except:
+                pass
+
+            if movedRow[2] != 0:
+                movedData.append(movedRow)
+        
+        #Moved Data format: [[date, time, channel, CO2, CH4], ...]
+
         results = [[], [], [], []]
         try:
             #Iterate through the rows
-            for row in data:
+            for row in movedData:
                 #Get the date and time
                 date = row[0]
                 time = row[1]
