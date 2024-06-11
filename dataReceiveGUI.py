@@ -622,10 +622,13 @@ class MainWindow(tkinter.Frame):
         if len(messageParts) > 1 and messageParts[0] == "file":
             #If this is not the start of the files
             if messageParts[1] != "start":
+                fileGiven = messageParts[1]
+                if fileGiven[0] != "/":
+                    fileGiven = "/" + fileGiven
                 #If it is not the configuration files
-                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt", "/wifi.txt"]:
+                if fileGiven not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt", "/wifi.txt"]:
                     #Add to the list
-                    self.files.append(messageParts[1])
+                    self.files.append(fileGiven)
                     size = -1
                     if len(messageParts) > 2:
                         try:
