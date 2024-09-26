@@ -104,6 +104,7 @@ class MainWindow(tkinter.Frame):
         #Text colours
         self.blackTextColour = "#000000"
         self.blueTextColour = "#3333FF"
+        self.redTextColour = "#FF0000"
 
         #List of available files (for testing)
         self.files = ["File Number 1", "File Number 2"]
@@ -509,7 +510,7 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "1":
                 #Set UI to correct states
                 self.receiving = True
-                self.toggleButton.configure(text="Stop Data Logging", state="normal")
+                self.toggleButton.configure(text="Stop Data Logging", state="normal", fg=self.redTextColour)
                 #If a filename is provided, store it
                 if len(messageParts) > 2:
                     self.currentFileName = messageParts[2]
@@ -518,7 +519,7 @@ class MainWindow(tkinter.Frame):
             else:
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
-                self.toggleButton.configure(text="Start Data Logging", state="normal")
+                self.toggleButton.configure(text="Start Data Logging", state="normal", fg=self.blackTextColour)
             
             #No longer waiting for a response
             self.awaiting = False
@@ -535,7 +536,7 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "start":
                 #Configure UI state
                 self.receiving = True
-                self.toggleButton.configure(text="Stop Data Logging")
+                self.toggleButton.configure(text="Stop Data Logging", fg=self.redTextColour)
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.fileTogglePressed()
@@ -544,7 +545,7 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "stop":
                 #Configure UI state
                 self.receiving = False
-                self.toggleButton.configure(text="Start Data Logging")
+                self.toggleButton.configure(text="Start Data Logging", fg=self.blackTextColour)
                 #Reset current file
                 self.currentFileName = ""
                 #Cycle the files so they are up to date
@@ -568,11 +569,11 @@ class MainWindow(tkinter.Frame):
             #Was already receiving data
             if messageParts[1] == "start":
                 self.receiving = True
-                self.toggleButton.configure(text="Stop Data Logging")
+                self.toggleButton.configure(text="Stop Data Logging", fg=self.redTextColour)
             #Was already stopped
             if messageParts[1] == "stop":
                 self.receiving = False
-                self.toggleButton.configure(text="Start Data Logging")
+                self.toggleButton.configure(text="Start Data Logging", fg=self.blackTextColour)
             
             #No longer waiting for a response
             self.awaiting = False
@@ -602,7 +603,7 @@ class MainWindow(tkinter.Frame):
                     messagebox.showinfo(title="Gas Analyser Not Calibrated", message="The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
-                self.toggleButton.configure(text="Start Data Logging")
+                self.toggleButton.configure(text="Start Data Logging", fg=self.blackTextColour)
             if messageParts[1] == "stop":
                 if messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please reconnect esp32 and try again.")
