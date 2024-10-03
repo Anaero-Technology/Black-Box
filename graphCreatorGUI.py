@@ -9,6 +9,7 @@ from tkinter import messagebox
 from tkinter import colorchooser
 import readSetup
 import readSeparators
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -27,6 +28,12 @@ class MainWindow(tkinter.Frame):
             self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numberColumns):
             self.grid_columnconfigure(col, weight=1, uniform="cols")
+
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
 
         self.column, self.decimal = readSeparators.read()
 
@@ -261,6 +268,10 @@ class MainWindow(tkinter.Frame):
         self.graphBackButton = tkinter.Button(self.graphOptions, text="Back", font=("", 16), command=lambda x=2: self.moveWindows(x))
         self.graphBackButton.pack(side="left", anchor="s")
         self.graphOptions.grid(row=1, column=0, sticky="NESW")
+
+    
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
 
 
     def chooseColour(self):
@@ -638,11 +649,11 @@ class LineObject(tkinter.Frame):
         self.nameLabel = tkinter.Label(self, text=self.lineName, font=("", 16))
         self.nameLabel.grid(row=0, column=1)
         
-        self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
+        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("settingsIcon.png"))
         self.editButton = tkinter.Button(self, image=self.settingsImage, command=self.edit)
         self.editButton.grid(row=0, column=2)
 
-        self.removeImage = tkinter.PhotoImage(file="cancel.png")
+        self.removeImage = tkinter.PhotoImage(file=self.pathTo("cancel.png"))
         self.deleteButton = tkinter.Button(self, image=self.removeImage, command=self.delete)
         self.deleteButton.grid(row=0, column=3)
 

@@ -9,6 +9,7 @@ import readSeparators
 import dataCombination
 import tkinter.ttk as Ttk
 from tkinter.ttk import Style
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class for the combine window toplevel'''
@@ -42,6 +43,12 @@ class MainWindow(tkinter.Frame):
         self.green = "#00DD00"
         self.black = "#000000"
 
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
+
         #Data that has been processed and ready to export
         self.dataToExportPhRedox = None
         self.dataToExportGas = None
@@ -50,8 +57,8 @@ class MainWindow(tkinter.Frame):
         self.column, self.decimal = readSeparators.read()
 
         #File images
-        self.presentImage = tkinter.PhotoImage(file="filePresent.png")
-        self.notPresentImage = tkinter.PhotoImage(file="fileNotPresent.png")
+        self.presentImage = tkinter.PhotoImage(file=self.pathTo("filePresent.png"))
+        self.notPresentImage = tkinter.PhotoImage(file=self.pathTo("fileNotPresent.png"))
 
         #Button to import event log file
         self.eventLogButton = tkinter.Button(self, image=self.notPresentImage, compound="top", text="Event Log File", command=self.askForEventFile)
@@ -156,6 +163,9 @@ class MainWindow(tkinter.Frame):
         
         #If the data processing is complete
         self.processingDone = False
+    
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
 
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''

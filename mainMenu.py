@@ -10,6 +10,8 @@ import combineDataGUI
 import graphCreatorGUI
 import configureClockGUI
 import calibrateAnalyserGUI
+import os, sys
+import pathlib
 
 class SettingsWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -29,6 +31,12 @@ class SettingsWindow(tkinter.Frame):
         #Create a font for the text
         self.headerFont = Font(size=14)
         self.textFont = Font(size=10)
+
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
 
         #Section to hold comma separated option
         self.commaSection = tkinter.Frame(self)
@@ -182,7 +190,8 @@ class SettingsWindow(tkinter.Frame):
         '''Read the separators from the file and assign to variables'''
         try:
             #Attempt to open the file and read
-            settingsFile = open("options.txt", "r")
+            optionPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "options.txt")
+            settingsFile = open(optionPath, "r")
             data = settingsFile.read()
             settingsFile.close()
             data = data.split("\n")
@@ -228,11 +237,16 @@ class SettingsWindow(tkinter.Frame):
         #Create data with selected option and custom separators
         data = "selected: {0}\ncolumn: {1}\ndecimal: {2}\n".format(self.selectorType.get(), self.customColumnEntryValue.get(), self.customDecimalEntryValue.get())
         #Open the file
-        settingsFile = open("options.txt", "w")
+        optionPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(optionPath).mkdir(parents=True, exist_ok=True)
+        settingsFile = open(os.path.join(optionPath, "options.txt"), "w")
         #Write the data
         settingsFile.write(data)
         #Close the file
         settingsFile.close()
+
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
     
     def validateCustomSeparator(self, value, noSave = False) -> bool:
         '''Returns True if the given valus is a valid separator'''
@@ -285,6 +299,12 @@ class MainWindow(tkinter.Frame):
         self.buttonFont = Font(size=16)
         self.headerFont = Font(size=14)
         self.textFont = Font(size=10)
+
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
         
         #Setup each of the option buttons and add them to the correct row
         #Connect to device
@@ -319,7 +339,7 @@ class MainWindow(tkinter.Frame):
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
         self.exitButton.grid(row=7, column=2, columnspan=3)
 
-        self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
+        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("settingsIcon.png"))
         self.settingsButton = tkinter.Button(self, image=self.settingsImage, command=self.openSettingsWindow)
         self.settingsButton.grid(row=7, column=5)
 
@@ -340,6 +360,9 @@ class MainWindow(tkinter.Frame):
 
         self.dataReceiveTopLevel = None
         self.dataReceiveWirelessTopLevel = None
+    
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
     
     def openSetupWindow(self) -> None:
         '''Create a new instance of the setup window, or lift and focus the current one'''
@@ -700,7 +723,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Setup GFM - Version 2.18.1")
+    root.title("Setup GFM - Version 2.19")
     #Add the editor to the root windows
     rootWindow = MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
