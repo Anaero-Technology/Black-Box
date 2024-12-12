@@ -120,8 +120,10 @@ def performGeneralCalculations(setupData, eventData, progress):
                 else:
                     #If there is sample mass
                     if setup["sampleMass"][channelId] != 0:
-                        #Net volume is: (event volume - (inoculum volume / inoculum mass) / inoculum channel count * inoculum mass for this channel) / sample mass
-                        thisNetVolume = (eventVolume - (((overall["inoculumVolume"] / overall["inoculumMass"]) / setup["inoculumCount"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
+                        #Check that there have been inoculum tips - this is to prevent divide by zero errors before inoculum tips or when expreiment has none
+                        if overall["inoculumMass"] != 0 and setup["inoculumCount"] != 0:
+                            #Net volume is: (event volume - (inoculum volume / inoculum mass) / inoculum channel count * inoculum mass for this channel) / sample mass
+                            thisNetVolume = (eventVolume - (((overall["inoculumVolume"] / overall["inoculumMass"]) / setup["inoculumCount"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
 
                 #Add the net volume for this tip to the hourly and daily information for this channel
                 days[-1]["volumeNet"][channelId] = days[-1]["volumeNet"][channelId] + thisNetVolume
