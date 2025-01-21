@@ -649,11 +649,11 @@ class LineObject(tkinter.Frame):
         self.nameLabel = tkinter.Label(self, text=self.lineName, font=("", 16))
         self.nameLabel.grid(row=0, column=1)
         
-        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("settingsIcon.png"))
+        self.settingsImage = tkinter.PhotoImage(file=self.window.pathTo("settingsIcon.png"))
         self.editButton = tkinter.Button(self, image=self.settingsImage, command=self.edit)
         self.editButton.grid(row=0, column=2)
 
-        self.removeImage = tkinter.PhotoImage(file=self.pathTo("cancel.png"))
+        self.removeImage = tkinter.PhotoImage(file=self.window.pathTo("cancel.png"))
         self.deleteButton = tkinter.Button(self, image=self.removeImage, command=self.delete)
         self.deleteButton.grid(row=0, column=3)
 
