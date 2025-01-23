@@ -123,11 +123,13 @@ def performGeneralCalculations(setupData, eventData, progress):
                         #Check that there have been inoculum tips - this is to prevent divide by zero errors before inoculum tips or when expreiment has none
                         if overall["inoculumMass"] != 0 and setup["inoculumCount"] != 0:
                             #Net volume is: (event volume - (inoculum volume / inoculum mass) / inoculum channel count * inoculum mass for this channel) / sample mass
-                            thisNetVolume = (eventVolume - (((overall["inoculumVolume"] / overall["inoculumMass"]) / setup["inoculumCount"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
+                            #thisNetVolume = (eventVolume - (((overall["inoculumVolume"] / overall["inoculumMass"]) / setup["inoculumCount"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
+                            thisNetVolume = (eventVolume - ((overall["inoculumVolume"] / overall["inoculumMass"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
 
                 #Add the net volume for this tip to the hourly and daily information for this channel
                 days[-1]["volumeNet"][channelId] = days[-1]["volumeNet"][channelId] + thisNetVolume
                 hours[-1]["volumeNet"][channelId] = hours[-1]["volumeNet"][channelId] + thisNetVolume
+                overall["volumeNet"][channelId] = overall["volumeNet"][channelId] + thisNetVolume
 
                 #Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA), Cumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP), Net Volume Per Gram (ml/g)
                 eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]])
