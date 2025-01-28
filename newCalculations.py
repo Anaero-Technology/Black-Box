@@ -72,6 +72,11 @@ def performGeneralCalculations(setupData, eventData, progress):
     #Array to hold final event log information (as it can be gathered immediately)
     eventArray = []
 
+    lastHourNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    lastDayNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    eventCount = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
     try:
         #Iterate through every event in the log
         for event in eventData:
@@ -92,8 +97,14 @@ def performGeneralCalculations(setupData, eventData, progress):
                 totalHour = hour + (day * 24)
                 #Extend the day and hour arrays to store new values
                 while len(days) <= day:
+                    if len(days) > 0:
+                        for channel in range(0, 15):
+                            lastDayNetVolume[channel] = lastDayNetVolume[channel] + days[-1]["volumeNet"][channel]
                     days.append({"tips" : [0] * 15, "volumeSTP" : [0.0] * 15, "volumeNet" : [0.0] * 15})
                 while len(hours) <= totalHour:
+                    if len(hours) > 0:
+                        for channel in range(0, 15):
+                            lastHourNetVolume[channel] = lastHourNetVolume[channel] + hours[-1]["volumeNet"][channel]
                     hours.append({"tips" : [0] * 15, "volumeSTP" : [0.0] * 15, "volumeNet" : [0.0] * 15})
 
                 #Calculate the volume for the tip
@@ -107,13 +118,15 @@ def performGeneralCalculations(setupData, eventData, progress):
                 hours[-1]["tips"][channelId] = hours[-1]["tips"][channelId] + 1
                 hours[-1]["volumeSTP"][channelId] = hours[-1]["volumeSTP"][channelId] + eventVolume
 
-                thisNetVolume = eventVolume
+                #thisNetVolume = eventVolume
+                totalNetVolume = overall["volumeSTP"][channelId]
                 #If this is an inoculum only channel
                 if setup["inoculumOnly"][channelId]:
                     #If there is inoculum mass
                     if setup["inoculumMass"][channelId] != 0:
                         #Net volume is the total volume divided by the inoculum mass
-                        thisNetVolume = eventVolume / setup["inoculumMass"][channelId]
+                        #thisNetVolume = eventVolume / setup["inoculumMass"][channelId]
+                        totalNetVolume = overall["volumeSTP"][channelId] / setup["inoculumMass"][channelId]
                         #Add the mass and volume to overall running total
                         overall["inoculumVolume"] = overall["inoculumVolume"] + eventVolume
                         overall["inoculumMass"] = overall["inoculumMass"] + setup["inoculumMass"][channelId]
@@ -121,21 +134,32 @@ def performGeneralCalculations(setupData, eventData, progress):
                     #If there is sample mass
                     if setup["sampleMass"][channelId] != 0:
                         #Check that there have been inoculum tips - this is to prevent divide by zero errors before inoculum tips or when expreiment has none
-                        if overall["inoculumMass"] != 0 and setup["inoculumCount"] != 0:
+                        #if overall["inoculumMass"] != 0 and setup["inoculumCount"] != 0:
+                        if overall["inoculumMass"] != 0:
                             #Net volume is: (event volume - (inoculum volume / inoculum mass) / inoculum channel count * inoculum mass for this channel) / sample mass
                             #thisNetVolume = (eventVolume - (((overall["inoculumVolume"] / overall["inoculumMass"]) / setup["inoculumCount"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
-                            thisNetVolume = (eventVolume - ((overall["inoculumVolume"] / overall["inoculumMass"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
+                            #thisNetVolume = (eventVolume - ((overall["inoculumVolume"] / overall["inoculumMass"]) * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
+                            inoculumAdjust = 0
+                            inoculumCount = 0
+                            for channel in range(0, 15):
+                                if setup["inoculumOnly"][channel] and setup["inoculumMass"][channel] != 0:
+                                    inoculumAdjust = inoculumAdjust + (overall["volumeSTP"][channel] / setup["inoculumMass"][channel])
+                                    inoculumCount = inoculumCount + 1
+                            inoculumAdjust = inoculumAdjust / inoculumCount
+                            totalNetVolume = (overall["volumeSTP"][channelId] - (inoculumAdjust * setup["inoculumMass"][channelId])) / setup["sampleMass"][channelId]
 
                 #Add the net volume for this tip to the hourly and daily information for this channel
-                days[-1]["volumeNet"][channelId] = days[-1]["volumeNet"][channelId] + thisNetVolume
-                hours[-1]["volumeNet"][channelId] = hours[-1]["volumeNet"][channelId] + thisNetVolume
-                overall["volumeNet"][channelId] = overall["volumeNet"][channelId] + thisNetVolume
+                days[-1]["volumeNet"][channelId] = totalNetVolume - lastDayNetVolume[channelId]
+                hours[-1]["volumeNet"][channelId] = totalNetVolume - lastHourNetVolume[channelId]
+                overall["volumeNet"][channelId] = totalNetVolume
 
                 #Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA), Cumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP), Net Volume Per Gram (ml/g)
                 eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]])
-            
+                eventCount[channelId] = eventCount[channelId] + 1
             #Move progress bar forward
             progress[0] = progress[0] + 1
+        
+        print(eventCount)
 
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
