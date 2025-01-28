@@ -16,7 +16,7 @@ class MainWindow(tkinter.Frame):
         self.height = 610
         #Number of rows and columns present
         self.numberRows = 17
-        self.numberColumns = 6
+        self.numberColumns = 7
 
         #Get separators from file
         self.column, self.decimal = readSeparators.read()
@@ -36,7 +36,7 @@ class MainWindow(tkinter.Frame):
                 self.grid_columnconfigure(colNumber, weight = 2)
         
         #Column headers
-        self.headers = ["Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
+        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
 
         #Holds all the label objects
         self.headerLabels = []
@@ -61,6 +61,9 @@ class MainWindow(tkinter.Frame):
             #To Hold this current row of widgets and variables
             tubeRow = []
             tubeVars = []
+
+            channelLabel = tkinter.Label(self, text = str(row - 1))
+            tubeRow.append(channelLabel)
 
             #Description field setup
             descVar = tkinter.StringVar()
@@ -195,29 +198,29 @@ class MainWindow(tkinter.Frame):
                 #Format the information as 2d array
                 dataArray = readSetup.formatData(fileData)
                 #Attempt to store in table
-                try:
-                    #Iterate through row indexes
-                    for row in range(1, len(dataArray)):
-                        #If it does not go beyond rows in the table
-                        if row - 1 < len(self.tubeVariables):
-                            #Iterate through column indexes
-                            for col in range(0, len(dataArray[row])):
-                                #If it is a text field
-                                if col == 0 or col > 2:
-                                    #Add the data as text
-                                    self.tubeVariables[row - 1][col].set(dataArray[row][col])
-                                #If it is a checkbox field
-                                elif col == 1 or col == 2:
-                                    #A 1 is a checked box
-                                    if dataArray[row][col].strip() == "1":
-                                        self.tubeVariables[row - 1][col].set(1)
-                                    else:
-                                        #Otherwise it is unchecked
-                                        self.tubeVariables[row - 1][col].set(0)
-                except:
+                #try:
+                #Iterate through row indexes
+                for row in range(1, len(dataArray)):
+                    #If it does not go beyond rows in the table
+                    if row - 1 < len(self.tubeVariables):
+                        #Iterate through column indexes
+                        for col in range(0, len(dataArray[row])):
+                            #If it is a text field
+                            if col == 0 or col > 2:
+                                #Add the data as text
+                                self.tubeVariables[row - 1][col].set(dataArray[row][col])
+                            #If it is a checkbox field
+                            elif col == 1 or col == 2:
+                                #A 1 is a checked box
+                                if dataArray[row][col].strip() == "1":
+                                    self.tubeVariables[row - 1][col].set(1)
+                                else:
+                                    #Otherwise it is unchecked
+                                    self.tubeVariables[row - 1][col].set(0)
+                """except Exception as e:
                     #If an error occurs then the file was not the correct shape/format so display error message
                     self.displayMessage("File formatted incorrectly, not all values may have been imported successfully.", "Error")
-                    success = False
+                    success = False"""
             else:
                 #If there was no data then either a file was not chosesn or it was not readable so display error message
                 self.displayMessage("Invalid file, please make sure the correct file was chosen.", "Error")
