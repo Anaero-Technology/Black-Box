@@ -1,5 +1,5 @@
 import tkinter
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import readSetup
 import createSetup
 
@@ -20,15 +20,15 @@ class mainWindow(tkinter.Frame):
         for rowNumber in range(0, self.numberRows):
             #Increase size of first row
             if rowNumber != 0:
-                self.grid_rowconfigure(rowNumber, minsize = (self.height - 10) / self.numberRows)
+                self.grid_rowconfigure(rowNumber, weight = 10)
             else:
-                self.grid_rowconfigure(rowNumber, minsize = ((self.height - 10) / self.numberRows) + 10)
+                self.grid_rowconfigure(rowNumber, weight = 12)
         for colNumber in range(0, self.numberColumns):
             #Reduce size for 3 floating number inputs
             if colNumber > 2:
-                self.grid_columnconfigure(colNumber, minsize = self.width / self.numberColumns / 15 * 11.65)
+                self.grid_columnconfigure(colNumber, weight = 1)
             else:
-                self.grid_columnconfigure(colNumber, minsize = self.width / self.numberColumns)
+                self.grid_columnconfigure(colNumber, weight = 2)
         
         #Column headers
         self.headers = ["Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
@@ -108,10 +108,6 @@ class mainWindow(tkinter.Frame):
         self.importButton.grid(row=0, column=0, sticky="NESW")
         self.exportButton = tkinter.Button(self, text="Export Setup", command=self.exportData)
         self.exportButton.grid(row=0, column=1, sticky="NESW")
-        
-        #Add text display label for showing messages to the user
-        self.displayText = tkinter.Label(self, text="", justify="center", wraplength=(self.width / self.numberColumns * 4))
-        self.displayText.grid(row=0, column=2, columnspan=5)
 
         #Colours for use with mesages for indicator colour
         self.red = "#DD0000"
@@ -125,10 +121,9 @@ class mainWindow(tkinter.Frame):
         self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)"]
     
 
-    def setDisplayMessage(self, msg: str, colour: str) -> None:
-        '''Set the text and text colour of the display text'''
-        self.displayText.configure(text = msg)
-        self.displayText.configure(fg = colour)
+    def displayMessage(self, msg: str, Title: str) -> None:
+        '''Display a message box with a given title and message to the user'''
+        messagebox.showinfo(title=Title, message=msg)
 
 
     def validateNumber(self, message: str) -> bool:
@@ -178,8 +173,6 @@ class mainWindow(tkinter.Frame):
     
     def openFile(self) -> None:
         '''Open a selected file and read all the data from it into the table'''
-        #Reset the display message
-        self.setDisplayMessage("" , self.black)
 
         #Get the file name from a dialogue box
         fileName = filedialog.askopenfilename(title="Select setup csv file", filetypes=self.fileTypes)
@@ -218,21 +211,19 @@ class mainWindow(tkinter.Frame):
                                         self.tubeVariables[row - 1][col].set(0)
                 except:
                     #If an error occurs then the file was not the correct shape/format so display error message
-                    self.setDisplayMessage("File formatted incorrectly, not all values may have been imported successfully.", self.red)
+                    self.displayMessage("File formatted incorrectly, not all values may have been imported successfully.", "Error")
                     success = False
             else:
                 #If there was no data then either a file was not chosesn or it was not readable so display error message
-                self.setDisplayMessage("Invalid file, please make sure the correct file was chosen.", self.red)
+                self.displayMessage("Invalid file, please make sure the correct file was chosen.", "Error")
                 success = False
 
             if success:
                 #If everything worked correctly display a message indicating so
-                self.setDisplayMessage("File imported successfully.", self.green)
+                self.displayMessage("The file was imported successfully.", "Import Successful")
 
     def exportData(self) -> None:
         '''Write out all the data in the table to a csv file'''
-        #Reset the displayed message
-        self.setDisplayMessage("" , self.black)
         #Array to hold all the data from the table
         gatheredData = []
         #Add the headers
@@ -277,7 +268,7 @@ class mainWindow(tkinter.Frame):
         #If there is an error
         if errorAt[0] != -1 and errorAt[1] != -1:
             #Display the error to the user
-            self.setDisplayMessage("Invalid entry on row: " + str(errorAt[0]) + " for " + self.headers[errorAt[1]].replace("\n", " ") + ". Please fill in all values correctly.", self.red)
+            self.displayMessage("Invalid entry on row: " + str(errorAt[0]) + " for " + self.headers[errorAt[1]].replace("\n", " ") + ". Please fill in all values correctly.", "Error")
         else:
             #Convert the data to be saved to a string
             dataToSave = createSetup.convertArrayToString(gatheredData)
@@ -289,9 +280,9 @@ class mainWindow(tkinter.Frame):
                 success = createSetup.saveAsFile(path, dataToSave)
                 #Display appropriate message for if the file saved or not
                 if success:
-                    self.setDisplayMessage("File saved successfully.", self.green)
+                    self.displayMessage("The file was saved successfully.", "Save Successful")
                 else:
-                    self.setDisplayMessage("File could not be saved, please check location and file name.", self.red)
+                    self.displayMessage("The file could not be saved, please check location and file name.", "Save Failed")
 
 
 #Only run if this is the main module being run
@@ -300,8 +291,9 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     #Set the shape of the window
     root.geometry("600x610")
-    #Window cannot be resized
-    root.resizable(False, False)
+    #Allow for expanding sizes
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
     root.title("Setup GFM")
     #Add the editor to the root windows
