@@ -109,9 +109,9 @@ class MainWindow(tkinter.Frame):
                 self.tubeInfo[row][col].grid(row = row + 2, column = col, sticky="NESW")
         
         #Add import and export buttons with correct callbacks
-        self.importButton = tkinter.Button(self, text="Import Setup", command=self.openFile)
+        self.importButton = tkinter.Button(self, text="Load Setup", command=self.openFile)
         self.importButton.grid(row=0, column=0, sticky="NESW")
-        self.exportButton = tkinter.Button(self, text="Export Setup", command=self.exportData)
+        self.exportButton = tkinter.Button(self, text="Save Setup", command=self.exportData)
         self.exportButton.grid(row=0, column=1, sticky="NESW")
 
         #Colours for use with mesages for indicator colour
