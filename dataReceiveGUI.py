@@ -6,6 +6,7 @@ import serial
 from serial.tools import list_ports
 from threading import Thread
 import readSeparators
+import datetime
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -345,6 +346,7 @@ class MainWindow(tkinter.Frame):
 
                         #If the name is allowed to be used
                         if allowed:
+                            self.sendTime()
                             self.currentFileName = "/" + fileName + ".txt"
                             #message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
                             message = "start " + self.currentFileName + "\n"
@@ -354,6 +356,12 @@ class MainWindow(tkinter.Frame):
         else:
             #If no connection present - display error message (Outside case but catches errors)
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
+    
+    def sendTime(self):
+        if self.connected and self.serialConnection != None and not self.awaiting:
+            t = datetime.datetime.now()
+            message = "setTime {0},{1},{2},{3},{4},{5}\n".format(t.year, t.month, t.day, t.hour, t.minute, t.second)
+            self.serialConnection.write(message.encode("utf-8"))
 
     def fileTogglePressed(self):
         '''Ask the esp32 for the list of held files'''
@@ -388,7 +396,8 @@ class MainWindow(tkinter.Frame):
                         confirm = messagebox.askyesno(title="Confirm Delete", message="Are you sure you want to delete " + self.files[self.selectedFile] + "?\nThis action cannot be undone.")
                         if confirm:
                             #Send signal to delete file
-                            message = "delete " + self.files[self.selectedFile] + "\n"
+                            message = "delete " + "/" + self.files[self.selectedFile] + "\n"
+                            print(message)
                             self.serialConnection.write(message.encode("utf-8"))
                             #Wait for confirmation of deletion
                             self.awaiting = True
