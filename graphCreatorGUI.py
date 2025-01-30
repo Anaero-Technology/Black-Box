@@ -5,7 +5,9 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 from tkinter import filedialog
+from tkinter import messagebox
 import readSetup
+import readSeparators
 
 class mainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -18,10 +20,14 @@ class mainWindow(tkinter.Frame):
         self.numberRows = 15
         self.numberColumns = 6
 
+        self.loading = False
+
         for row in range(0, self.numberRows):
             self.grid_rowconfigure(row, weight = 1)
         for col in range(0, self.numberColumns):
             self.grid_columnconfigure(col, weight = 1)
+
+        self.column, self.decimal = readSeparators.read()
 
         #Frame to hold the graph and toolbar
         self.graphFrame = tkinter.Frame(self)
@@ -42,11 +48,17 @@ class mainWindow(tkinter.Frame):
         self.toolbar.update()
         self.graphCanvas.get_tk_widget().pack(side="top", fill="both", expand=True)
 
-        #Load button and label
-        self.loadDataButton = tkinter.Button(self, text="Load Processed Data", command=self.loadFile)
-        self.loadDataButton.grid(row=0, column=0, sticky="NESW")
+        self.loadedType = -1
+
+        #Load buttons and label
+        self.loadEventButton = tkinter.Button(self, text="Load Event Log", command=lambda: self.loadFile(0))
+        self.loadHourButton = tkinter.Button(self, text="Load Hour Log", command=lambda: self.loadFile(1))
+        self.loadDayButton = tkinter.Button(self, text="Load Day Log", command=lambda: self.loadFile(1))
+        self.loadEventButton.grid(row=0, column=0, sticky="NSEW")
+        self.loadHourButton.grid(row=0, column=1, sticky="NSEW")
+        self.loadDayButton.grid(row=0, column=2, sticky="NSEW")
         self.loadedFileLabel = tkinter.Label(self, text="No file loaded")
-        self.loadedFileLabel.grid(row=0, column=1, columnspan=5, sticky="NESW")
+        self.loadedFileLabel.grid(row=0, column=3, columnspan=3, sticky="NESW")
 
         #Mode drop down - select what type of graph is wanted
         self.graphMode = tkinter.StringVar()
@@ -76,14 +88,6 @@ class mainWindow(tkinter.Frame):
         self.secondChannelChoice.grid(row=3, column=4, columnspan=2, sticky="NESW")
         self.secondChannelChoice.configure(state="disabled")
 
-        #Hour and day buttons - to toggle between types
-        self.hourButton = tkinter.Button(self, text="Hours", state="disabled", command=self.hourPressed)
-        self.dayButton = tkinter.Button(self, text="Days", state="disabled", command=self.dayPressed)
-        self.hourButton.grid(row=4, column=4, sticky="NESW")
-        self.dayButton.grid(row=4, column=5, sticky="NESW")
-
-        self.hour = True
-
         #Convert index from drop down to column in data
         self.typeToListPos = [0, 1, 2, 5]
 
@@ -95,7 +99,7 @@ class mainWindow(tkinter.Frame):
         self.typeIndex = 0
         self.selectType = tkinter.OptionMenu(self, self.graphType, *self.typeList)
         self.selectType.configure(state="disabled")
-        self.selectType.grid(row=5, column=4, columnspan=2, sticky="NESW")
+        self.selectType.grid(row=6, column=4, columnspan=2, sticky="NESW")
 
         #Checkbox to toggle display of grid
         self.gridEnabled = tkinter.IntVar()
@@ -103,7 +107,7 @@ class mainWindow(tkinter.Frame):
         self.gridEnabled.trace("w", self.updateCheckBox)
         self.gridCheckBox = tkinter.Checkbutton(self, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
         self.gridCheckBox.configure(state="disabled")
-        self.gridCheckBox.grid(row=6, column=4, columnspan=2, sticky="NESW")
+        self.gridCheckBox.grid(row=7, column=4, columnspan=2, sticky="NESW")
 
         #Checkbox to toggle legend if necessary
         self.showLegend = tkinter.IntVar()
@@ -111,7 +115,7 @@ class mainWindow(tkinter.Frame):
         self.showLegend.trace("w", self.updateCheckBox)
         self.legendCheckBox = tkinter.Checkbutton(self, text="Legend", variable=self.showLegend, onvalue=1, offvalue=0)
         self.legendCheckBox.configure(state="disabled")
-        self.legendCheckBox.grid(row=7, column=4, columnspan=2, sticky="NESW")
+        self.legendCheckBox.grid(row=8, column=4, columnspan=2, sticky="NESW")
 
         #Allowed file types and extensions
         self.fileTypes = [("CSV Files", "*.csv")]
@@ -123,15 +127,15 @@ class mainWindow(tkinter.Frame):
 
         #Arrays to hold the information once loaded
         self.loadedData = None
-        self.hourInformation = []
-        self.dayInformation = []
+        self.information = []
         self.channelInfo = []
 
         #If the data has been loaded and the controls enabled
         self.ready = False
 
-    def loadFile(self) -> None:
+    def loadFile(self, loadType) -> None:
         '''Load a file of data into the arrays'''
+        self.loading = True
         #Get the path
         path = filedialog.askopenfilename(title="Select processed data file", filetypes=self.fileTypes)
         pathParts = path.split("/")
@@ -144,103 +148,111 @@ class mainWindow(tkinter.Frame):
             #Read all the data as one dimensional array
             allData = readSetup.getFile(path)
             #If some data was read
-            if allData != []:
+            if allData != [] and len(allData) > 0 and len(allData[0]) > 0:
                 #Convert data into two dimensional array
                 self.loadedData = readSetup.formatData(allData)
+                types = [" Event ", " Hour ", " Day "]
                 #Set the label
-                self.loadedFileLabel.configure(text=fileName + " Loaded Successfully", fg=self.green)
+                self.loadedFileLabel.configure(text=fileName + types[loadType] + "Data Loaded", fg=self.green)
+                self.loadedType = loadType
                 #Move the data into hour, day, and setup parts
-                self.arrangeData()
-                #Change the name labels for the channels to match the data
-                self.changeChannelNames()
-                #Redraw the plot
-                self.updatePlot()
-                #If the buttons aren't enabled yet - enable them
-                if not self.ready:
-                    self.ready = True
-                    self.enableControls()
+                error = self.arrangeData()
+                if error == None:
+                    #Change the name labels for the channels to match the data
+                    self.updateType()
+                    self.changeChannelNames()
+                    self.changeFieldOptions()
+                    #Redraw the plot
+                    self.updatePlot()
+                    #If the buttons aren't enabled yet - enable them
+                    if not self.ready:
+                        self.ready = True
+                        self.enableControls()
+                else:
+                    messagebox.showinfo(title="Error", message=error)
+                    self.loadedFileLabel.configure(text="An error occurred, please try again.", fg=self.red)
+                    self.disableGraphs()
             else:
                 #Display error message
                 self.loadedFileLabel.configure(text="File could not be read", fg=self.red)
+        
+        self.loading = False
     
     def arrangeData(self) -> None:
         '''Move the loaded data into arrays for hours, days and setup'''
         #Reset data arrays
-        self.dayInformation = []
-        self.hourInformation = []
-        self.channelInfo = []
-        #If currently reading hour or day information
-        currentHour = False
-        currentDay = False
-        #The current channel being recorded
-        currentChannel = -1
+        self.information = []
+        self.channelInfo = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+        self.typeList = []
+        self.typeToListPos = []
+
+        if len(self.loadedData) < 1 or len(self.loadedData[0]) < 1:
+            return "Data not found, please check separators and file format are correct."
+
+        for c in range(0, len(self.loadedData[0])):
+            self.information.append([])
+            if self.loadedType > 0 and c > 6:
+                self.typeList.append(self.loadedData[0][c])
+                self.typeToListPos.append(c)
+            elif self.loadedType == 0 and c > 8:
+                self.typeList.append(self.loadedData[0][c])
+                self.typeToListPos.append(c)
 
         #Iterate through the data
-        for row in self.loadedData:
+        for row in self.loadedData[1:]:
             #If there is some information in the row
             if len(row) > 0:
                 
-                #The position to start from when adding the data
-                start = 0
-                
-                #If this is an hour marker
-                if row[0] == "Hour":
-                    #Currently reading hour
-                    currentHour = True
-                    currentDay = False
-                    #Do not include this row
-                    start = len(row)
-                #If this is a day marker
-                elif row[0] == "Day":
-                    #Currently reading day
-                    currentDay = True
-                    currentHour = False
-                    #Do not include this row
-                    start = len(row)
-                else:
-                    floatNumber = False
+                for col in range(0, len(row)):
                     #Attempt to convert to a float
                     try:
-                        float(row[0])
-                        floatNumber = True
+                        floatData = float(row[col].replace(self.decimal, "."))
+                        self.information[col].append(floatData)
                     except:
-                        pass
-                        #If the first value is not a float (and not Hour or Day)
-                    if not floatNumber:
-                        #Setup for new channel
-                        self.channelInfo.append([])
-                        self.dayInformation.append([])
-                        self.hourInformation.append([])
-                        currentHour = False
-                        currentDay = False
-                        currentChannel = currentChannel + 1
-
-                #If a new hour row is needed
-                if currentHour and start == 0:
-                    self.hourInformation[currentChannel].append([])
-                #If a new day row is needed
-                if currentDay and start == 0:
-                    self.dayInformation[currentChannel].append([])
-
-                #Iterate from start position to the end of the row
-                for itemIndex in range(start, len(row)):
-                    #If there is a channel
-                    if currentChannel > -1:
-                        #Add data to the correct array (Hour, Day or Setup)
-                        if currentHour:
-                            self.hourInformation[currentChannel][-1].append(row[itemIndex])
-                        elif currentDay:
-                            self.dayInformation[currentChannel][-1].append(row[itemIndex])
-                        else:
-                            self.channelInfo[currentChannel].append(row[itemIndex])
+                        self.information[col].append(row[col].replace(self.decimal, "."))
+                    
+                    if self.loadedType == 1 or self.loadedType == 2:
+                        try:
+                            channelNumber = int(row[0])
+                            channelName = row[1]
+                            if self.channelInfo[channelNumber - 1] == "":
+                                self.channelInfo[channelNumber - 1] = channelName
+                        except:
+                            pass
+                    elif self.loadedType == 0:
+                        try:
+                            channelNumber = int(row[0])
+                            channelName = row[1]
+                            if self.channelInfo[channelNumber - 1] == "":
+                                self.channelInfo[channelNumber - 1] = channelName
+                        except:
+                            pass
+        
+        if len(self.typeList) < 1:
+            return "File format incorrect, please check and try again."
+        else:
+            self.graphType.set(self.typeList[0])
+                          
 
     def enableControls(self) -> None:
         '''Enable the controls for the first time'''
         self.selectMode.configure(state="normal")
         self.channelChoice.configure(state="normal")
-        self.dayButton.configure(state="normal")
         self.selectType.configure(state="normal")
         self.gridCheckBox.configure(state="normal")
+
+    def disableGraphs(self) -> None:
+        self.disableControls()
+        self.ready = False
+        self.figure.clf()
+        self.subPlot = self.figure.add_subplot(111)
+        self.graphCanvas.draw()
+
+    def disableControls(self) -> None:
+        self.selectMode.configure(state="disabled")
+        self.channelChoice.configure(state="disabled")
+        self.selectType.configure(state="disabled")
+        self.gridCheckBox.configure(state="disabled")
 
     def changeChannelNames(self) -> None:
         '''Change the labels for the channels'''
@@ -252,14 +264,15 @@ class mainWindow(tkinter.Frame):
         #Reset the channel list
         self.channelList = []
         #Iterate through the channels
-        for channel in self.channelInfo:
+        for channelId in range(0, len(self.channelInfo)):
             #Get the name
-            name = channel[0]
-            #Add the item to both menus
-            menu.add_command(label=name, command=lambda v=self.selectedChannel, l=name: v.set(l))
-            menu2.add_command(label=name, command=lambda v=self.secondSelectedChannel, l=name: v.set(l))
-            #Add the name to the list of channels
-            self.channelList.append(name)
+            if self.channelInfo[channelId] != "":
+                name = self.channelInfo[channelId]
+                #Add the item to both menus
+                menu.add_command(label=name, command=lambda v=self.selectedChannel, l=name: v.set(l))
+                menu2.add_command(label=name, command=lambda v=self.secondSelectedChannel, l=name: v.set(l))
+                #Add the name to the list of channels
+                self.channelList.append(name)
         #Set the selected channels (or default to first if not found)
         if self.channelIndex > -1 and self.channelIndex < len(self.channelList):
             self.selectedChannel.set(self.channelList[self.channelIndex])
@@ -271,90 +284,77 @@ class mainWindow(tkinter.Frame):
         else:
             self.secondSelectedChannel.set(self.channelList[0])
 
+    def changeFieldOptions(self) -> None:
+        menu = self.selectType["menu"]
+        menu.delete(0, tkinter.END)
+
+        for option in self.typeList:
+            menu.add_command(label=option, command=lambda v=self.graphType, l=option: v.set(l))
+        
+        self.graphType.set(self.typeList[0])
+
     def updatePlot(self) -> None:
         '''Update the graph to show the currently selected data'''
         #Single plot
         if self.modeIndex == 0:
             #If the selected channel is valid (within the available range)
-            if self.channelIndex > -1 and ((self.hour and self.channelIndex < len(self.hourInformation)) or (not self.hour and self.channelIndex < len(self.dayInformation))):
+            if self.channelIndex > -1 and self.channelIndex < 15 and self.channelInfo[self.channelIndex] != "":
+                channelIds = self.information[0]
+                times = self.information[2]
                 #Get the data from the list (for hour)
-                data = self.hourInformation[self.channelIndex]
-                #If it is in day mode, get the day data instead
-                if not self.hour:
-                    data = self.dayInformation[self.channelIndex]
-                #Get the correct column position for the data
-                column = self.typeToListPos[self.typeIndex]
-                #If the column is within the data
-                if column > -1 and column < len(data[0]):
-                    #Lists to hold x and y axis points
-                    xData = []
-                    yData = []
-                    #Iterate through rows
-                    for index in range(0, len(data)):
-                        #Add the hour/day
-                        xData.append(index + 1)
+                data = self.information[self.typeToListPos[self.typeIndex]]
+                xData = []
+                yData = []
+                #Iterate through rows
+                for index in range(0, len(data)):
+                    if self.channelIndex == channelIds[index] - 1:
+                        #Add the time point
+                        xData.append(float(times[index]))
                         #Add the information
-                        yData.append(float(data[index][column]))
-                    
-                    #Remove the old graph and create the new one
-                    self.subPlot.clear()
-                    self.subPlot.plot(xData, yData)
-                    #If this is hours
-                    if self.hour:
-                        #Set x axis label and title accordingly
-                        self.subPlot.set_xlabel("Hour")
-                        self.subPlot.set_title(self.channelInfo[self.channelIndex][0] + " " + self.typeList[self.typeIndex] + " Per Hour")
-                    else:
-                        #Set x axis label and title accordingly
-                        self.subPlot.set_xlabel("Day")
-                        self.subPlot.set_title(self.channelInfo[self.channelIndex][0] + " " + self.typeList[self.typeIndex] + " Per Day")
-                    
-                    #Set y axis label to data
-                    self.subPlot.set_ylabel(self.typeList[self.typeIndex])
-                    #Show the grid if enabled
-                    self.subPlot.grid(self.gridEnabled.get() == 1)
-                    #Draw the new graph
-                    self.graphCanvas.draw()
+                        yData.append(float(data[index]))
+                
+                #Remove the old graph and create the new one
+                self.subPlot.clear()
+                self.subPlot.plot(xData, yData)
+                #Set x axis label and title accordingly
+                self.subPlot.set_xlabel("Time")
+                self.subPlot.set_title(self.channelInfo[self.channelIndex] + " " + self.typeList[self.typeIndex])
+                
+                #Set y axis label to data
+                self.subPlot.set_ylabel(self.typeList[self.typeIndex])
+                #Show the grid if enabled
+                self.subPlot.grid(self.gridEnabled.get() == 1)
+                #Draw the new graph
+                self.graphCanvas.draw()
 
         #Compare channels
         elif self.modeIndex == 1:
-            #Get all the data for hours
-            data = self.hourInformation
-            #If it is days get the day data instead
-            if not self.hour:
-                data = self.dayInformation
-            #Get the column for the data being displayed
-            column = self.typeToListPos[self.typeIndex]
             #If the channels selected are available
-            if self.channelIndex > -1 and self.channelIndex < len(data) and self.secondChannelIndex > -1 and self.secondChannelIndex < len(data):
+            if self.channelIndex > -1 and self.channelIndex < 15 and self.secondChannelIndex > -1 and self.secondChannelIndex < 15:
                 #Clear the old graph
                 self.subPlot.clear()
                 #Iterate for each channel
-                for index in [self.channelIndex, self.secondChannelIndex]:
-                    #If the data is present
-                    if index < len(data):
-                        #And the column is valid
-                        if column < len(data[index][0]):
-                            #Lists to hold x and y axis data points
-                            xData = []
-                            yData = []
-                            #Iterate through rows
-                            for rowIndex in range(0, len(data[index])):
-                                #Add the hour/day number
-                                xData.append(rowIndex + 1)
-                                #Add the data
-                                yData.append(float(data[index][rowIndex][column]))
-                            #If there was data to plot
-                            if len(xData) > 0:
-                                #Add the data to the plot with a label for the channel
-                                self.subPlot.plot(xData, yData, "-", label=self.channelInfo[index][0])
-                #Set the x axis label and plot title according to hour or day
-                if self.hour:
-                    self.subPlot.set_xlabel("Hour")
-                    self.subPlot.set_title("Channel Comparison Of " + self.typeList[self.typeIndex] + " Per Hour")
-                else:
-                    self.subPlot.set_xlabel("Day")
-                    self.subPlot.set_title("Channel Comparison Of " + self.typeList[self.typeIndex] + " Per Day")
+                data = self.information[self.typeToListPos[self.typeIndex]]
+                channelIds = self.information[0]
+                times = self.information[2]
+                for channelIndex in [self.channelIndex, self.secondChannelIndex]:
+                    #Lists to hold x and y axis data points
+                    xData = []
+                    yData = []
+                    #Iterate through rows
+                    for rowIndex in range(0, len(data)):
+                        if channelIds[rowIndex] - 1 == channelIndex:
+                            #Add the time
+                            xData.append(float(times[rowIndex]))
+                            #Add the data
+                            yData.append(float(data[rowIndex]))
+                    #If there was data to plot
+                    if len(xData) > 0:
+                        #Add the data to the plot with a label for the channel
+                        self.subPlot.plot(xData, yData, "-", label=self.channelInfo[channelIndex])
+                #Set the x axis label and plot title according to data
+                self.subPlot.set_xlabel("Time")
+                self.subPlot.set_title("Channel Comparison Of " + self.typeList[self.typeIndex])
                 #Set the y label to the type of data being shown
                 self.subPlot.set_ylabel(self.typeList[self.typeIndex])
                 #Display the legend if it is on
@@ -368,40 +368,38 @@ class mainWindow(tkinter.Frame):
         #All one channel
         elif self.modeIndex == 2:
             #If the channel is valid
-            if self.channelIndex > -1 and ((self.hour and self.channelIndex < len(self.hourInformation)) or (not self.hour and self.channelIndex < len(self.dayInformation))):
-                #Get the hour data for the channel
-                data = self.hourInformation[self.channelIndex]
-                #If it is day, get the day information instead
-                if not self.hour:
-                    data = self.dayInformation[self.channelIndex]
+            if self.channelIndex > -1 and self.channelIndex < 15:
 
                 #Delete the old graph
                 self.subPlot.clear()
 
+                channelIds = self.information[0]
+                times = self.information[2]
+
                 #For each of the types of data
-                for dataType in range(0, len(self.typeToListPos)):
+                for dataTypeIndex in range(0, len(self.typeToListPos)):
+                    dataType = self.typeToListPos[dataTypeIndex]
                     #Get the name of the type
-                    name = self.typeList[dataType]
+                    name = self.typeList[dataTypeIndex]
+                    data = self.information[dataType]
+                    
                     #Lists to hold the x and y axis data points
                     xData = []
                     yData = []
                     #Iterate through the rows
                     for rowIndex in range(0, len(data)):
-                        #Add the hour/day number
-                        xData.append(rowIndex + 1)
-                        #Add the data from the array
-                        yData.append(float(data[rowIndex][self.typeToListPos[dataType]]))
+                        if channelIds[rowIndex] -1 == self.channelIndex:
+                            #Add the time
+                            xData.append(times[rowIndex])
+                            #Add the data from the array
+                            yData.append(float(data[rowIndex]))
                     
                     #Plot the new data with the correct label
                     self.subPlot.plot(xData, yData, label=name)
                 
                 #Set the x label and plot title accordingly
-                if self.hour:
-                    self.subPlot.set_xlabel("Hour")
-                    self.subPlot.set_title("All " + self.channelInfo[self.channelIndex][0] + " Data Per Hour")
-                else:
-                    self.subPlot.set_xlabel("Day")
-                    self.subPlot.set_title("All " + self.channelInfo[self.channelIndex][0] + " Data Per Day")
+                self.subPlot.set_xlabel("Time")
+                self.subPlot.set_title("All " + self.channelInfo[self.channelIndex][0] + " Data")
                 
                 #Display no y axis label (all different)
                 self.subPlot.set_ylabel("")
@@ -445,14 +443,16 @@ class mainWindow(tkinter.Frame):
             #Set index to 2 for all one channel
             self.modeIndex = 2
         #Update the graph to show the new plot
-        self.updatePlot()
+        if not self.loading:
+            self.updatePlot()
 
     def updateChannel(self, *args) -> None:
         '''When the channel value is changed'''
         #Get the index of the channel
         self.channelIndex = self.channelList.index(self.selectedChannel.get())
         #Update the graph to show the correct plot
-        self.updatePlot()
+        if not self.loading:
+            self.updatePlot()
 
     def updateSecondChannel(self, *args) -> None:
         '''When the second channel value is changed'''
@@ -461,36 +461,21 @@ class mainWindow(tkinter.Frame):
         #If the second channel is currently in use
         if self.secondChannelChoice["state"] == "normal":
             #Update the graph to show the correct plot
-            self.updatePlot()
+            if not self.loading:
+                self.updatePlot()
 
     def updateType(self, *args) -> None:
         '''When the type of graph (data type) is changed'''
         #Get the index of the type
         self.typeIndex = self.typeList.index(self.graphType.get())
+        if self.typeIndex == -1 or self.typeIndex > len(self.typeList):
+            self.typeIndex = 0
+            self.graphType.set(0)
         #If the type option is currently enabled
         if self.selectType["state"] == "normal":
             #Update the graph to show the correct plot
-            self.updatePlot()
-
-    def hourPressed(self) -> None:
-        '''When the hour button is pressed'''
-        #Switch to hour mode
-        self.hour = True
-        #Toggle button states so only day may be pressed
-        self.hourButton.configure(state="disabled")
-        self.dayButton.configure(state="normal")
-        #Draw the updated version of the graph
-        self.updatePlot()
-
-    def dayPressed(self) -> None:
-        '''When the day button is pressed'''
-        #Switch to day mode
-        self.hour = False
-        #Toggle buttons so only hour may be pressed
-        self.dayButton.configure(state="disabled")
-        self.hourButton.configure(state="normal")
-        #Draw the updated version of the graph
-        self.updatePlot()
+            if not self.loading:
+                self.updatePlot()
     
     def updateCheckBox(self, *args):
         '''When a check box is changed, update the plot ignoring the exta parameters'''
