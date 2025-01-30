@@ -361,5 +361,5 @@ def performGeneralCalculations(setupData, eventData, progress):
     #gasLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "CO2 Percent", "CH4 Percent"])
 
     #Return the data and no error was found
-    #return None, eventLog, hourLog, dayLog, gasLog, setup
+    #return None, eventLog, hourLog, dayLog, setup
     return None, eventLog, hourLog, dayLog, setup
