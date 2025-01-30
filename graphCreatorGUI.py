@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 from tkinter import filedialog
 from tkinter import messagebox
+from tkinter import colorchooser
 import readSetup
 import readSeparators
 
@@ -17,26 +18,222 @@ class MainWindow(tkinter.Frame):
         self.parent = parent
 
         #Grid dimensions for main window
-        self.numberRows = 15
-        self.numberColumns = 7
+        self.numberRows = 11
+        self.numberColumns = 4
 
         self.loading = False
 
         for row in range(0, self.numberRows):
-            self.grid_rowconfigure(row, weight = 1)
+            self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numberColumns):
-            self.grid_columnconfigure(col, weight = 1)
+            self.grid_columnconfigure(col, weight=1, uniform="cols")
 
         self.column, self.decimal = readSeparators.read()
 
-        #Frame to hold the graph and toolbar
-        self.graphFrame = tkinter.Frame(self)
-        self.graphFrame.grid(row=1, column=0, rowspan=13, columnspan=5, sticky="NESW")
+        self.tabFileLoad = tkinter.Label(self, text="Select File", relief="raised")
+        self.onColour = self.tabFileLoad.cget("bg")
+        self.offColour = "#999999"
+        self.tabChannelSelect = tkinter.Label(self, text="Select Channel Column", relief="sunken", bg=self.offColour)
+        self.tabSetLines = tkinter.Label(self, text="Add Lines", relief="sunken", bg=self.offColour)
+        self.tabGraph = tkinter.Label(self, text="Graph", relief="sunken", bg=self.offColour)
 
-        #Progress bar (removed initially)
-        self.progress = Ttk.Progressbar(self, orient=tkinter.HORIZONTAL, mode="determinate", maximum=10000.0)
-        self.progress.grid(row=14, column=0, columnspan=7, sticky="NESW")
-        self.progress.grid_remove()
+        self.tabFileLoad.grid(row=0, column=0, sticky="NESW")
+        self.tabChannelSelect.grid(row=0, column=1, sticky="NESW")
+        self.tabSetLines.grid(row=0, column=2, sticky="NESW")
+        self.tabGraph.grid(row=0, column=3, sticky="NESW")
+
+        self.viewWindow = tkinter.Frame(self)
+        self.viewWindow.grid(row=1, column=0, rowspan=10, columnspan=4, sticky="NESW")
+
+        self.viewWindow.grid_rowconfigure(0, weight=1)
+        self.viewWindow.grid_columnconfigure(0, weight=1)
+
+        self.graphWindow = tkinter.Frame(self.viewWindow)
+        self.graphWindow.grid(row=0, column=0, sticky="NESW")
+
+        self.linesWindow = tkinter.Frame(self.viewWindow)
+        self.linesWindow.grid(row=0, column=0, sticky="NESW")
+
+        self.channelWindow = tkinter.Frame(self.viewWindow)
+        self.channelWindow.grid(row=0, column=0, sticky="NESW")
+
+        self.fileWindow = tkinter.Frame(self.viewWindow)
+        self.fileWindow.grid(row=0, column=0, sticky="NESW")
+        
+        self.columns = []
+        self.data = []
+        self.channelColumn = -1
+        self.channelList = []
+
+        self.loadFileButton = tkinter.Button(self.fileWindow, text="Load Data File", command=self.loadFile, font=("", 16))
+        self.loadFileButton.pack(side="top", expand="yes")
+
+        self.channelSelectVar = tkinter.StringVar()
+        self.channelSelectVar.set("None")
+        self.channelOptionFrame = tkinter.Frame(self.channelWindow)
+        self.channelOptionFrame.pack(side="top", expand="true")
+        self.channelOptionFrame.grid_rowconfigure(0, weight=1)
+        self.channelOptionFrame.grid_columnconfigure(0, weight=1)
+        self.channelOptionFrame.grid_columnconfigure(1, weight=1)
+        self.channelOptionLabel = tkinter.Label(self.channelOptionFrame, text="Select column as channel identifier:", font=("", 16))
+        self.channelMenu = tkinter.OptionMenu(self.channelOptionFrame, self.channelSelectVar, "None")
+        self.channelMenu.configure(font=("", 16))
+        self.channelOptionLabel.grid(row=0, column=0, sticky="NESW")
+        self.channelMenu.grid(row=0, column=1, sticky="NESW")
+
+        self.channelNextButton = tkinter.Button(self.channelWindow, text="Next", font=("", 16), command=self.nextChannel)
+        self.channelBackButton = tkinter.Button(self.channelWindow, text="Back", font=("", 16), command=lambda x = 0: self.moveWindows(x))
+
+        self.channelBackButton.pack(side="left")
+        self.channelNextButton.pack(side="right")
+
+        self.linesWindow.grid_rowconfigure(0, weight=1)
+        self.linesWindow.grid_rowconfigure(1, weight=10)
+        self.linesWindow.grid_rowconfigure(2, weight=1)
+        self.linesWindow.grid_columnconfigure(0, weight=1)
+
+        self.linesInstruction = tkinter.Label(self.linesWindow, text="Add lines to be plotted on the graph", font=("", 16))
+        self.linesInstruction.grid(row=0, column=0, sticky="NESW")
+
+
+        self.itemFrame = tkinter.Frame(self.linesWindow)
+        self.itemFrame.grid(row=1, column=0, sticky="NESW")
+
+        #Create canvas and scroll bar
+        self.itemCanvas = tkinter.Canvas(self.itemFrame)
+        self.itemScroll = tkinter.Scrollbar(self.itemFrame, orient="vertical", command=self.itemCanvas.yview)
+
+        self.itemScroll.pack(side="right", fill="y")
+        self.itemCanvas.pack(side="left", expand=True, fill="both")
+
+        #Create frame that holds scrolling contents
+        self.internalItemFrame = tkinter.Frame(self.itemCanvas)
+        self.internalItemFrame.grid_columnconfigure(0, weight=1)
+        self.internalItemFrame.grid_rowconfigure(0, minsize=100)
+
+        #Create frame containing add buttons
+        self.addLineFrame = tkinter.Frame(self.internalItemFrame)
+        for i in range(0, 4):
+            self.addLineFrame.grid_rowconfigure(i, weight=1)
+            self.addLineFrame.grid_columnconfigure(i, weight=1)
+        #Add buttons to add files
+        self.addLineButton = tkinter.Button(self.addLineFrame, text="+ Add Line", command=self.addLine, fg="#00DD00", relief="ridge", bg="#FFFFFF", font=("", 16))
+        #Add to grid
+        self.addLineButton.grid(row=1, column=1, rowspan=2, columnspan=2, sticky="NESW")
+        self.addLineFrame.grid(row=0, column=0, sticky="NESW")
+
+        #Create scrolling canvas window
+        self.itemCanvasWindow = self.itemCanvas.create_window(0, 0, window=self.internalItemFrame, anchor="nw")
+
+        #Setup the resizing commands on the canvas and frame
+        self.internalItemFrame.bind("<Configure>", self.onFrameConfigure)
+        self.itemCanvas.bind("<Configure>", self.frameWidth)
+        self.frameWidth(None)
+
+        #Update the initial size on the canvas (so it looks correct on first load)
+        self.itemCanvas.update_idletasks()
+
+        #Add enter and leave mousewheel binding so it can be scrolled
+        self.internalItemFrame.bind("<Enter>", self.bindMouseWheel)
+        self.internalItemFrame.bind("<Leave>", self.unbindMouseWheel)
+        
+        #Setup bounding box and scroll region so the scrolling works correctly
+        self.itemCanvas.configure(scrollregion=self.itemCanvas.bbox("all"), yscrollcommand=self.itemScroll.set)
+        
+
+
+        self.linesButtons = tkinter.Frame(self.linesWindow)
+        self.linesButtons.grid(row=2, column=0, sticky="NESW")
+
+        self.linesBackButton = tkinter.Button(self.linesButtons, text="Back", font=("", 16), command=lambda x = 1: self.moveWindows(x))
+        self.linesBackButton.pack(side="left", anchor="s")
+
+        self.linesNextButton = tkinter.Button(self.linesButtons, text="Next", font=("", 16), command=self.showGraph)
+        self.linesNextButton.pack(side="right", anchor="s")
+
+        #Allowed file types and extensions
+        self.fileTypes = [("CSV Files", "*.csv")]
+
+        self.lines = {}
+
+        self.addingLine = True
+        self.currentLineName = ""
+
+        self.lineEditWindow = tkinter.Toplevel(self)
+        self.lineEditWindow.minsize(500, 400)
+        self.lineEditWindow.maxsize(500, 400)
+        self.lineEditWindow.resizable(False, False)
+        self.lineEditWindow.title("Line Customisation Options")
+        self.lineEditWindow.protocol("WM_DELETE_WINDOW", self.lineCancelPressed)
+        self.lineEditWindow.transient(self.parent)
+
+        self.lineEditNameFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditNameLabel = tkinter.Label(self.lineEditNameFrame, text="Line Name:", font=("", 16))
+        self.nameInputVar = tkinter.StringVar()
+        self.lineEditNameInput = tkinter.Entry(self.lineEditNameFrame, textvariable=self.nameInputVar, font=("", 16))
+        self.lineEditNameLabel.pack(side="left")
+        self.lineEditNameInput.pack(side="left")
+        self.lineEditNameFrame.pack(expand="true")
+
+        self.currentColour = "#FF0000"
+
+        self.lineEditColourFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditColourButton = tkinter.Button(self.lineEditColourFrame, text="Choose Line Colour", command=self.chooseColour, font=("", 16))
+        self.lineEditColourDisplay = tkinter.Button(self.lineEditColourFrame, bg=self.currentColour, relief="sunken", state="disabled", text="      ", font=("", 16))
+        self.lineEditColourButton.pack(side="left")
+        self.lineEditColourDisplay.pack(side="left")
+        self.lineEditColourFrame.pack(expand="true")
+
+        self.lineEditXAxisFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditXAxisLabel = tkinter.Label(self.lineEditXAxisFrame, text="X Axis Column:", font=("", 16))
+        self.xAxisVar = tkinter.StringVar()
+        self.lineEditXAxisMenu = tkinter.OptionMenu(self.lineEditXAxisFrame, self.xAxisVar, "None")
+        self.lineEditXAxisMenu.configure(font=("", 16))
+        self.lineEditXAxisLabel.pack(side="left")
+        self.lineEditXAxisMenu.pack(side="left")
+        self.lineEditXAxisFrame.pack(expand="true")
+
+        self.lineEditYAxisFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditYAxisLabel = tkinter.Label(self.lineEditYAxisFrame, text="Y Axis Column:", font=("", 16))
+        self.yAxisVar = tkinter.StringVar()
+        self.lineEditYAxisMenu = tkinter.OptionMenu(self.lineEditYAxisFrame, self.yAxisVar, "None")
+        self.lineEditYAxisMenu.configure(font=("", 16))
+        self.lineEditYAxisLabel.pack(side="left")
+        self.lineEditYAxisMenu.pack(side="left")
+        self.lineEditYAxisFrame.pack(expand="true")
+
+        self.lineEditChannelFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditChannelLabel = tkinter.Label(self.lineEditChannelFrame, text="Channel filter:", font=("", 16))
+        self.lineChannelVar = tkinter.StringVar()
+        self.lineEditChannelMenu = tkinter.OptionMenu(self.lineEditChannelFrame, self.lineChannelVar, "None")
+        self.lineEditChannelMenu.configure(font=("", 16))
+        self.lineEditChannelLabel.pack(side="left")
+        self.lineEditChannelMenu.pack(side="left")
+        self.lineEditChannelFrame.pack(expand="true")
+
+        self.lineEditCumulativeFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineCumulativeVar = tkinter.IntVar()
+        self.lineEditCumulativeCheck = tkinter.Checkbutton(self.lineEditCumulativeFrame, text="Cumulative", variable=self.lineCumulativeVar, onvalue=1, offvalue=0, font=("", 16))
+        self.lineEditCumulativeCheck.pack(side="left")
+        self.lineEditCumulativeFrame.pack(expand="true")
+
+        self.lineEditControlsFrame = tkinter.Frame(self.lineEditWindow)
+        self.lineEditCancelButton = tkinter.Button(self.lineEditControlsFrame, text="Cancel", command=self.lineCancelPressed, font=("", 16))
+        self.lineEditAcceptButton = tkinter.Button(self.lineEditControlsFrame, text="Accept", command=self.lineAcceptPressed, font=("", 16))
+        self.lineEditCancelButton.pack(side="left")
+        self.lineEditAcceptButton.pack(side="left")
+        self.lineEditControlsFrame.pack(expand="true")
+        self.lineEditWindow.withdraw()
+
+        self.graphWindow.grid_rowconfigure(0, weight=10)
+        self.graphWindow.grid_rowconfigure(1, weight=1)
+        self.graphWindow.grid_columnconfigure(0, weight=1)
+
+        self.graphFrame = tkinter.Frame(self.graphWindow)
+        self.graphFrame.grid(row=0, column=0, sticky="NESW")
+
+        self.graphOptions = tkinter.Frame(self.graphWindow)
+        self.graphOptions.grid(row=1, column=0, sticky="NESW")
 
         #Create the graph and add it to the frame
         self.figure = Figure(figsize=(5, 5), dpi=100)
@@ -48,468 +245,424 @@ class MainWindow(tkinter.Frame):
         self.toolbar.update()
         self.graphCanvas.get_tk_widget().pack(side="top", fill="both", expand=True)
 
-        self.loadedType = -1
-
-        #Load buttons and label
-        self.loadEventButton = tkinter.Button(self, text="Load Event Log", command=lambda: self.loadFile(0))
-        self.loadHourButton = tkinter.Button(self, text="Load Hour Log", command=lambda: self.loadFile(1))
-        self.loadDayButton = tkinter.Button(self, text="Load Day Log", command=lambda: self.loadFile(1))
-        self.loadGasButton = tkinter.Button(self, text="Load Gas Log", command=lambda: self.loadFile(2))
-        self.loadPhRedoxButton = tkinter.Button(self, text="Load pH/Redox Log", command=lambda: self.loadFile(2))
-        self.loadEventButton.grid(row=0, column=0, sticky="NESW")
-        self.loadHourButton.grid(row=0, column=1, sticky="NESW")
-        self.loadDayButton.grid(row=0, column=2, sticky="NESW")
-        self.loadGasButton.grid(row=0, column=3, sticky="NESW")
-        self.loadPhRedoxButton.grid(row=0, column=4, sticky="NESW")
-        self.loadedFileLabel = tkinter.Label(self, text="No file loaded")
-        self.loadedFileLabel.grid(row=0, column=5, columnspan=2, sticky="NESW")
-
-        #Mode drop down - select what type of graph is wanted
-        self.graphMode = tkinter.StringVar()
-        self.graphMode.set("Single Plot")
-        self.modeIndex = 0
-        self.graphMode.trace("w", self.updateMode)
-        self.selectMode = tkinter.OptionMenu(self, self.graphMode, "Single Plot", "Compare Channels", "All One Channel")
-        self.selectMode.configure(state="disabled")
-        self.selectMode.grid(row=1, column=5, columnspan=2, sticky="NESW")
-
-        #Channel drop down - select which channel you want a graph from
-        self.selectedChannel = tkinter.StringVar()
-        self.selectedChannel.set("Channel 1")
-        self.selectedChannel.trace("w", self.updateChannel)
-        self.channelList = ["Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15"]
-        self.channelIndex = 0
-        self.channelChoice = tkinter.OptionMenu(self, self.selectedChannel, *self.channelList)
-        self.channelChoice.configure(state="disabled")
-        self.channelChoice.grid(row=2, column=5, columnspan=2, sticky="NESW")
-
-        #Second channel drop down - used to compare two channels
-        self.secondSelectedChannel = tkinter.StringVar()
-        self.secondSelectedChannel.set("Channel 1")
-        self.secondSelectedChannel.trace("w", self.updateSecondChannel)
-        self.secondChannelIndex = 0
-        self.secondChannelChoice = tkinter.OptionMenu(self, self.secondSelectedChannel, *self.channelList)
-        self.secondChannelChoice.grid(row=3, column=5, columnspan=2, sticky="NESW")
-        self.secondChannelChoice.configure(state="disabled")
-
-        #Convert index from drop down to column in data
-        self.typeToListPos = [0, 1, 2, 5]
-
-        #Graph type drop down - select which data the graph should show
-        self.graphType = tkinter.StringVar()
-        self.graphType.set("Total Volume")
-        self.graphType.trace("w", self.updateType)
-        self.typeList = ["Total Volume", "Volume From Sample", "Volume Per Gram", "Total Evolved"]
-        self.typeIndex = 0
-        self.selectType = tkinter.OptionMenu(self, self.graphType, *self.typeList)
-        self.selectType.configure(state="disabled")
-        self.selectType.grid(row=6, column=5, columnspan=2, sticky="NESW")
-
         #Checkbox to toggle display of grid
         self.gridEnabled = tkinter.IntVar()
         self.gridEnabled.set(1)
-        self.gridEnabled.trace("w", self.updateCheckBox)
-        self.gridCheckBox = tkinter.Checkbutton(self, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
-        self.gridCheckBox.configure(state="disabled")
-        self.gridCheckBox.grid(row=7, column=5, columnspan=2, sticky="NESW")
+        self.gridEnabled.trace("w", self.updateGraphOptions)
+        self.gridCheckBox = tkinter.Checkbutton(self.graphOptions, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
+        self.gridCheckBox.pack(side="right", anchor="s")
 
-        #Checkbox to toggle legend if necessary
-        self.showLegend = tkinter.IntVar()
-        self.showLegend.set(1)
-        self.showLegend.trace("w", self.updateCheckBox)
-        self.legendCheckBox = tkinter.Checkbutton(self, text="Legend", variable=self.showLegend, onvalue=1, offvalue=0)
-        self.legendCheckBox.configure(state="disabled")
-        self.legendCheckBox.grid(row=8, column=5, columnspan=2, sticky="NESW")
+        self.legendEnabled = tkinter.IntVar()
+        self.legendEnabled.set(1)
+        self.legendEnabled.trace("w", self.updateGraphOptions)
+        self.legendCheckBox = tkinter.Checkbutton(self.graphOptions, text="Legend", variable=self.legendEnabled, onvalue=1, offvalue=0)
+        self.legendCheckBox.pack(side="right", anchor="s")
 
-        #Allowed file types and extensions
-        self.fileTypes = [("CSV Files", "*.csv")]
+        self.graphBackButton = tkinter.Button(self.graphOptions, text="Back", font=("", 16), command=lambda x=2: self.moveWindows(x))
+        self.graphBackButton.pack(side="left", anchor="s")
+        self.graphOptions.grid(row=1, column=0, sticky="NESW")
 
-        #Colours for labels
-        self.red = "#DD0000"
-        self.green = "#00DD00"
-        self.black = "#000000"
 
-        #Arrays to hold the information once loaded
-        self.loadedData = None
-        self.information = []
-        self.channelInfo = []
+    def chooseColour(self):
+        colourCode = colorchooser.askcolor(title="Select Line Colour")
+        colourCode = colourCode[-1]
+        if colourCode != None:
+            self.currentColour = colourCode
+            self.lineEditColourDisplay.configure(bg=colourCode)
 
-        #If the data has been loaded and the controls enabled
-        self.ready = False
 
-    def loadFile(self, loadType) -> None:
-        '''Load a file of data into the arrays'''
-        self.loading = True
-        #Get the path
-        path = filedialog.askopenfilename(title="Select processed data file", filetypes=self.fileTypes)
-        pathParts = path.split("/")
-        #If there is a path
-        if path != "" and path != None and len(pathParts) > 0:
-            #Reset the loaded data
-            self.loadedData = None
-            #Get the name of the file
-            fileName = pathParts[-1]
-            #Read all the data as one dimensional array
-            allData = readSetup.getFile(path)
-            #If some data was read
-            if allData != [] and len(allData) > 0 and len(allData[0]) > 0:
-                #Convert data into two dimensional array
-                self.loadedData = readSetup.formatData(allData)
-                types = [" Event ", " Hour ", " Day ", " Gas "]
-                #Set the label
-                self.loadedFileLabel.configure(text=fileName + types[loadType] + "Data Loaded", fg=self.green)
-                self.loadedType = loadType
-                #Move the data into hour, day, and setup parts
-                error = self.arrangeData()
-                if error == None:
-                    #Change the name labels for the channels to match the data
-                    self.updateType()
-                    self.changeChannelNames()
-                    self.changeFieldOptions()
-                    #Redraw the plot
-                    self.updatePlot()
-                    #If the buttons aren't enabled yet - enable them
-                    if not self.ready:
-                        self.ready = True
-                        self.enableControls()
-                else:
-                    messagebox.showinfo(title="Error", message=error)
-                    self.loadedFileLabel.configure(text="An error occurred, please try again.", fg=self.red)
-                    self.disableGraphs()
-            else:
-                #Display error message
-                self.loadedFileLabel.configure(text="File could not be read", fg=self.red)
+    def moveWindows(self, stage : int):
+        if stage == 0:
+            self.fileWindow.tkraise()
+        if stage == 1:
+            self.channelWindow.tkraise()
+        if stage == 2:
+            self.linesWindow.tkraise()
+        if stage == 3:
+            self.graphWindow.tkraise()
         
-        self.loading = False
+        if stage > 0:
+            self.tabChannelSelect.configure(bg=self.onColour, relief="raised")
+        else:
+            self.tabChannelSelect.configure(bg=self.offColour, relief="sunken")
+        if stage > 1:
+            self.tabSetLines.configure(bg=self.onColour, relief="raised")
+        else:
+            self.tabSetLines.configure(bg=self.offColour, relief="sunken")
+        if stage > 2:
+            self.tabGraph.configure(bg=self.onColour, relief="raised")
+        else:
+            self.tabGraph.configure(bg=self.offColour, relief="sunken")
+
+    def loadFile(self) -> None:
+        '''Load a file of data into the arrays'''
+        if not self.loading:
+            self.loading = True
+            #Get the path
+            path = filedialog.askopenfilename(title="Select processed data file", filetypes=self.fileTypes)
+            pathParts = path.split("/")
+            #If there is a path
+            if path != "" and path != None and len(pathParts) > 0:
+                #Read all the data as one dimensional array
+                allData = readSetup.getFile(path)
+                #If some data was read
+                if allData != [] and len(allData) > 0 and len(allData[0]) > 0:
+                    #Convert data into two dimensional array
+                    loadedData = readSetup.formatData(allData)
+                    #Move the data into hour, day, and setup parts
+                    error = self.arrangeData(loadedData)
+                    if error == "":
+                        self.changeColumnNames()
+                        self.moveWindows(1)
+                    else:
+                        messagebox.showinfo(title="Error", message=error)
+                else:
+                    pass
+            
+            self.loading = False
     
-    def arrangeData(self) -> None:
+    def arrangeData(self, dataArray : list) -> str:
         '''Move the loaded data into arrays for hours, days and setup'''
         #Reset data arrays
-        self.information = []
-        self.channelInfo = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
-        self.typeList = []
-        self.typeToListPos = []
+        self.columns = []
+        self.data = []
 
-        if len(self.loadedData) < 1 or len(self.loadedData[0]) < 1:
-            return "Data not found, please check separators and file format are correct."
+        if len(dataArray) < 1:
+            return "File is empty"
+        if len(dataArray) < 2:
+            return "No data found in file"
 
-        for c in range(0, len(self.loadedData[0])):
-            #Select only valid output columns based on the file type
-            self.information.append([])
-            if self.loadedType == 1 and c > 6:
-                self.typeList.append(self.loadedData[0][c])
-                self.typeToListPos.append(c)
-            elif self.loadedType == 0 and c > 8:
-                self.typeList.append(self.loadedData[0][c])
-                self.typeToListPos.append(c)
-            elif self.loadedType == 2 and c > 5:
-                self.typeList.append(self.loadedData[0][c])
-                self.typeToListPos.append(c)
+        self.columns = dataArray[0]
 
-        #Iterate through the data
-        for row in self.loadedData[1:]:
-            #If there is some information in the row
-            if len(row) > 0:
-                
-                for col in range(0, len(row)):
-                    #Attempt to convert to a float
-                    try:
-                        floatData = float(row[col].replace(self.decimal, "."))
-                        self.information[col].append(floatData)
-                    except:
-                        self.information[col].append(row[col].replace(self.decimal, "."))
-                    
-                    #if self.loadedType == 1 or self.loadedType == 2:
-                    if self.loadedType == 1:
-                        try:
-                            channelNumber = int(row[0])
-                            channelName = row[1]
-                            if self.channelInfo[channelNumber - 1] == "":
-                                self.channelInfo[channelNumber - 1] = channelName
-                        except:
-                            pass
-                    elif self.loadedType == 2:
-                        #Gas / pH/Redox
-                        try:
-                            channelNumber = int(row[2])
-                            channelName = ""
-                            if self.channelInfo[channelNumber - 1] == "":
-                                self.channelInfo[channelNumber - 1] = channelName
-                        except:
-                            pass
-                    elif self.loadedType == 0:
-                        try:
-                            channelNumber = int(row[0])
-                            channelName = row[1]
-                            if self.channelInfo[channelNumber - 1] == "":
-                                self.channelInfo[channelNumber - 1] = channelName
-                        except:
-                            pass
-        
-        if len(self.typeList) < 1:
-            return "File format incorrect, please check and try again."
+        if len(self.columns) < 2:
+            return "File only contains one column"
+
+        for i in range(0, len(self.columns)):
+            self.data.append([])
+            for j in range(1, len(dataArray)):
+                item = dataArray[j][i]
+                try:
+                    item = float(item)
+                    if item == int(item):
+                        item = int(item)
+                except:
+                    pass
+                self.data[-1].append(item)
+
+        return ""
+
+    def nextChannel(self) -> None:           
+        chosen = self.channelSelectVar.get()
+        if chosen in self.columns:
+            self.channelColumn = self.columns.index(chosen)
+            self.channelList = []
+            for index in range(0, len(self.data[self.channelColumn])):
+                item = str(self.data[self.channelColumn][index])
+                if item not in self.channelList:
+                    self.channelList.append(item)
+            self.channelList.sort()
         else:
-            self.graphType.set(self.typeList[0])
-                          
+            self.channelColumn = -1
 
-    def enableControls(self) -> None:
-        '''Enable the controls for the first time'''
-        self.selectMode.configure(state="normal")
-        self.channelChoice.configure(state="normal")
-        self.selectType.configure(state="normal")
-        self.gridCheckBox.configure(state="normal")
+        for key in self.lines:
+            self.lines[key].grid_remove()
+            self.lines[key].destroy()
+        
+        self.lines = {}
+        
+        self.updateLineList()
+        
+        self.moveWindows(2)
 
-    def disableGraphs(self) -> None:
-        self.disableControls()
-        self.ready = False
+    def changeColumnNames(self):
+        '''Change the labels for the columns'''
+        #Get the menu objects and remove all values
+        menu = self.channelMenu["menu"]
+        menu.delete(0, tkinter.END)
+        for columnNumber in range(-1, len(self.columns)):
+            name = "None"
+            if columnNumber != -1:
+                name = self.columns[columnNumber]
+            menu.add_command(label=name, command=lambda v=self.channelSelectVar, l=name: v.set(l))
+
+    def showGraph(self) -> None:
+        if len(self.lines) > 0:
+            self.clearGraphs()
+            for key in self.lines:
+                lineData = self.lines[key]
+                xAxis = lineData.xCol
+                yAxis = lineData.yCol
+                colour = lineData.colour
+                lineName = lineData.lineName
+                channel = lineData.channel
+                cumulative = lineData.cumulative == 1
+                total = 0
+                xData = []
+                yData = []
+                for i in range(0, len(self.data[0])):
+                    if channel == "" or str(self.data[self.channelColumn][i]) == channel:
+                        xData.append(self.data[xAxis][i])
+                        if cumulative:
+                            total = total + self.data[yAxis][i]
+                            yData.append(total)
+                        else:
+                            yData.append(self.data[yAxis][i])
+                self.subPlot.plot(xData, yData, "-", label=lineName, color=colour)
+            #Show grid if needed
+            self.subPlot.grid(self.gridEnabled.get() == 1)
+            #Draw legend if needed
+            if self.legendEnabled.get() == 1:
+                self.subPlot.legend()
+            #Draw the new graph
+            self.graphCanvas.draw()
+            self.moveWindows(3)
+
+
+    def createLine(self, name, colour, xAxis, yAxis, channel, cumulative):
+        lineData = LineObject(self.internalItemFrame, self, name, colour, xAxis, yAxis, channel, cumulative, highlightbackground="black", highlightthickness=2)
+        self.lines[name] = lineData
+        self.updateLineList()
+
+    def removeLine(self, lineName):
+        if lineName in self.lines:
+            self.lines[lineName].grid_remove()
+            self.lines[lineName].destroy()
+            del self.lines[lineName]
+            self.updateLineList()
+
+    def updateLineList(self):
+        i = 0
+        for key in self.lines:
+            self.lines[key].grid_remove()
+            self.internalItemFrame.grid_rowconfigure(i, minsize=0)
+            i = i + 1
+        self.addLineFrame.grid_remove()
+        self.internalItemFrame.grid_rowconfigure(i, minsize=0)
+        i = 0
+        for key in self.lines:
+            self.lines[key].grid(row=i, column=0, sticky="NESW")
+            self.internalItemFrame.grid_rowconfigure(i, minsize=100)
+            i = i + 1
+        self.addLineFrame.grid(row=i, column=0, sticky="NESW")
+        self.internalItemFrame.grid_rowconfigure(i, minsize=100)
+
+    def addLine(self) -> None:
+        self.addingLine = True
+        self.openLineEdit("", "#FF0000", "", "", "", 0)
+
+    def editLine(self, lineName) -> None:
+        self.addingLine = False
+        if lineName in self.lines:
+            lineData = self.lines[lineName]
+            linesName = lineData.lineName
+            colourCode = lineData.colour
+            xAxis = lineData.xCol
+            xAxis = self.columns[xAxis]
+            yAxis = lineData.yCol
+            yAxis = self.columns[yAxis]
+            channel = lineData.channel
+            cumulative = lineData.cumulative
+            self.openLineEdit(linesName, colourCode, xAxis, yAxis, channel, cumulative)
+    
+    def openLineEdit(self, name : str, colour : str, xA : str, yA : str, channel : str, cumulative : int):
+        self.nameInputVar.set(name)
+        self.currentLineName = name
+        self.currentColour = colour
+        self.lineEditColourDisplay.configure(bg=self.currentColour)
+
+        validColumns = []
+        for i in range(0, len(self.columns)):
+            if i != self.channelColumn:
+                validColumns.append(self.columns[i])
+        
+        xMenu = self.lineEditXAxisMenu["menu"]
+        yMenu = self.lineEditYAxisMenu["menu"]
+        xMenu.delete(0, tkinter.END)
+        yMenu.delete(0, tkinter.END)
+        xMenu.add_command(label="None", command=lambda v=self.xAxisVar, l="None": v.set(l))
+        yMenu.add_command(label="None", command=lambda v=self.yAxisVar, l="None": v.set(l))
+        for col in validColumns:
+            xMenu.add_command(label=col, command=lambda v=self.xAxisVar, l=col: v.set(l))
+            yMenu.add_command(label=col, command=lambda v=self.yAxisVar, l=col: v.set(l))
+
+        chMenu = self.lineEditChannelMenu["menu"]
+        chMenu.delete(0, tkinter.END)
+        chMenu.add_command(label="Any", command=lambda v=self.lineChannelVar, l="Any": v.set(l))
+        for chan in self.channelList:
+            chMenu.add_command(label=chan, command=lambda v=self.lineChannelVar, l=chan: v.set(l))
+
+        if xA not in validColumns:
+            self.xAxisVar.set("None")
+        else:
+            self.xAxisVar.set(xA)
+
+        if yA not in validColumns:
+            self.yAxisVar.set("None")
+        else:
+            self.yAxisVar.set(yA)
+
+        if channel in self.channelList:
+            self.lineChannelVar.set(channel)
+        else:
+            self.lineChannelVar.set("Any")
+
+        if self.channelColumn == -1:
+            self.lineEditChannelFrame.configure(bg=self.offColour)
+            self.lineEditChannelLabel.configure(bg=self.offColour)
+            self.lineEditChannelMenu.configure(state="disabled")
+        else:
+            self.lineEditChannelFrame.configure(bg=self.onColour)
+            self.lineEditChannelLabel.configure(bg=self.onColour)
+            self.lineEditChannelMenu.configure(state="normal")
+
+        self.lineCumulativeVar.set(cumulative)
+
+        self.lineEditWindow.deiconify()
+
+    def lineCancelPressed(self) -> None:
+        self.lineEditWindow.withdraw()
+
+    def lineAcceptPressed(self) -> None:
+        if self.addingLine:
+            allowed = True
+            name = self.nameInputVar.get().strip()
+            if name == "" or name in self.lines:
+                allowed = False
+            xAxis = self.xAxisVar.get()
+            yAxis = self.yAxisVar.get()
+            if xAxis not in self.columns or yAxis not in self.columns:
+                allowed = False
+            else:
+                xAxis = self.columns.index(xAxis)
+                yAxis = self.columns.index(yAxis)
+            if not allowed:
+                messagebox.showinfo(title="Invalid Line", message="Line must have a unique name and valid x and y columns.")
+            else:
+                colour = self.currentColour
+                channel = self.lineChannelVar.get()
+                if channel not in self.channelList:
+                    channel = ""
+                cumulative = self.lineCumulativeVar.get()
+                self.createLine(name, colour, xAxis, yAxis, channel, cumulative)
+                self.lineEditWindow.withdraw()
+        else:
+            allowed = True
+            name = self.nameInputVar.get().strip()
+            if name == "" or (name in self.lines and name != self.currentLineName):
+                allowed = False
+            xAxis = self.xAxisVar.get()
+            yAxis = self.yAxisVar.get()
+            if xAxis not in self.columns or yAxis not in self.columns:
+                allowed = False
+            else:
+                xAxis = self.columns.index(xAxis)
+                yAxis = self.columns.index(yAxis)
+            if not allowed:
+                messagebox.showinfo(title="Invalid Line", message="Line must have a unique name and valid x and y columns.")
+            else:
+                colour = self.currentColour
+                channel = self.lineChannelVar.get()
+                if channel not in self.channelList:
+                    channel = ""
+                cumulative = self.lineCumulativeVar.get()
+                lineData = self.lines[self.currentLineName]
+                lineData.lineName = name
+                lineData.colour = colour
+                lineData.xCol = xAxis
+                lineData.yCol = yAxis
+                lineData.channel = channel
+                lineData.cumulative = cumulative
+                lineData.updateWidgets()
+                self.lineEditWindow.withdraw()
+
+
+    def clearGraphs(self) -> None:
         self.figure.clf()
         self.subPlot = self.figure.add_subplot(111)
         self.graphCanvas.draw()
 
-    def disableControls(self) -> None:
-        self.selectMode.configure(state="disabled")
-        self.channelChoice.configure(state="disabled")
-        self.selectType.configure(state="disabled")
-        self.gridCheckBox.configure(state="disabled")
-
-    def changeChannelNames(self) -> None:
-        '''Change the labels for the channels'''
-        #Get the menu objects and remove all values
-        menu = self.channelChoice["menu"]
-        menu.delete(0, tkinter.END)
-        menu2 = self.secondChannelChoice["menu"]
-        menu2.delete(0, tkinter.END)
-        #Reset the channel list
-        self.channelList = []
-        #Iterate through the channels
-        for channelId in range(0, len(self.channelInfo)):
-            #Get the name
-            if self.channelInfo[channelId] != "":
-                name = self.channelInfo[channelId]
-                #Add the item to both menus
-                menu.add_command(label=name, command=lambda v=self.selectedChannel, l=name: v.set(l))
-                menu2.add_command(label=name, command=lambda v=self.secondSelectedChannel, l=name: v.set(l))
-                #Add the name to the list of channels
-                self.channelList.append(name)
-        #Set the selected channels (or default to first if not found)
-        if self.channelIndex > -1 and self.channelIndex < len(self.channelList):
-            self.selectedChannel.set(self.channelList[self.channelIndex])
-        else:
-            self.selectedChannel.set(self.channelList[0])
-        
-        if self.secondChannelIndex > -1 and self.secondChannelIndex < len(self.channelList):
-            self.secondSelectedChannel.set(self.channelList[self.secondChannelIndex])
-        else:
-            self.secondSelectedChannel.set(self.channelList[0])
-
-    def changeFieldOptions(self) -> None:
-        menu = self.selectType["menu"]
-        menu.delete(0, tkinter.END)
-
-        for option in self.typeList:
-            menu.add_command(label=option, command=lambda v=self.graphType, l=option: v.set(l))
-        
-        self.graphType.set(self.typeList[0])
-
-    def updatePlot(self) -> None:
-        '''Update the graph to show the currently selected data'''
-        #Single plot
-        if self.modeIndex == 0:
-            #If the selected channel is valid (within the available range)
-            if self.channelIndex > -1 and self.channelIndex < 15 and self.channelInfo[self.channelIndex] != "":
-                channelIds = self.information[0]
-                times = self.information[2]
-                #Get the data from the list (for hour)
-                data = self.information[self.typeToListPos[self.typeIndex]]
-                xData = []
-                yData = []
-                #Iterate through rows
-                for index in range(0, len(data)):
-                    if self.channelIndex == channelIds[index] - 1:
-                        if self.loadedType != 2 or float(data[index]) >= 0:
-                            #Add the time point
-                            xData.append(float(times[index]))
-                            #Add the information
-                            yData.append(float(data[index]))
-                
-                #Remove the old graph and create the new one
-                self.subPlot.clear()
-                self.subPlot.plot(xData, yData)
-                #Set x axis label and title accordingly
-                self.subPlot.set_xlabel("Time")
-                self.subPlot.set_title(self.channelInfo[self.channelIndex] + " " + self.typeList[self.typeIndex])
-                
-                #Set y axis label to data
-                self.subPlot.set_ylabel(self.typeList[self.typeIndex])
-                #Show the grid if enabled
-                self.subPlot.grid(self.gridEnabled.get() == 1)
-                #Draw the new graph
-                self.graphCanvas.draw()
-
-        #Compare channels
-        elif self.modeIndex == 1:
-            #If the channels selected are available
-            if self.channelIndex > -1 and self.channelIndex < 15 and self.secondChannelIndex > -1 and self.secondChannelIndex < 15:
-                #Clear the old graph
-                self.subPlot.clear()
-                #Iterate for each channel
-                data = self.information[self.typeToListPos[self.typeIndex]]
-                channelIds = self.information[0]
-                times = self.information[2]
-                for channelIndex in [self.channelIndex, self.secondChannelIndex]:
-                    #Lists to hold x and y axis data points
-                    xData = []
-                    yData = []
-                    #Iterate through rows
-                    for rowIndex in range(0, len(data)):
-                        if channelIds[rowIndex] - 1 == channelIndex:
-                            if self.loadedType != 2 or float(data[rowIndex]) >= 0:
-                                #Add the time
-                                xData.append(float(times[rowIndex]))
-                                #Add the data
-                                yData.append(float(data[rowIndex]))
-                    #If there was data to plot
-                    if len(xData) > 0:
-                        #Add the data to the plot with a label for the channel
-                        self.subPlot.plot(xData, yData, "-", label=self.channelInfo[channelIndex])
-                #Set the x axis label and plot title according to data
-                self.subPlot.set_xlabel("Time")
-                self.subPlot.set_title("Channel Comparison Of " + self.typeList[self.typeIndex])
-                #Set the y label to the type of data being shown
-                self.subPlot.set_ylabel(self.typeList[self.typeIndex])
-                #Display the legend if it is on
-                if self.showLegend.get() == 1:
-                    self.subPlot.legend()
-                #Show the grid if enabled
-                self.subPlot.grid(self.gridEnabled.get() == 1)
-                #Draw the new graph
-                self.graphCanvas.draw()
-
-        #All one channel
-        elif self.modeIndex == 2:
-            #If the channel is valid
-            if self.channelIndex > -1 and self.channelIndex < 15:
-
-                #Delete the old graph
-                self.subPlot.clear()
-
-                channelIds = self.information[0]
-                times = self.information[2]
-
-                #For each of the types of data
-                for dataTypeIndex in range(0, len(self.typeToListPos)):
-                    dataType = self.typeToListPos[dataTypeIndex]
-                    #Get the name of the type
-                    name = self.typeList[dataTypeIndex]
-                    data = self.information[dataType]
-                    
-                    #Lists to hold the x and y axis data points
-                    xData = []
-                    yData = []
-                    #Iterate through the rows
-                    for rowIndex in range(0, len(data)):
-                        if channelIds[rowIndex] -1 == self.channelIndex:
-                            if self.loadedType != 2 or float(data[rowIndex]) >= 0:
-                                #Add the time
-                                xData.append(times[rowIndex])
-                                #Add the data from the array
-                                yData.append(float(data[rowIndex]))
-                    
-                    #Plot the new data with the correct label
-                    self.subPlot.plot(xData, yData, label=name)
-                
-                #Set the x label and plot title accordingly
-                self.subPlot.set_xlabel("Time")
-                self.subPlot.set_title("All " + self.channelInfo[self.channelIndex] + " Data")
-                
-                #Display no y axis label (all different)
-                self.subPlot.set_ylabel("")
-                #Show the legend if it is on
-                if self.showLegend.get() == 1:
-                    self.subPlot.legend()
-                #Display the grid if enabled
-                self.subPlot.grid(self.gridEnabled.get() == 1)
-                #Draw the new graph
-                self.graphCanvas.draw()
-
-    def updateMode(self, *args) -> None:
-        '''Update the value of the mode and redraw the correct graph'''
-        #Get the string value of the current mode
-        mode = self.graphMode.get()
-        if mode == "Single Plot":
-            #Prevent second channel being changed
-            self.secondChannelChoice.configure(state="disabled")
-            #Allow type to be selected
-            self.selectType.configure(state="normal")
-            #Turn off the legend check box
-            self.legendCheckBox.configure(state="disabled")
-            #Set index to 0 for single plot
-            self.modeIndex = 0
-        elif mode == "Compare Channels":
-            #Allow second channel to be chosen
-            self.secondChannelChoice.configure(state="normal")
-            #Allow type to be selected
-            self.selectType.configure(state="normal")
-            #Turn on the legend check box
-            self.legendCheckBox.configure(state="normal")
-            #Set index to 1 for compare channels
-            self.modeIndex = 1
-        elif mode == "All One Channel":
-            #Prevent second channel from being changed
-            self.secondChannelChoice.configure(state="disabled")
-            #Do not allow type to be selected
-            self.selectType.configure(state="disabled")
-            #Turn on the legend check box
-            self.legendCheckBox.configure(state="normal")
-            #Set index to 2 for all one channel
-            self.modeIndex = 2
-        #Update the graph to show the new plot
-        if not self.loading:
-            self.updatePlot()
-
-    def updateChannel(self, *args) -> None:
-        '''When the channel value is changed'''
-        #Get the index of the channel
-        self.channelIndex = self.channelList.index(self.selectedChannel.get())
-        #Update the graph to show the correct plot
-        if not self.loading:
-            self.updatePlot()
-
-    def updateSecondChannel(self, *args) -> None:
-        '''When the second channel value is changed'''
-        #Get the index of the second channel
-        self.secondChannelIndex = self.channelList.index(self.secondSelectedChannel.get())
-        #If the second channel is currently in use
-        if self.secondChannelChoice["state"] == "normal":
-            #Update the graph to show the correct plot
-            if not self.loading:
-                self.updatePlot()
-
-    def updateType(self, *args) -> None:
-        '''When the type of graph (data type) is changed'''
-        #Get the index of the type
-        self.typeIndex = self.typeList.index(self.graphType.get())
-        if self.typeIndex == -1 or self.typeIndex > len(self.typeList):
-            self.typeIndex = 0
-            self.graphType.set(0)
-        #If the type option is currently enabled
-        if self.selectType["state"] == "normal":
-            #Update the graph to show the correct plot
-            if not self.loading:
-                self.updatePlot()
+    def updateGraphOptions(self, *args) -> None:
+        self.subPlot.grid(self.gridEnabled.get() == 1)
+        self.showGraph()
     
-    def updateCheckBox(self, *args):
-        '''When a check box is changed, update the plot ignoring the exta parameters'''
-        self.updatePlot()
+    def onFrameConfigure(self, event) -> None:
+        '''Event called when canvas frame resized'''
+        #Update canvas bounding box
+        self.itemCanvas.configure(scrollregion=self.itemCanvas.bbox("all"))
 
+    def frameWidth(self, event) -> None:
+        '''Event called when canvas resized'''
+        #canvasWidth = event.width
+        canvasWidth = self.itemCanvas.winfo_width()
+        #Update size of window on canvas
+        self.itemCanvas.itemconfig(self.itemCanvasWindow, width=canvasWidth - 1)
+    
+    def bindMouseWheel(self, event) -> None:
+        '''Add mouse wheel binding to canvas'''
+        if self.itemCanvas != None:
+            self.itemCanvas.bind_all("<MouseWheel>", self.mouseWheelMove)
+
+    def unbindMouseWheel(self, event) -> None:
+        '''Remove mouse wheel binding from canvas'''
+        if self.itemCanvas != None:
+            self.itemCanvas.unbind_all("<MouseWheel>")
+
+    def mouseWheelMove(self, event) -> None:
+        '''Change y scroll position when mouse wheel moved'''
+        if self.itemCanvas != None:
+            self.itemCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+class LineObject(tkinter.Frame):
+    def __init__ (self, parent, parentObject, lineName : str, colour : str, xCol : int, yCol : int, channel : str, cumulative : bool, *args, **kwargs):
+        #Initialise parent class
+        tkinter.Frame.__init__(self, parent, *args, **kwargs)
+        #Store the parent window
+        self.window = parentObject
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
+        self.grid_columnconfigure(3, weight=1)
+
+        self.lineName = lineName
+        self.colour = colour
+        self.xCol = xCol
+        self.yCol = yCol
+        self.channel = channel
+        self.cumulative = cumulative
+
+        self.colourBox = tkinter.Button(self, bg=self.colour, relief="sunken", state="disabled", text="     ")
+        self.colourBox.grid(row=0, column=0)
+
+        self.nameLabel = tkinter.Label(self, text=self.lineName, font=("", 16))
+        self.nameLabel.grid(row=0, column=1)
+        
+        self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
+        self.editButton = tkinter.Button(self, image=self.settingsImage, command=self.edit)
+        self.editButton.grid(row=0, column=2)
+
+        self.removeImage = tkinter.PhotoImage(file="cancel.png")
+        self.deleteButton = tkinter.Button(self, image=self.removeImage, command=self.delete)
+        self.deleteButton.grid(row=0, column=3)
+
+    def edit(self):
+        self.window.editLine(self.lineName)
+
+    def delete(self):
+        self.window.removeLine(self.lineName)
+    
+    def updateWidgets(self):
+        self.colourBox.configure(bg=self.colour)
+        self.nameLabel.configure(text=self.lineName)
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
     #Set the shape of the window
-    root.geometry("850x575")
-    root.minsize(850, 575)
+    root.geometry("850x650")
+    root.minsize(850, 650)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
