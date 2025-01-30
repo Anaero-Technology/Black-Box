@@ -3,7 +3,7 @@ from tkinter.font import Font
 from tkinter import messagebox
 import setupGUI
 import dataReceiveGUI
-import dataReceiveWirelessGUI
+#import dataReceiveWirelessGUI
 import networkViewGUI
 import processDataGUI
 import combineDataGUI
@@ -289,10 +289,11 @@ class MainWindow(tkinter.Frame):
         #Setup each of the option buttons and add them to the correct row
         #Connect to device
         self.eventLogButton = tkinter.Button(self, text="Connect to GFM", command=self.openCommunicationWindow, font=self.buttonFont)
-        self.eventLogButton.grid(row=0, column=1, columnspan=2)
+        #self.eventLogButton.grid(row=0, column=1, columnspan=2)
+        self.eventLogButton.grid(row=0, column=1, columnspan=5)
         #Wireless button
-        self.wirelessButton = tkinter.Button(self, text="Connect via WiFi", command=self.openWirelessWindow, font=self.buttonFont)
-        self.wirelessButton.grid(row=0, column=4, columnspan=2)
+        #self.wirelessButton = tkinter.Button(self, text="Connect via WiFi", command=self.openWirelessWindow, font=self.buttonFont)
+        #self.wirelessButton.grid(row=0, column=4, columnspan=2)
         #Network Device Connection
         self.networkButton = tkinter.Button(self, text="View Connected Devices", command=self.openNetworkWindow, font=self.buttonFont)
         self.networkButton.grid(row=1, column=1, columnspan=5)
@@ -328,7 +329,7 @@ class MainWindow(tkinter.Frame):
         #Variables to hold the different windows currently in use
         self.setupWindow = None
         self.communicationWindow = None
-        self.wirelessWindow = None
+        #self.wirelessWindow = None
         self.networkWindow = None
         self.dataProcessWindow = None
         self.combineWindow = None
@@ -379,12 +380,12 @@ class MainWindow(tkinter.Frame):
             self.networkWindow = None
         except:
             pass
-        try:
+        """try:
             self.wirelessWindow.lift()
             self.wirelessWindow.destroy()
             self.wirelessWindow = None
         except:
-            pass
+            pass"""
         try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
             self.communicationWindow.lift()
@@ -405,7 +406,7 @@ class MainWindow(tkinter.Frame):
             self.communicationWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveTopLevel.closeWindow)
             self.communicationWindow.focus()
 
-    def openWirelessWindow(self) -> None:
+    """def openWirelessWindow(self) -> None:
         '''Create a new instance of the communication window, or lift and focus the current one'''
         try:
             #If the settings window is open - destroy it
@@ -442,7 +443,7 @@ class MainWindow(tkinter.Frame):
             self.dataReceiveWirelessTopLevel = dataReceiveWirelessGUI.MainWindow(self.wirelessWindow)
             self.dataReceiveWirelessTopLevel.grid(row = 0, column=0, sticky="NESW")
             self.wirelessWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveWirelessTopLevel.closeWindow)
-            self.wirelessWindow.focus()
+            self.wirelessWindow.focus()"""
     
     def openNetworkWindow(self) -> None:
         '''Create a new instance of the communication window, or lift and focus the current one'''
@@ -459,12 +460,12 @@ class MainWindow(tkinter.Frame):
             self.communicationWindow = None
         except:
             pass
-        try:
+        """try:
             self.wirelessWindow.lift()
             self.wirelessWindow.destroy()
             self.wirelessWindow = None
         except:
-            pass
+            pass"""
         try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
             self.networkWindow.lift()
@@ -608,12 +609,12 @@ class MainWindow(tkinter.Frame):
             windowsPresent = windowsPresent + 1
         except:
             pass
-        try:
+        """try:
             #Try to access the wireless communication window
             self.wirelessWindow.lift()
             windowsPresent = windowsPresent + 1
         except:
-            pass
+            pass"""
         try:
             #Try to access the processing window
             self.dataProcessWindow.lift()
@@ -694,6 +695,7 @@ if __name__ == "__main__":
     screenMiddle = [root.winfo_screenwidth() / 2, root.winfo_screenheight() / 2]
     #Set the shape of the window and place it in the centre of the screen
     root.geometry("400x500+{0}+{1}".format(int(screenMiddle[0] - 200), int(screenMiddle[1] - 250)))
+    root.minsize(400, 500)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
