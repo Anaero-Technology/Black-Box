@@ -5,6 +5,7 @@ from tkinter.ttk import Style
 import readSetup
 import createSetup
 import overallCalculations
+import newCalculations
 from tkinter import messagebox
 import readSeparators
 from threading import Thread
@@ -384,7 +385,8 @@ class MainWindow(tkinter.Frame):
             self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors
             #error, events, hours, days, gas, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
-            error, events, hours, days, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            #error, events, hours, days, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
             if error == None:
                 #Iterate through the setup data and labels
@@ -477,6 +479,7 @@ class MainWindow(tkinter.Frame):
             else:
                 #Display the error if it occurred
                 messagebox.showinfo(title="Error", message=error)
+                self.processing = False
 
         else:
             #Display error that files need to be loaded (should not generally occur but in case)

@@ -408,7 +408,7 @@ class MainWindow(tkinter.Frame):
                 #If a file has been selected (and a valid one)
                 if self.selectedFile != -1 and len(self.files) > self.selectedFile:
                     #Default name to save file as - same as the file name on the esp32
-                    defaultName = self.files[self.selectedFile][1:-4]
+                    defaultName = self.files[self.selectedFile][0:-4]
                     #Ask where to save the file
                     path = filedialog.asksaveasfilename(title="Save file location", filetypes=self.fileTypes, defaultextension=self.fileTypes, initialfile=defaultName)
                     #Remove whitespace
@@ -421,7 +421,7 @@ class MainWindow(tkinter.Frame):
                         #Store the save path
                         self.fileNameToSave = path
                         #Send message to download
-                        message = "download " + self.files[self.selectedFile] + "\n"
+                        message = "download " + "/" + self.files[self.selectedFile] + "\n"
                         self.serialConnection.write(message.encode("utf-8"))
                         self.awaiting = True
                         self.downloadFileButton.configure(state="disabled")
@@ -624,10 +624,10 @@ class MainWindow(tkinter.Frame):
             #If this is not the start of the files
             if messageParts[1] != "start":
                 fileGiven = messageParts[1]
-                if fileGiven[0] != "/":
-                    fileGiven = "/" + fileGiven
+                """if fileGiven[0] != "/":
+                    fileGiven = "/" + fileGiven"""
                 #If it is not the configuration files
-                if fileGiven not in ["/setup.txt", "/time.txt", "/tipcount.txt", "/name.txt", "/wifi.txt"]:
+                if fileGiven not in ["setup.txt", "time.txt", "tipcount.txt", "name.txt", "wifi.txt"]:
                     #Add to the list
                     self.files.append(fileGiven)
                     size = -1

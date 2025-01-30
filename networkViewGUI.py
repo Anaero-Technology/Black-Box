@@ -4,6 +4,7 @@ import serial
 from serial.tools import list_ports
 from threading import Thread
 import time
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -113,9 +114,15 @@ class MainWindow(tkinter.Frame):
         #If currently scanning the ports
         self.midScan = False
 
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
+
         #Images used to display wifi state
-        self.wifiIconOn = tkinter.PhotoImage(file="wirelessIconOn.png")
-        self.wifiIconOff = tkinter.PhotoImage(file="wirelessIconOff.png")
+        self.wifiIconOn = tkinter.PhotoImage(file=self.pathTo("wirelessIconOn.png"))
+        self.wifiIconOff = tkinter.PhotoImage(file=self.pathTo("wirelessIconOff.png"))
 
         #Make a check for any changes
         self.checkForPortChanges()
@@ -123,6 +130,9 @@ class MainWindow(tkinter.Frame):
         #Create and start a thread to scan the ports regularly
         self.portScanThread = Thread(target=self.repeatedScan, daemon=True)
         self.portScanThread.start()
+    
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
 
     def repeatedScan(self) -> None:
         '''Repeatedly scan the ports if possible'''

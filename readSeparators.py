@@ -1,9 +1,15 @@
+import os, sys
+import pathlib
+
 def read() -> list:
     '''Read separators from file and return them'''
     try:
         #Attempt to read
+        #Find path to file
+        basePath = os.path.expanduser("~")
+        basePath = os.path.join(basePath, "AppData", "Local", "AnaeroGFM")
         #Open the file
-        separatorFile = open("options.txt", "r")
+        separatorFile = open(sys.path.join(basePath, "options.txt"), "r")
         #Read all data from it
         data = separatorFile.read()
         data = data.split("\n")
@@ -62,8 +68,12 @@ def writeSeparators(selection, customColumn, customDecimal) -> None:
         '''Write the separator options to a file'''
         #Create data with selected option and custom separators
         data = "selected: {0}\ncolumn: {1}\ndecimal: {2}\n".format(selection, customColumn, customDecimal)
+        #Find path to file
+        basePath = os.path.expanduser("~")
+        basePath = os.path.join(basePath, "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(basePath).mkdir(parents=True, exist_ok=True)
         #Open the file
-        settingsFile = open("options.txt", "w")
+        settingsFile = open(os.path.join(basePath, "options.txt"), "w")
         #Write the data
         settingsFile.write(data)
         #Close the file
