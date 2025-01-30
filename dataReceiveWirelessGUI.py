@@ -2,15 +2,14 @@ import tkinter
 import tkinter.ttk as Ttk
 from tkinter.ttk import Style
 from tkinter import messagebox, simpledialog, filedialog
-import serial
-from serial.tools import list_ports
+import socket
 from threading import Thread
 import readSeparators
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, initialTarget = None, *args, **kwargs) -> None:
-        #Setup parent configuration
+        #Setup parent configurations
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Setup grid
@@ -26,15 +25,9 @@ class MainWindow(tkinter.Frame):
         #Get Separators from file
         self.column, self.decimal = readSeparators.read()
 
-        #Setup port drop down (with debug values)
-        self.selectedPort = tkinter.StringVar()
-        self.selectedPort.set("Port 1")
-        self.portOption = tkinter.OptionMenu(self, self.selectedPort, "Port 1", "Port 2", "Port 3", "Port 4")
-        self.portOption.grid(row=0, column=0, columnspan=2, sticky="NESW")
-
         #Add connect button
-        self.connectButton = tkinter.Button(self, text="Connect", command=self.connectPressed)
-        self.connectButton.grid(row=0, column=2, columnspan=2, sticky="NESW")
+        self.disconnectButton = tkinter.Button(self, text="Disconnect", command=self.disconnectPressed)
+        self.disconnectButton.grid(row=0, column=0, columnspan=4, sticky="NESW")
 
         #Add label for selected file name
         self.fileLabel = tkinter.Label(self, text="No file selected")
@@ -53,12 +46,12 @@ class MainWindow(tkinter.Frame):
         self.fileFrame.grid(row=2, column=0, columnspan=4, sticky="NESW")
 
         #Add a button to initiate reading and storing the data from the arduino
-        self.toggleButton = tkinter.Button(self, text="No Port", command=self.togglePressed, state="disabled")
+        self.toggleButton = tkinter.Button(self, text="No Connection", command=self.togglePressed, state="disabled")
         self.toggleButton.grid(row=1, column=2, columnspan=2, sticky="NESW")
 
         #Add a label for the currently connected port
-        self.openPortLabel = tkinter.Label(self, text="Not connected")
-        self.openPortLabel.grid(row=1, column=0, columnspan=2, sticky="NESW")
+        self.openConnectionLabel = tkinter.Label(self, text="Not connected")
+        self.openConnectionLabel.grid(row=1, column=0, columnspan=2, sticky="NESW")
 
         #Get the style object for the parent window
         self.styles = Style(self.parent)
@@ -86,19 +79,18 @@ class MainWindow(tkinter.Frame):
 
         #If the device is currently connected
         self.connected = False
-        #Current connected port name
-        self.connectedPort = ""
+        #IP address to establish connection
+        self.connectionIp = "192.168.1.1"
+        #Port to use
+        self.connectionPort = 80
         #Index of currently selected file
         self.selectedFile = -1
 
-        #Object to hold serial connection to port
-        self.serialConnection = None
-
-        #List of available port names
-        self.portLabels = []
+        #Object to hold socket connection to port
+        self.socketConnection = None
 
         #Button colours
-        self.defaultButtonColour = self.connectButton.cget("bg")
+        self.defaultButtonColour = self.disconnectButton.cget("bg")
         self.selectedButtonColour = "#70D070"
 
         #Text colours
@@ -111,9 +103,6 @@ class MainWindow(tkinter.Frame):
 
         #Current working file on esp
         self.currentFileName = ""
-
-        #Perform a first time scan
-        self.performScan(target = initialTarget)
 
         #Perfom setup and set down of files to correctly size all elements
         self.setupFiles(self.files, True)
@@ -153,6 +142,8 @@ class MainWindow(tkinter.Frame):
 
         self.currentLine = 0
 
+        self.connect()
+
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
         #If still waiting
@@ -160,20 +151,18 @@ class MainWindow(tkinter.Frame):
             #If timeout has been reached or exceeded
             if self.timesTried >= self.timeoutAttempts:
                 #Close the connection and reset the buttons
-                self.serialConnection.close()
-                self.serialConnection = None
                 self.connected = False
+                self.socketConnection.close()
+                self.socketConnection = None
                 self.awaiting = False
                 self.awaitingCommunication = False
                 if self.filesOpen:
                     self.setdownFiles()
-                self.connectButton.configure(text="Connect", command=self.connectPressed)
-                self.portOption.configure(state="normal")
-                self.toggleButton.configure(state="disabled", text="No Port")
-                self.openPortLabel.configure(text="Not Connected")
+                self.toggleButton.configure(state="disabled", text="Connection Failed")
+                self.openConnectionLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
-                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
-                self.performScan()
+                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check the network is correct and try again.")
+                self.disconnectPressed()
             else:
                 #Increment timeout
                 self.timesTried = self.timesTried + 1
@@ -183,133 +172,60 @@ class MainWindow(tkinter.Frame):
     def sendInfoRequest(self) -> None:
         '''Send the initial request for communication (in function so that it can be delayed)'''
         #If there is a connection
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             #Send the information request
-            self.serialConnection.write("info\n".encode("utf-8"))
+            self.socketConnection.send("info\n".encode("utf-8"))
 
-    def connectPressed(self) -> None:
+    def connect(self) -> None:
         '''Attempt to connect to selected port'''
         #If a connection does not already exist
         if not self.connected:
-            #If the current port selected exists
-            if self.portLabels.index(self.selectedPort.get()) > 0:
-                #Set the port of the connection
-                self.connectedPort = self.selectedPort.get()
-                success = True
-                try:
-                    #Attempt to connect
-                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
-                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
-                except:
-                    #If something went wrong
-                    success = False
-            
-                if success:
-                    #Switch buttons to enable disconnect and disable connect
-                    self.connectButton.configure(text="Disconnect", command=self.disconnectPressed)
-                    self.connected = True
-                    self.portOption.configure(state="disabled")
-                    self.openPortLabel.configure(text="Port " + self.connectedPort)
-                    #Do not allow action if waiting
-                    self.awaiting = True
-                    self.timesTried = 0
-                    self.awaitingCommunication = True
-                    self.checkConnection()
-                    #Start reading from the port
-                    readThread = Thread(target=self.readSerial, daemon=True)
-                    readThread.start()
-                    #Start handling incoming messages
-                    messageThread = Thread(target=self.checkMessages, daemon=True)
-                    messageThread.start()
-                    #Send connection information request after a short time - allows for boot messages to clear
-                    self.after(200, self.sendInfoRequest)
-                else:
-                    #Connection failed - reset
-                    self.connected = False
-                    #Allow for connect to be pressed and disable disconnect
-                    self.portOption.configure(state="normal")
-                    self.toggleButton.configure(state="disabled", text="No Port")
-                    #Not currently connected to a port
-                    self.connectedPort = ""
-                    #Display message to user
-                    messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
-                    self.performScan()
-    
-    def performScan(self, target = None) -> None:
-        '''Perform a scan of available ports and update option list accordingly'''
-        if not self.connected:
-            #List to contain available ports
-            found = ["No Port Selected"]
-            descs = [""]
-            #Scan to find all available ports
-            portData = list_ports.comports()
-            #Iterate through ports
-            for data in portData:
-                #Add the device name of the port to the list (can be used to connect to it)
-                found.append(data.device)
-                descs.append("(" + data.description + ")")
-            
-            #If the old and new lists are different
-            different = False
-            #Test if the lists are different lengths
-            if len(found) != len(self.portLabels):
-                different = True
+            success = True
+            try:
+                #Attempt to connect
+                self.socketConnection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socketConnection.connect((self.connectionIp, self.connectionPort))
+            except:
+                #If something went wrong
+                success = False
+        
+            if success:
+                #Switch interface configuration
+                self.connected = True
+                self.openConnectionLabel.configure(text="Connection Made")
+                #Do not allow action if waiting
+                self.awaiting = True
+                self.timesTried = 0
+                self.awaitingCommunication = True
+                self.checkConnection()
+                #Start reading from the port
+                readThread = Thread(target=self.readSocket, daemon=True)
+                readThread.start()
+                #Start handling incoming messages
+                messageThread = Thread(target=self.checkMessages, daemon=True)
+                messageThread.start()
+                #Send connection information request after a short time - allows for boot messages to clear
+                self.after(200, self.sendInfoRequest)
             else:
-                #Iterate through
-                for item in found:
-                    #Check if they contain the same things (order unimportant)
-                    if item not in self.portLabels:
-                        different = True
-
-            #If there was a change
-            if different:
-                #Update labels
-                self.portLabels = found
-
-                #Delete the old menu options
-                menu = self.portOption["menu"]
-                menu.delete(0, tkinter.END)
-
-                i = 0
-                #Iterate through labels
-                for name in self.portLabels:
-                    #Add the labels to the list
-                    menu.add_command(label=name + " " + descs[i], command=lambda v=self.selectedPort, l=name: v.set(l))
-                    i = i + 1
-
-                targetFound = False
-
-                if target != None:
-                    if target in self.portLabels:
-                        self.selectedPort.set(target)
-                
-                if not targetFound:
-                    #If the selected item is still available
-                    if self.selectedPort.get() in self.portLabels:
-                        #Set the drop down value to what it was
-                        self.selectedPort.set(self.selectedPort.get())
-                    else:
-                        #Set selected option to none
-                        self.selectedPort.set(self.portLabels[0])
-            
-            #Scan again shortly
-            self.after(150, self.performScan)
-
-    def trySelectPort(self, portName):
-        if not self.connected:
-            if portName in self.portLabels:
-                self.selectedPort.set(portName)
+                #Connection failed - reset
+                self.connected = False
+                self.toggleButton.configure(state="disabled", text="No Connection")
+                #Not currently connected
+                self.socketConnection = None
+                #Display message to user
+                messagebox.showinfo(title="Failed", message="Failed to connect to device, check the device is still active and you are connected to its network.")
+    
 
     def togglePressed(self) -> None:
         '''When button pressed to start/stop communications'''
         #If there is acually a connection
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             #If not currently waiting for a response from the esp32
             if not self.awaiting:
                 #If currently recieving data
                 if self.receiving:
                     #Send the stop message
-                    self.serialConnection.write("stop\n".encode("utf-8"))
+                    self.socketConnection.send("stop\n".encode("utf-8"))
                     self.awaiting = True
                 else:
                     #Ask for file name
@@ -337,18 +253,13 @@ class MainWindow(tkinter.Frame):
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
-                        #gasAnalysis = False
-
-                        #if allowed:
-                            #gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
-
+                        
                         #If the name is allowed to be used
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
-                            #message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
                             message = "start " + self.currentFileName + "\n"
                             #Send the start message
-                            self.serialConnection.write(message.encode("utf-8"))
+                            self.socketConnection.send(message.encode("utf-8"))
                             self.awaiting = True
         else:
             #If no connection present - display error message (Outside case but catches errors)
@@ -359,13 +270,13 @@ class MainWindow(tkinter.Frame):
         #If opening the files
         if not self.filesOpen:
             #If there is a connection
-            if self.connected and self.serialConnection != None:
+            if self.connected and self.socketConnection != None:
                 #If not waiting for a response
                 if not self.awaiting:
                     self.files = []
                     self.fileSizes = []
                     #Ask for the list of files
-                    self.serialConnection.write("files\n".encode("utf-8"))
+                    self.socketConnection.send("files\n".encode("utf-8"))
                     self.awaiting = True
             else:
                 messagebox.showinfo(title="Not Connected", message="You must be connected to a port to access the files.")
@@ -376,7 +287,7 @@ class MainWindow(tkinter.Frame):
     def deletePressed(self) -> None:
         '''Delete the currently selected file from the memory'''
         #If the connection is running
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             #If the device is not collecting data
             if not self.receiving:
                 #If not waiting for a response
@@ -388,7 +299,7 @@ class MainWindow(tkinter.Frame):
                         if confirm:
                             #Send signal to delete file
                             message = "delete " + self.files[self.selectedFile] + "\n"
-                            self.serialConnection.write(message.encode("utf-8"))
+                            self.socketConnection.send(message.encode("utf-8"))
                             #Wait for confirmation of deletion
                             self.awaiting = True
                     else:
@@ -401,7 +312,7 @@ class MainWindow(tkinter.Frame):
     def downloadPressed(self) -> None:
         '''Send request to download the selected file to the computer'''
         #If there is a connection
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             #If not waiting for a response
             if not self.awaiting:
                 #If a file has been selected (and a valid one)
@@ -421,7 +332,7 @@ class MainWindow(tkinter.Frame):
                         self.fileNameToSave = path
                         #Send message to download
                         message = "download " + self.files[self.selectedFile] + "\n"
-                        self.serialConnection.write(message.encode("utf-8"))
+                        self.socketConnection.send(message.encode("utf-8"))
                         self.awaiting = True
                         self.downloadFileButton.configure(state="disabled")
                 else:
@@ -429,17 +340,21 @@ class MainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to download files.")
 
-    def readSerial(self) -> None:
-        '''While connected repeatedly read information from serial connection'''
+    def readSocket(self) -> None:
+        '''While connected repeatedly read information from socket connection'''
         #If there is a connection
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             #Attempt
             try:
                 done = False
                 #Until out of data
                 while not done:
-                    #Read the next character
-                    char = self.serialConnection.read()
+                    char = ""
+                    try:
+                        #Read the next character
+                        char = self.socketConnection.recv(1)
+                    except:
+                        pass
                     #If there is a character
                     if len(char) > 0:
                         try:
@@ -459,21 +374,20 @@ class MainWindow(tkinter.Frame):
                         done = True
                 
                 #Repeat this read function after 10ms
-                self.after(10, self.readSerial)
+                self.after(10, self.readSocket)
             except:
-                #Close the connection and reset the buttons
-                self.serialConnection.close()
-                self.serialConnection = None
-                self.connected = False
-                if self.filesOpen:
-                    self.setdownFiles()
-                self.connectButton.configure(text="Connect", command=self.connectPressed)
-                self.portOption.configure(state="normal")
-                self.toggleButton.configure(state="disabled", text="No Port")
-                self.openPortLabel.configure(text="Not Connected")
-                #Display message to user to indicate that connection was lost (Occurs when device unplugged)
-                messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
-                self.performScan()
+                if self.connected and self.socketConnection != None:
+                    #Close the connection and reset the buttons
+                    self.socketConnection.close()
+                    self.socketConnection = None
+                    self.connected = False
+                    if self.filesOpen:
+                        self.setdownFiles()
+                    self.toggleButton.configure(state="disabled", text="Connection Lost")
+                    self.openConnectionLabel.configure(text="Not Connected")
+                    #Display message to user to indicate that connection was lost (Occurs when device unplugged)
+                    messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
+                    self.disconnectPressed()
 
     def checkMessages(self):
         '''Repeatedly check for a new message and handle it'''
@@ -486,7 +400,7 @@ class MainWindow(tkinter.Frame):
             #Remove message from the list
             del self.receivedMessages[0]
         #If there is still a connection
-        if self.serialConnection != None:
+        if self.socketConnection != None:
             #Repeat after a short delay
             self.after(1, self.checkMessages)
 
@@ -592,12 +506,6 @@ class MainWindow(tkinter.Frame):
                     messagebox.showinfo(title="File Already Exists", message="A file with that name already exists, please choose a different name or delete the existing file.")
                 elif messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
-                elif messageParts[2] == "noanalyser":
-                    messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
-                elif messageParts[2] == "analysercalibrating":
-                    messagebox.showinfo(title="Gas Analyser Calibrating", message="The gas analyser is currently in calibration mode, please complete calibration and try again.")
-                elif messageParts[2] == "analysernocalibration":
-                    messagebox.showinfo(title="Gas Analyser Not Calibrated", message="The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging")
@@ -694,15 +602,14 @@ class MainWindow(tkinter.Frame):
                     self.fileDataToSave = self.fileDataToSave + messageParts[i].replace("\r", "")
                     #If this is not the last in the message
                     if i != len(messageParts) - 1:
-                        #Add a comma
-                        #self.fileDataToSave = self.fileDataToSave + ","
+                        #Add a column
                         self.fileDataToSave = self.fileDataToSave + self.column
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
                 
                 self.currentLine = self.currentLine + 1
-                self.serialConnection.write("next\n".encode("utf-8"))
+                self.socketConnection.send("next\n".encode("utf-8"))
                 self.after(3000, self.reattemptNextLine, self.currentLine, 0)
 
         #If this is information regarding the memory
@@ -718,15 +625,15 @@ class MainWindow(tkinter.Frame):
                 #Calculate the used memory in MegaBytes
                 used = int(used / 100000) / 10
                 #Display the memory usage and display it
-                message = "Port " + self.connectedPort + " " + str(used) + "/" + str(total) + "MB (" + str(percentage) + "%)"
-                self.openPortLabel.configure(text=message)
+                message = "Memory: " + str(used) + "/" + str(total) + "MB (" + str(percentage) + "%)"
+                self.openConnectionLabel.configure(text=message)
             except:
                 #If something went wrong (not an integer) do not update the memory
                 pass
         
     def reattemptNextLine(self, lineNumber, count):
-        if lineNumber == self.currentLine and self.downloading and self.serialConnection != None:
-            self.serialConnection.write("next\n".encode("utf-8"))
+        if lineNumber == self.currentLine and self.downloading and self.socketConnection != None:
+            self.socketConnection.send("next\n".encode("utf-8"))
             if count < 2:
                 self.after(3000, self.reattemptNextLine, self.currentLine, count + 1)
                     
@@ -765,22 +672,21 @@ class MainWindow(tkinter.Frame):
         '''Close connection to port'''
         #If there is a connection and there is not data to be recieved
         if self.connected and not self.awaiting:
-            #If there is a serial connection object
-            if self.serialConnection != None:
+            #If there is a socket connection object
+            if self.socketConnection != None:
                 #Close the connection
-                self.serialConnection.close()
-                self.serialConnection = None
+                self.socketConnection.close()
+                self.socketConnection = None
             #Switch buttons so disconnect is disabled and connect is enabled
             self.connected = False
             if self.filesOpen:
                 self.setdownFiles()
-            self.connectButton.configure(text="Connect", command=self.connectPressed)
-            self.portOption.configure(state="normal")
-            self.toggleButton.configure(state="disabled", text="No Port")
-            #self.openFilesButton.configure(state="disabled", text="No Port")
-            self.openPortLabel.configure(text="Not Connected")
+            self.toggleButton.configure(state="disabled", text="Diconnected")
+            self.openConnectionLabel.configure(text="Disconnected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
+        
+        if not self.connected:
             self.parent.destroy()
 
     def setdownFiles(self) -> None:
@@ -802,8 +708,6 @@ class MainWindow(tkinter.Frame):
             self.fileButtons = []
             self.fileCanvasWindow = None
 
-            self.filesOpen = False
-            #self.openFilesButton.configure(text="Open Files")
             self.downloadFileButton.configure(state="disabled")
             self.deleteFileButton.configure(state="disabled")
             self.files = []
@@ -870,8 +774,6 @@ class MainWindow(tkinter.Frame):
         
         #Setup bounding box and scroll region so the scrolling works correctly
         self.fileCanvas.configure(scrollregion=self.fileCanvas.bbox("all"), yscrollcommand=self.fileScroll.set)
-        
-        #self.openFilesButton.configure(text="Close Files")
     
     def setupProgressBar(self, maxValue: int) -> None:
         '''Configure the progress bar and place it into the UI'''
@@ -944,7 +846,7 @@ class MainWindow(tkinter.Frame):
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     
     def closeWindow(self):
-        if self.connected and self.serialConnection != None:
+        if self.connected and self.socketConnection != None:
             self.disconnectPressed()
         else:
             self.parent.destroy()

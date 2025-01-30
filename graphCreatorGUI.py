@@ -18,7 +18,7 @@ class MainWindow(tkinter.Frame):
 
         #Grid dimensions for main window
         self.numberRows = 15
-        self.numberColumns = 6
+        self.numberColumns = 7
 
         self.loading = False
 
@@ -31,11 +31,11 @@ class MainWindow(tkinter.Frame):
 
         #Frame to hold the graph and toolbar
         self.graphFrame = tkinter.Frame(self)
-        self.graphFrame.grid(row=1, column=0, rowspan=13, columnspan=4, sticky="NESW")
+        self.graphFrame.grid(row=1, column=0, rowspan=13, columnspan=5, sticky="NESW")
 
         #Progress bar (removed initially)
         self.progress = Ttk.Progressbar(self, orient=tkinter.HORIZONTAL, mode="determinate", maximum=10000.0)
-        self.progress.grid(row=14, column=0, columnspan=6, sticky="NESW")
+        self.progress.grid(row=14, column=0, columnspan=7, sticky="NESW")
         self.progress.grid_remove()
 
         #Create the graph and add it to the frame
@@ -55,12 +55,14 @@ class MainWindow(tkinter.Frame):
         self.loadHourButton = tkinter.Button(self, text="Load Hour Log", command=lambda: self.loadFile(1))
         self.loadDayButton = tkinter.Button(self, text="Load Day Log", command=lambda: self.loadFile(1))
         self.loadGasButton = tkinter.Button(self, text="Load Gas Log", command=lambda: self.loadFile(2))
+        self.loadPhRedoxButton = tkinter.Button(self, text="Load pH/Redox Log", command=lambda: self.loadFile(2))
         self.loadEventButton.grid(row=0, column=0, sticky="NESW")
         self.loadHourButton.grid(row=0, column=1, sticky="NESW")
         self.loadDayButton.grid(row=0, column=2, sticky="NESW")
         self.loadGasButton.grid(row=0, column=3, sticky="NESW")
+        self.loadPhRedoxButton.grid(row=0, column=4, sticky="NESW")
         self.loadedFileLabel = tkinter.Label(self, text="No file loaded")
-        self.loadedFileLabel.grid(row=0, column=4, columnspan=2, sticky="NESW")
+        self.loadedFileLabel.grid(row=0, column=5, columnspan=2, sticky="NESW")
 
         #Mode drop down - select what type of graph is wanted
         self.graphMode = tkinter.StringVar()
@@ -69,7 +71,7 @@ class MainWindow(tkinter.Frame):
         self.graphMode.trace("w", self.updateMode)
         self.selectMode = tkinter.OptionMenu(self, self.graphMode, "Single Plot", "Compare Channels", "All One Channel")
         self.selectMode.configure(state="disabled")
-        self.selectMode.grid(row=1, column=4, columnspan=2, sticky="NESW")
+        self.selectMode.grid(row=1, column=5, columnspan=2, sticky="NESW")
 
         #Channel drop down - select which channel you want a graph from
         self.selectedChannel = tkinter.StringVar()
@@ -79,7 +81,7 @@ class MainWindow(tkinter.Frame):
         self.channelIndex = 0
         self.channelChoice = tkinter.OptionMenu(self, self.selectedChannel, *self.channelList)
         self.channelChoice.configure(state="disabled")
-        self.channelChoice.grid(row=2, column=4, columnspan=2, sticky="NESW")
+        self.channelChoice.grid(row=2, column=5, columnspan=2, sticky="NESW")
 
         #Second channel drop down - used to compare two channels
         self.secondSelectedChannel = tkinter.StringVar()
@@ -87,7 +89,7 @@ class MainWindow(tkinter.Frame):
         self.secondSelectedChannel.trace("w", self.updateSecondChannel)
         self.secondChannelIndex = 0
         self.secondChannelChoice = tkinter.OptionMenu(self, self.secondSelectedChannel, *self.channelList)
-        self.secondChannelChoice.grid(row=3, column=4, columnspan=2, sticky="NESW")
+        self.secondChannelChoice.grid(row=3, column=5, columnspan=2, sticky="NESW")
         self.secondChannelChoice.configure(state="disabled")
 
         #Convert index from drop down to column in data
@@ -101,7 +103,7 @@ class MainWindow(tkinter.Frame):
         self.typeIndex = 0
         self.selectType = tkinter.OptionMenu(self, self.graphType, *self.typeList)
         self.selectType.configure(state="disabled")
-        self.selectType.grid(row=6, column=4, columnspan=2, sticky="NESW")
+        self.selectType.grid(row=6, column=5, columnspan=2, sticky="NESW")
 
         #Checkbox to toggle display of grid
         self.gridEnabled = tkinter.IntVar()
@@ -109,7 +111,7 @@ class MainWindow(tkinter.Frame):
         self.gridEnabled.trace("w", self.updateCheckBox)
         self.gridCheckBox = tkinter.Checkbutton(self, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
         self.gridCheckBox.configure(state="disabled")
-        self.gridCheckBox.grid(row=7, column=4, columnspan=2, sticky="NESW")
+        self.gridCheckBox.grid(row=7, column=5, columnspan=2, sticky="NESW")
 
         #Checkbox to toggle legend if necessary
         self.showLegend = tkinter.IntVar()
@@ -117,7 +119,7 @@ class MainWindow(tkinter.Frame):
         self.showLegend.trace("w", self.updateCheckBox)
         self.legendCheckBox = tkinter.Checkbutton(self, text="Legend", variable=self.showLegend, onvalue=1, offvalue=0)
         self.legendCheckBox.configure(state="disabled")
-        self.legendCheckBox.grid(row=8, column=4, columnspan=2, sticky="NESW")
+        self.legendCheckBox.grid(row=8, column=5, columnspan=2, sticky="NESW")
 
         #Allowed file types and extensions
         self.fileTypes = [("CSV Files", "*.csv")]
@@ -217,10 +219,20 @@ class MainWindow(tkinter.Frame):
                     except:
                         self.information[col].append(row[col].replace(self.decimal, "."))
                     
-                    if self.loadedType == 1 or self.loadedType == 2:
+                    #if self.loadedType == 1 or self.loadedType == 2:
+                    if self.loadedType == 1:
                         try:
                             channelNumber = int(row[0])
                             channelName = row[1]
+                            if self.channelInfo[channelNumber - 1] == "":
+                                self.channelInfo[channelNumber - 1] = channelName
+                        except:
+                            pass
+                    elif self.loadedType == 2:
+                        #Gas / pH/Redox
+                        try:
+                            channelNumber = int(row[2])
+                            channelName = ""
                             if self.channelInfo[channelNumber - 1] == "":
                                 self.channelInfo[channelNumber - 1] = channelName
                         except:
@@ -496,8 +508,8 @@ if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
     #Set the shape of the window
-    root.geometry("800x575")
-    root.minsize(800, 575)
+    root.geometry("850x575")
+    root.minsize(850, 575)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)

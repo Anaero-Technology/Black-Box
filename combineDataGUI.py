@@ -1,4 +1,5 @@
 import datetime
+from email import message
 import tkinter
 from tkinter import messagebox, filedialog
 from threading import Thread
@@ -19,7 +20,10 @@ class MainWindow(tkinter.Frame):
         self.rowCount = 5
         self.columnCount = 3
         for row in range(0, self.rowCount):
-            self.grid_rowconfigure(row, weight = 1)
+            if row != self.rowCount - 1:
+                self.grid_rowconfigure(row, weight = 10)
+            else:
+                self.grid_rowconfigure(row, weight = 1)
         for col in range(0, self.columnCount):
             self.grid_columnconfigure(col, weight = 1)
 
@@ -434,12 +438,12 @@ class MainWindow(tkinter.Frame):
                 #Get the date and time
                 date = dataRow[0]
                 time = dataRow[1]
-                date = date.split("-")
+                #date = date.split("-")
+                date = date.split("/")
                 time = time.split(":")
                 #Convert to unix time
-                timestamp = date[0] + self.decimal + date[1] + self.decimal + date[2] + self.decimal + time[0] + self.decimal + time[1] + self.decimal + time[2]
+                timestamp = date[2] + self.decimal + date[1] + self.decimal + date[0] + self.decimal + time[0] + self.decimal + time[1] + self.decimal + time[2]
                 dataTime = self.toUnix(timestamp)
-
                 #Stop if data not formatted correctly
                 if dataTime == -1:
                     return None
@@ -585,6 +589,8 @@ class MainWindow(tkinter.Frame):
         if not self.processing and not self.addingFile:
             #Processing started
             self.processing = True
+            self.processingDone = False
+            self.progressDone = False
             #Disable export buttons
             self.exportGasButton.configure(state="disabled")
             self.exportPhRedoxButton.configure(state="disabled")
@@ -594,7 +600,7 @@ class MainWindow(tkinter.Frame):
             #Create a thread to do the processing
             processingThread = Thread(target=self.performCalculations, daemon=True, args=(phRedoxAssoc, gasAssoc))
             #Setup the progress bar
-            self.displayProgressBar(len(self.eventData) * len(phRedoxAssoc))
+            self.displayProgressBar(len(self.eventData))
             #Start processing
             processingThread.start()
             #Start checks for completed processing
@@ -619,6 +625,7 @@ class MainWindow(tkinter.Frame):
             self.exportGasButton.configure(state="normal")
         #Finished processing - allow other actions
         self.processing = False
+        self.progressDone = True
 
     def performCalculations(self, phRedoxAssoc : dict, gasAssoc : dict) -> None:
         '''Take the input data and associations to produce output data'''
@@ -643,6 +650,7 @@ class MainWindow(tkinter.Frame):
         
         #Finished processing
         self.processingDone = True
+        self.progressDone = True
             
     def exportPhRedoxPressed(self) -> None:
         '''When the export ph/redox button is pressed'''
@@ -675,14 +683,14 @@ class MainWindow(tkinter.Frame):
                 #Ask the user to give a save location
                 path = filedialog.asksaveasfilename(title=saveTitle, filetypes=self.fileTypes, defaultextension=self.fileTypes)
                 #Only save the file if a path was selected
-                if path != "":
+                if path != "" and path != None:
                     #Try to save the data (success is a bool storing true if the file saved successfully)
                     success = createSetup.saveAsFile(path, dataToSave)
                     #Display appropriate message for if the file saved or not
                     if success:
-                        self.displayMessage("The file was saved successfully.", "Save Successful")
+                        messagebox.showinfo("Save Successful", "The file was saved successfully.")
                     else:
-                        self.displayMessage("The file could not be saved, please check location and file name.", "Save Failed")
+                        messagebox.showinfo("Save Failed", "The file could not be saved, please check location and file name.")
     
 
 class DataSource(tkinter.Frame):

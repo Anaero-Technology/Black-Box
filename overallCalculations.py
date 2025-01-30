@@ -28,7 +28,7 @@ def performGeneralCalculations(setupData, eventData, progress):
 
     hourLog = []
     dayLog = []
-    gasLog = []
+    #gasLog = []
 
     column, decimal = readSeparators.read()
 
@@ -43,7 +43,8 @@ def performGeneralCalculations(setupData, eventData, progress):
     #If there are less than 15 channnels in the setup
     if len(setupData) < 16:
         #Report error and stop
-        return "Setup file not formatted correctly, ensure that all 15 rows are present as well as field names.", None, None, None, None, None
+        #return "Setup file not formatted correctly, ensure that all 15 rows are present as well as field names.", None, None, None, None, None
+        return "Setup file not formatted correctly, ensure that all 15 rows are present as well as field names.", None, None, None, None
 
     #Setup information about each channel
     names = []
@@ -73,7 +74,8 @@ def performGeneralCalculations(setupData, eventData, progress):
 
     except:
         #Formatting of setup file is incorrect - reort error and stop
-        return "Setup file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None, None
+        #return "Setup file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None, None
+        return "Setup file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
 
     #Attempt to process the event data
     try:
@@ -268,7 +270,7 @@ def performGeneralCalculations(setupData, eventData, progress):
 
             #Add the gas percentage data
             #Entry: channelNumber, name, timestamp, time, co2 percentage, ch4 percentage 
-            gasLog.append([tipChannel + 1, names[tipChannel] , int(event[2]), daysElapsed, hoursElapsed, minutesElapsed, float(event[6]), float(event[7])])
+            #gasLog.append([tipChannel + 1, names[tipChannel] , int(event[2]), daysElapsed, hoursElapsed, minutesElapsed, float(event[6]), float(event[7])])
 
 
             #if another hour has passed
@@ -333,7 +335,8 @@ def performGeneralCalculations(setupData, eventData, progress):
     
     except:
         #Something is wrong with the way the event log file is formatted - report error and stop
-        return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None, None
+        #return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None, None
+        return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None
 
     #Group setup information into list
     setup = [names, inUse, inoculumOnly, inoculumMass, sampleMass, tumblerVolume]
@@ -348,14 +351,15 @@ def performGeneralCalculations(setupData, eventData, progress):
     for r in range(0, len(dayLog)):
         for c in range(0, len(dayLog[r])):
             dayLog[r][c] = str(dayLog[r][c])
-    for r in range(0, len(gasLog)):
-        for c in range(0, len(gasLog[r])):
-            gasLog[r][c] = str(gasLog[r][c])
+    #for r in range(0, len(gasLog)):
+        #for c in range(0, len(gasLog[r])):
+            #gasLog[r][c] = str(gasLog[r][c])
 
     eventLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Net Volume Per Gram (ml/g)"])
     hourLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     dayLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Day", "Volume This Day at STP (ml)", "Net Volume This Day (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
-    gasLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "CO2 Percent", "CH4 Percent"])
+    #gasLog.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "CO2 Percent", "CH4 Percent"])
 
     #Return the data and no error was found
-    return None, eventLog, hourLog, dayLog, gasLog, setup
+    #return None, eventLog, hourLog, dayLog, gasLog, setup
+    return None, eventLog, hourLog, dayLog, setup

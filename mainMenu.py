@@ -3,6 +3,7 @@ from tkinter.font import Font
 from tkinter import messagebox
 import setupGUI
 import dataReceiveGUI
+import dataReceiveWirelessGUI
 import networkViewGUI
 import processDataGUI
 import combineDataGUI
@@ -271,7 +272,7 @@ class MainWindow(tkinter.Frame):
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Rows needed for this frame
-        self.numberRows = 9
+        self.numberRows = 8
         self.numberColumns = 7
 
         #Setup rows and columns
@@ -286,9 +287,12 @@ class MainWindow(tkinter.Frame):
         self.textFont = Font(size=10)
         
         #Setup each of the option buttons and add them to the correct row
-        #Event log configuration
+        #Connect to device
         self.eventLogButton = tkinter.Button(self, text="Connect to GFM", command=self.openCommunicationWindow, font=self.buttonFont)
-        self.eventLogButton.grid(row=0, column=1, columnspan=5)
+        self.eventLogButton.grid(row=0, column=1, columnspan=2)
+        #Wireless button
+        self.wirelessButton = tkinter.Button(self, text="Connect via WiFi", command=self.openWirelessWindow, font=self.buttonFont)
+        self.wirelessButton.grid(row=0, column=4, columnspan=2)
         #Network Device Connection
         self.networkButton = tkinter.Button(self, text="View Connected Devices", command=self.openNetworkWindow, font=self.buttonFont)
         self.networkButton.grid(row=1, column=1, columnspan=5)
@@ -308,15 +312,15 @@ class MainWindow(tkinter.Frame):
         self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
         self.clockButton.grid(row=6, column=1, columnspan=5)
         #Calibrate analyser
-        self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
-        self.calibrateButton.grid(row=7, column=1, columnspan=5)
+        '''self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
+        self.calibrateButton.grid(row=7, column=1, columnspan=5)'''
         #Quit all
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
-        self.exitButton.grid(row=8, column=2, columnspan=3)
+        self.exitButton.grid(row=7, column=2, columnspan=3)
 
         self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
         self.settingsButton = tkinter.Button(self, image=self.settingsImage, command=self.openSettingsWindow)
-        self.settingsButton.grid(row=8, column=5)
+        self.settingsButton.grid(row=7, column=5)
 
         #Get the centre of the screen
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -324,6 +328,7 @@ class MainWindow(tkinter.Frame):
         #Variables to hold the different windows currently in use
         self.setupWindow = None
         self.communicationWindow = None
+        self.wirelessWindow = None
         self.networkWindow = None
         self.dataProcessWindow = None
         self.combineWindow = None
@@ -333,6 +338,7 @@ class MainWindow(tkinter.Frame):
         self.calibrateWindow = None
 
         self.dataReceiveTopLevel = None
+        self.dataReceiveWirelessTopLevel = None
     
     def openSetupWindow(self) -> None:
         '''Create a new instance of the setup window, or lift and focus the current one'''
@@ -374,6 +380,12 @@ class MainWindow(tkinter.Frame):
         except:
             pass
         try:
+            self.wirelessWindow.lift()
+            self.wirelessWindow.destroy()
+            self.wirelessWindow = None
+        except:
+            pass
+        try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
             self.communicationWindow.lift()
             self.communicationWindow.focus()
@@ -392,6 +404,45 @@ class MainWindow(tkinter.Frame):
             self.dataReceiveTopLevel.grid(row = 0, column=0, sticky="NESW")
             self.communicationWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveTopLevel.closeWindow)
             self.communicationWindow.focus()
+
+    def openWirelessWindow(self) -> None:
+        '''Create a new instance of the communication window, or lift and focus the current one'''
+        try:
+            #If the settings window is open - destroy it
+            self.settingsWindow.lift()
+            self.settingsWindow.destroy()
+            self.settingsWindow = None
+        except:
+            pass
+        try:
+            self.networkWindow.lift()
+            self.networkWindow.destroy()
+            self.networkWindow = None
+        except:
+            pass
+        try:
+            self.communicationWindow.lift()
+            self.communicationWindow.destroy()
+            self.communicationWindow = None
+        except:
+            pass
+        try:
+            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            self.wirelessWindow.lift()
+            self.wirelessWindow.focus()
+        except:
+            #If unable to do so, create a new communication window
+            self.wirelessWindow = tkinter.Toplevel(self.parent)
+            self.wirelessWindow.transient(self.parent)
+            self.wirelessWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 200), int(self.screenCentre[1] - 250)))
+            self.wirelessWindow.minsize(400, 500)
+            self.wirelessWindow.title("GFM Data Receive Wireless")
+            self.wirelessWindow.grid_rowconfigure(0, weight=1)
+            self.wirelessWindow.grid_columnconfigure(0, weight=1)
+            self.dataReceiveWirelessTopLevel = dataReceiveWirelessGUI.MainWindow(self.wirelessWindow)
+            self.dataReceiveWirelessTopLevel.grid(row = 0, column=0, sticky="NESW")
+            self.wirelessWindow.protocol("WM_DELETE_WINDOW", self.dataReceiveWirelessTopLevel.closeWindow)
+            self.wirelessWindow.focus()
     
     def openNetworkWindow(self) -> None:
         '''Create a new instance of the communication window, or lift and focus the current one'''
@@ -403,6 +454,18 @@ class MainWindow(tkinter.Frame):
         except:
             pass
         try:
+            self.communicationWindow.lift()
+            self.communicationWindow.destroy()
+            self.communicationWindow = None
+        except:
+            pass
+        try:
+            self.wirelessWindow.lift()
+            self.wirelessWindow.destroy()
+            self.wirelessWindow = None
+        except:
+            pass
+        try:
             #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
             self.networkWindow.lift()
             self.networkWindow.focus()
@@ -410,9 +473,9 @@ class MainWindow(tkinter.Frame):
             #If unable to do so, create a new communication window
             self.networkWindow = tkinter.Toplevel(self.parent)
             self.networkWindow.transient(self.parent)
-            self.networkWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
-            self.networkWindow.minsize(600, 500)
-            self.networkWindow.title("Network View")
+            self.networkWindow.geometry("750x500+{0}+{1}".format(int(self.screenCentre[0] - 375), int(self.screenCentre[1] - 250)))
+            self.networkWindow.minsize(750, 500)
+            self.networkWindow.title("Device Overview")
             self.networkWindow.grid_rowconfigure(0, weight=1)
             self.networkWindow.grid_columnconfigure(0, weight=1)
             networkViewGUI.MainWindow(self.networkWindow, rw=self).grid(row = 0, column=0, sticky="NESW")
@@ -485,8 +548,8 @@ class MainWindow(tkinter.Frame):
             #If unable to do so, create a new graphs window
             self.graphWindow = tkinter.Toplevel(self.parent)
             self.graphWindow.transient(self.parent)
-            self.graphWindow.geometry("800x575+{0}+{1}".format(int(self.screenCentre[0] - 400), int(self.screenCentre[1] - 287)))
-            self.graphWindow.minsize(800, 575)
+            self.graphWindow.geometry("850x575+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 287)))
+            self.graphWindow.minsize(850, 575)
             self.graphWindow.title("GFM Graph Creator")
             self.graphWindow.grid_rowconfigure(0, weight=1)
             self.graphWindow.grid_columnconfigure(0, weight=1)
@@ -546,6 +609,12 @@ class MainWindow(tkinter.Frame):
         except:
             pass
         try:
+            #Try to access the wireless communication window
+            self.wirelessWindow.lift()
+            windowsPresent = windowsPresent + 1
+        except:
+            pass
+        try:
             #Try to access the processing window
             self.dataProcessWindow.lift()
             windowsPresent = windowsPresent + 1
@@ -599,6 +668,10 @@ class MainWindow(tkinter.Frame):
         '''Close all the tkinter windows - terminates the program'''
         try:
             self.dataReceiveTopLevel.closeWindow()
+        except:
+            pass
+        try:
+            self.dataReceiveWirelessTopLevel.closeWindow()
         except:
             pass
         try:
