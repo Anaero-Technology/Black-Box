@@ -5,7 +5,7 @@ from serial.tools import list_ports
 from threading import Thread
 import datetime
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs) -> None:
         #Setup parent configuration
@@ -447,7 +447,8 @@ class mainWindow(tkinter.Frame):
                 success = True
                 try:
                     #Attempt to connect
-                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
+                    self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
                 except:
                     #If something went wrong
                     success = False
@@ -656,7 +657,7 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("Clock Time Configuration")
     #Add the editor to the root windows
-    window = mainWindow(root)
+    window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
     #If the window is attempted to be closed, call the close window function
     root.protocol("WM_DELETE_WINDOW", window.closeWindow)

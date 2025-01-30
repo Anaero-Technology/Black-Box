@@ -10,7 +10,7 @@ import readSeparators
 from threading import Thread
 
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain all of the editor for the csv files'''
     def __init__(self, parent, *args, **kwargs):
         '''Setup the window and initialize all the sections'''
@@ -847,6 +847,6 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("Process GFM Data")
     #Add the editor to the root windows
-    mainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
     root.mainloop()

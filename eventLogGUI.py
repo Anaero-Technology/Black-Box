@@ -4,7 +4,7 @@ from tkinter import messagebox
 import random
 import createSetup
 
-class mainWindow(tkinter.Frame):
+class MainWindow(tkinter.Frame):
     '''Class to contain the menu for the event log'''
     def __init__(self, parent, *args, **kwargs):
         #Setup parent configuration
@@ -268,6 +268,6 @@ if __name__ == "__main__":
     #Set the title text of the window
     root.title("Event Log GFM")
     #Add the editor to the root windows
-    mainWindow(root).grid(row = 0, column=0, sticky="NESW")
+    MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root
     root.mainloop()
