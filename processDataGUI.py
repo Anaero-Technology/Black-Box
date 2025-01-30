@@ -1,10 +1,13 @@
 import tkinter
 from tkinter import filedialog
+import tkinter.ttk as Ttk
+from tkinter.ttk import Style
 import readSetup
 import createSetup
 import overallCalculations
 from tkinter import messagebox
 import readSeparators
+from threading import Thread
 
 
 class mainWindow(tkinter.Frame):
@@ -42,27 +45,34 @@ class mainWindow(tkinter.Frame):
         self.column, self.decimal = readSeparators.read()
 
         #Create process data button - starts disabled (need to have two files loaded)
-        self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.processInformation)
+        self.processButton = tkinter.Button(self, text="Process Data", bg="#DDEEFF", state="disabled", command=self.startProcessing)
         self.processButton.grid(row=0, column=9, rowspan=2, columnspan=3, sticky="NESW")
         
         #Create export data buttons - starts disabled (need to have processed data successfully first)
-        self.exportDataLogButton = tkinter.Button(self, text="Export Data Log", bg="#DDEEFF", state="disabled", command=self.exportEventLog)
-        self.exportDataLogButton.grid(row=0, column=12, columnspan=3, sticky="NESW")
-        self.exportHourDayFrame = tkinter.Frame(self)
-        self.exportHourDayFrame.grid(row=1, column=12, columnspan=3, sticky="NESW")
-        self.exportHourDayFrame.grid_rowconfigure(0, weight=1)
-        self.exportHourDayFrame.grid_columnconfigure(0, weight=1)
-        self.exportHourDayFrame.grid_columnconfigure(1, weight=1)
-        self.exportHourButton = tkinter.Button(self.exportHourDayFrame, text="Export Hour Log", bg="#DDEEFF", state="disabled", command=self.exportHourLog)
-        self.exportDayButton = tkinter.Button(self.exportHourDayFrame, text="Export Day Log", bg="#DDEEFF", state="disabled", command=self.exportDayLog)
-        self.exportHourButton.grid(row=0, column=0, sticky="NESW")
-        self.exportDayButton.grid(row=0, column=1, sticky="NESW")
+        self.exportFrame = tkinter.Frame(self)
+        self.exportFrame.grid(row=0, column=12, columnspan=3, rowspan=2, sticky="NESW")
+        self.exportFrame.grid_rowconfigure(0, weight=1)
+        self.exportFrame.grid_rowconfigure(1, weight=1)
+        self.exportFrame.grid_columnconfigure(0, weight=1)
+        self.exportFrame.grid_columnconfigure(1, weight=1)
+        self.exportDataLogButton = tkinter.Button(self.exportFrame, text="Export Data Log", bg="#DDEEFF", state="disabled", command=self.exportEventLog)
+        self.exportDataLogButton.grid(row=0, column=0, sticky="NESW")
+        self.exportContinuousButton = tkinter.Button(self.exportFrame, text="Export Continuous Log", bg="#DDEEFF", state="disabled", command=self.exportContinuousLog)
+        self.exportContinuousButton.grid(row=0, column=1, sticky="NESW")
+        self.exportHourButton = tkinter.Button(self.exportFrame, text="Export Hour Log", bg="#DDEEFF", state="disabled", command=self.exportHourLog)
+        self.exportDayButton = tkinter.Button(self.exportFrame, text="Export Day Log", bg="#DDEEFF", state="disabled", command=self.exportDayLog)
+        self.exportHourButton.grid(row=1, column=0, sticky="NESW")
+        self.exportDayButton.grid(row=1, column=1, sticky="NESW")
 
         #List to contain buttons for the different channels
         self.channelButtons = []
 
         #Setup the font for the headers
         self.headerFont = ("courier", 10, "bold")
+
+        #Seutp the gas composition export button
+        self.exportGasButton = tkinter.Button(self, text="Export Gas Composition", bg="#DDEEFF", state="disabled", command=self.exportGasLog)
+        self.exportGasButton.grid(row=2, column=11, sticky="NESW")
 
         #Create the hours and days buttons
         self.hoursButton = tkinter.Button(self, text="Per Hour", relief="ridge", command=self.changeToHours)
@@ -72,6 +82,7 @@ class mainWindow(tkinter.Frame):
 
         #Currently viewing the first channel in hours mode
         self.hours = True
+        self.gas = False
         self.currentScreen = 0
 
         self.channelLabels = []
@@ -94,6 +105,7 @@ class mainWindow(tkinter.Frame):
         #Create the day frame
         self.channelDayFrame = tkinter.Frame(self)
         self.channelDayFrame.grid(row=4, column=0, rowspan=16, columnspan=15, sticky="NESW")
+
         #Create and place the setup frame and label
         self.channelSetupFrame = tkinter.Frame(self)
         self.channelSetupLabel = tkinter.Label(self.channelSetupFrame, font=self.headerFont)
@@ -123,6 +135,7 @@ class mainWindow(tkinter.Frame):
         self.eventLog = None
         self.hourLog = None
         self.dayLog = None
+        self.gasLog = None
 
         #Canvases, scrollbars and labels used for each of the displays (None at start as nothing has been processed)
         self.hourCanvas = None
@@ -136,13 +149,30 @@ class mainWindow(tkinter.Frame):
         self.gridFrameDay = None
 
         #Column headers for hours and days
-        self.hourHeaders = ["Hour", "Volume(ml)", "Volume From Sample(ml)", "Volume/Gram(ml/g)", "Innoculum Avg(ml/g)", "Total Evolved(ml)"]
-        self.dayHeaders = ["Day", "Volume(ml)", "Volume From Sample(ml)", "Volume/Gram(ml/g)", "Innoculum Avg(ml/g)", "Total Evolved(ml)"]
+        self.hourHeaders = ["Hour", "Volume(ml)", "Total Evolved(ml)", "Net Evolved(ml/g)"]
+        self.dayHeaders = ["Day", "Volume(ml)", "Total Evolved(ml)", "Net Evolved(ml/g)"]
 
         #Flag to indicate if a data processing pass is currently underway
         self.processing = False
+
+        self.needToUpdateDisplay = False
         
-        self.exportData = []
+        self.displayData = [[], []]
+
+        #Get the style object for the parent window
+        self.styles = Style(self.parent)
+        #Create layout for progress bar with a label
+        self.styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
+        #Set the bar colour of the progress bar
+        self.styles.configure("ProgressbarLabeled", background="lightgreen")
+
+        #Create a progress bar
+        self.progressBar = Ttk.Progressbar(self, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
+        #Set the text
+        self.styles.configure("ProgressbarLabeled", text = "Processing Data ...")
+        self.progressBar.grid(row=20, column=0, columnspan=16, sticky="NESW")
+        self.progressBar.grid_remove()
+        self.progress = [0, 100, "Processing data..."]
 
         self.populateWindows(48, 2)
         self.unpopulateWindows()
@@ -158,31 +188,20 @@ class mainWindow(tkinter.Frame):
         if len(self.setupTexts) > self.currentScreen:
             self.channelSetupLabel.config(text=self.setupTexts[self.currentScreen])
         #Add in the hour data
-        if len(self.exportData) > self.currentScreen:
-            channelData = self.exportData[self.currentScreen]
-            channelHourData = channelData[1]
+        if len(self.displayData[0]) > self.currentScreen:
+            channelHourData = self.displayData[0][self.currentScreen]
             hour = 0
             for thisHourData in channelHourData:
-                self.hourLabels[0][hour].config(text=str(thisHourData[0]))
-                self.hourLabels[1][hour].config(text=str(thisHourData[1]))
-                self.hourLabels[2][hour].config(text=str(thisHourData[2]))
-                #Show innoculum average per gram for that hour and then the actual ml using the mass of innoculum
-                innoculumMessage = str(thisHourData[3]) + " (" + str(thisHourData[4]) + "ml)"
-                self.hourLabels[3][hour].config(text=innoculumMessage)
-                self.hourLabels[4][hour].config(text=str(thisHourData[5]))
+                for index in range(0, 4):
+                    self.hourLabels[index][hour].config(text=str(thisHourData[index]))
                 hour = hour + 1
         
             #Add in the day data
-            channelDayData = channelData[2]
+            channelDayData = self.displayData[1][self.currentScreen]
             day = 0
             for thisDayData in channelDayData:
-                self.dayLabels[0][day].config(text=str(thisDayData[0]))
-                self.dayLabels[1][day].config(text=str(thisDayData[1]))
-                self.dayLabels[2][day].config(text=str(thisDayData[2]))
-                #Show innoculum average per gram for that day and then the actual ml using the mass of innoculum
-                innoculumMessage = str(thisDayData[3]) + " (" + str(thisDayData[4]) + "ml)"
-                self.dayLabels[3][day].config(text=innoculumMessage)
-                self.dayLabels[4][day].config(text=str(thisDayData[5]))
+                for index in range(0, 4):
+                    self.dayLabels[index][day].config(text=str(thisDayData[index]))
                 day = day + 1
 
 
@@ -227,60 +246,64 @@ class mainWindow(tkinter.Frame):
 
     def loadSetup(self) -> None:
         '''Load a setup file'''
-        #Get the path to the file from the user
-        filePath = filedialog.askopenfilename(title="Select setup csv file", filetypes=self.fileTypes)
-        #Split the file into parts
-        pathParts = filePath.split("/")
-        fileName = ""
-        #If there is a file present
-        if filePath != "" and len(pathParts) > 0:
-            #Reset the setup data
-            self.setupData = None
-            #Get the file's name from the end of the path
-            fileName = pathParts[-1]
-            #Attempt to read the file
-            allFileData = readSetup.getFile(filePath)
-            if allFileData != []:
-                #If there was data to be read
-                #Format the data into an array
-                self.setupData = readSetup.formatData(allFileData)
-                #Set the text of the label
-                self.setupLabel.config(text=fileName, fg=self.green)
-            else:
-                #Display error
-                self.setupLabel.config(text="File could not be read.", fg=self.red)
+        #If not currently processing data
+        if not self.processing:
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select setup csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            fileName = ""
+            #If there is a file present
+            if filePath != "" and len(pathParts) > 0:
+                #Reset the setup data
+                self.setupData = None
+                #Get the file's name from the end of the path
+                fileName = pathParts[-1]
+                #Attempt to read the file
+                allFileData = readSetup.getFile(filePath)
+                if allFileData != []:
+                    #If there was data to be read
+                    #Format the data into an array
+                    self.setupData = readSetup.formatData(allFileData)
+                    #Set the text of the label
+                    self.setupLabel.config(text=fileName, fg=self.green)
+                else:
+                    #Display error
+                    self.setupLabel.config(text="File could not be read.", fg=self.red)
 
-        #Perform a check to see if the data can be processed
-        self.checkReady()
+            #Perform a check to see if the data can be processed
+            self.checkReady()
 
 
     def loadEvent(self) -> None:
         '''Load an event log file'''
-        #Get the path to the file from the user
-        filePath = filedialog.askopenfilename(title="Select event log csv file", filetypes=self.fileTypes)
-        #Split the file into parts
-        pathParts = filePath.split("/")
-        fileName = ""
-        #If there i sa file present
-        if filePath != "" and len(pathParts) > 0:
-            #Reset the event data
-            self.eventData = None
-            #Get the file's name from the end of the path
-            fileName = pathParts[-1]
-            #Attempt to read the file data
-            allFileData = readSetup.getFile(filePath)
-            #If there was data present
-            if allFileData != []:
-                #Format the data as an array and store it
-                self.eventData = readSetup.formatData(allFileData)
-                #Set the text of the display label
-                self.eventLabel.config(text=fileName, fg=self.green)
-            else:
-                #Display an error message
-                self.eventLabel.config(text="File could not be read.", fg=self.red)
-        
-        #Perform a check to see if the data can be processed
-        self.checkReady()
+        #If not currently processing data
+        if not self.processing:
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select event log csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            fileName = ""
+            #If there i sa file present
+            if filePath != "" and len(pathParts) > 0:
+                #Reset the event data
+                self.eventData = None
+                #Get the file's name from the end of the path
+                fileName = pathParts[-1]
+                #Attempt to read the file data
+                allFileData = readSetup.getFile(filePath)
+                #If there was data present
+                if allFileData != []:
+                    #Format the data as an array and store it
+                    self.eventData = readSetup.formatData(allFileData)
+                    #Set the text of the display label
+                    self.eventLabel.config(text=fileName, fg=self.green)
+                else:
+                    #Display an error message
+                    self.eventLabel.config(text="File could not be read.", fg=self.red)
+            
+            #Perform a check to see if the data can be processed
+            self.checkReady()
 
 
     def checkReady(self) -> None:
@@ -293,43 +316,78 @@ class mainWindow(tkinter.Frame):
             #Deactivate process button
             self.processButton.config(state="disabled")
 
+    def startProcessing(self) -> None:
+        if not self.processing:
+            self.progressBar["value"] = 0
+            self.progress = [0, 100, "Processing data..."]
+            self.progressBar.grid()
+            self.processing = True
+            processThread = Thread(target=self.processInformation, daemon=True)
+            processThread.start()
+            progressThread = Thread(target=self.updateProgressBar, daemon=True)
+            progressThread.start()
+            self.after(100, self.checkDisplay)
+    
+    def checkDisplay(self) -> None:
+        '''Repeatedly check if the display needs to be updated'''
+        if self.needToUpdateDisplay:
+            #Populate the windows to a correct size
+            self.populateWindows(int((len(self.hourLog) - 1) / 15), int(((len(self.dayLog) - 1) / 15)))
+            #Update the menu options for the channels
+            menu = self.channelChoice["menu"]
+            menu.delete(0, tkinter.END)
+            for value in self.channelLabels:
+                menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
+            
+            #Switch to the first channel (this will repopulate the values too)
+            self.channelChoiceVar.set(self.channelLabels[0])
+            #End processing
+            self.processing = False
+            self.needToUpdateDisplay = False
+            #Hide the progress bar
+            self.progressBar.grid_remove()
+        else:
+            self.after(100, self.checkDisplay)
+    
+    def updateProgressBar(self) -> None:
+        '''Update the progress bar'''
+        value = 0
+        limit = 100
+        message = "Processing data..."
+        #Repeat until processing ends
+        while self.processing:
+            #If the value has changed
+            if self.progress[0] != value:
+                value = self.progress[0]
+                self.progressBar["value"] = value
+            #If the maximum value has changed
+            if self.progress[1] != limit:
+                limit = self.progress[1]
+                self.progressBar.configure(maximum=limit)
+                self.progressBar["value"] = 0
+                value = 0
+            #If the text has changed
+            if self.progress[2] != message:
+                message = self.progress[2]
+                self.styles.configure("ProgressbarLabeled", text=message)
     
     def processInformation(self) -> None:
         '''Perform a data processing pass'''
-        self.processing = True
-        #TODO Add separate thread and block window to prevent 'not responding'
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
+            #Disable the export buttons until the process is complete
+            self.exportDataLogButton.configure(state="disabled")
+            self.exportContinuousButton.configure(state="disabled")
+            self.exportHourButton.configure(state="disabled")
+            self.exportDayButton.configure(state="disabled")
+            self.exportGasButton.configure(state="disabled")
+            self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors
-            results, error, events, hours, days = overallCalculations.performGeneralCalculations(self.setupData, self.eventData)
+            error, events, hours, days, gas, setup = overallCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
             if error == None:
-                #Disable the export button until the process is complete
-                #self.exportButton.configure(state="disabled")
-                self.exportDataLogButton.configure(state="disabled")
-                self.exportHourButton.configure(state="disabled")
-                self.exportDayButton.configure(state="disabled")
-                #Reset the export data
-                self.exportData = []
-                #Split the results into parts
-                setup = results[0]
-                hourLists = results[1]
-                hourListsWOI = results[2]
-                hourListsWOIGram = results[3]
-                dayLists = results[4]
-                dayListsWOI = results[5]
-                dayListsWOIGram = results[6]
-                hourlyInnoculumAvg = results[8]
-                daylyInnoculumAvg = results[9]
-                #Cumulative totals
-                hourEvolved = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                dayEvolved = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                #Populate the windows to a correct size
-                self.populateWindows(len(hourLists[0]), len(dayLists[0]))
                 #Iterate through the setup data and labels
                 for setupNum in range(0, len(setup[0])):
-                    #Add the setup information
-                    self.exportData.append([[setup[0][setupNum], setup[1][setupNum], setup[2][setupNum], setup[3][setupNum], setup[4][setupNum], setup[5][setupNum]]])
                     #Message to display - the name of the tube
                     msg = setup[0][setupNum]
                     #Update drop down labels
@@ -354,64 +412,67 @@ class mainWindow(tkinter.Frame):
                     #Add the text to the label
                     self.setupTexts.append(msg)
 
+                #Lists of each of the data arrays for hours
+                hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+
                 #Iterate through the lists of hour data
-                for listNum in range(0, len(hourLists)):
-                    #List to hold hour data for export
-                    hourDataList = []
-                    #Iterate through the hours
-                    for hour in range(0, len(hourLists[listNum])):
-                        #List to hold the current hour's data
-                        thisHourData = []
-                        #Calculate the cumulative volume evolved
-                        hourEvolved[listNum] = hourEvolved[listNum] + hourListsWOI[listNum][hour]
-                        #Calculate each of the values
-                        thisHourData.append(round(hourLists[listNum][hour], 3)) #Volume
-                        thisHourData.append(round(hourListsWOI[listNum][hour], 3)) #Volume - innoculum average
-                        thisHourData.append(round(hourListsWOIGram[listNum][hour], 3)) #Volume produced per gram of sample
-                        thisHourData.append(round(hourlyInnoculumAvg[hour], 3)) #Innoculum average volume per gram
-                        thisHourData.append(round(hourlyInnoculumAvg[hour] * setup[3][listNum], 3)) #Innoculum average volume for this tube
-                        thisHourData.append(round(hourEvolved[listNum], 3)) #Total gas evolved by sample in this tube
-                        #Add this hour's information to the overall list
-                        hourDataList.append(thisHourData)
-                    
-                    #If there is a channel to add this to
-                    if listNum < len(self.exportData):
-                        #Store the hour data so it can be exported
-                        self.exportData[listNum].append(hourDataList)
+                for hour in range(1, len(hours)):
+                    #Get the data for this hour
+                    thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
+                    hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
+
+                #Set the display data
+                self.displayData[0] = hourDataList
+                
+                #Lists for each of the channels for day data
+                dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
                 #Iterate through lists of day data
-                for listNum in range(0, len(dayLists)):
-                    #List to hold day data for export
-                    dayDataList = []
-                    #Iterate through the days
-                    for day in range(0, len(dayLists[listNum])):
-                        #List to hold the current day's data
-                        thisDayData = []
-                        #Calculate the cumulative volume evolved
-                        dayEvolved[listNum] = dayEvolved[listNum] + dayListsWOI[listNum][day]
-                        #Calculate each of the values
-                        thisDayData.append(round(dayLists[listNum][day], 3))
-                        thisDayData.append(round(dayListsWOI[listNum][day], 3))
-                        thisDayData.append(round(dayListsWOIGram[listNum][day], 3))
-                        thisDayData.append(round(daylyInnoculumAvg[day], 3))
-                        thisDayData.append(round(daylyInnoculumAvg[day] * setup[3][listNum], 3))
-                        thisDayData.append(round(dayEvolved[listNum], 3))
-                        #Add this day's information to the overall list
-                        dayDataList.append(thisDayData)
-                    
-                    #If there is a channel to add this to
-                    if listNum < len(self.exportData):
-                        #Store the day data so it can be exported
-                        self.exportData[listNum].append(dayDataList)
+                for day in range(1, len(days)):
+                    #Get the data for this day
+                    thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
+                    dayDataList[int(days[day][0]) - 1].append(thisDayData)
                 
+                #Set the display data
+                self.displayData[1] = dayDataList
+                
+                #Store each of the logs
                 self.eventLog = events
                 self.hourLog = hours
                 self.dayLog = days
-
+                self.gasLog = gas
+                
+                anyGas = False
+                #Check if there was any gas composition data
+                try:
+                    rowNumber = 0
+                    #Iterate through gas
+                    for row in self.gasLog:
+                        #If is is not the header
+                        if rowNumber != 0:
+                            #If there was any data
+                            if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                #Gas is present
+                                anyGas = True
+                        #Next row
+                        rowNumber = rowNumber + 1
+                except:
+                    #If the file was not formatted correctly
+                    anyGas = False
+                
                 #Allow for the export of the information
                 self.exportDataLogButton.configure(state="normal")
+                self.exportContinuousButton.configure(state="normal")
                 self.exportHourButton.configure(state="normal")
                 self.exportDayButton.configure(state="normal")
+
+                #Allow for gas export if there was any
+                if anyGas:
+                    self.exportGasButton.configure(state="normal")
+
+                #An update to the display is needed
+                self.needToUpdateDisplay = True
+                
             else:
                 #Display the error if it occurred
                 messagebox.showinfo(title="Error", message=error)
@@ -419,16 +480,10 @@ class mainWindow(tkinter.Frame):
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
-
-        menu = self.channelChoice["menu"]
-        menu.delete(0, tkinter.END)
-        for value in self.channelLabels:
-            menu.add_command(label=value, command=lambda v=self.channelChoiceVar, l=value: v.set(l))
-
-        self.channelChoiceVar.set(self.channelLabels[0])
-        self.processing = False
     
-    def exportEventLog(self):
+    
+    def exportEventLog(self) -> None:
+        '''Export the full event log as a file'''
         if not self.processing:
             if self.eventLog != None:
                 dataToSave = createSetup.convertArrayToString(self.eventLog)
@@ -447,7 +502,43 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
 
-    def exportHourLog(self):
+    def exportContinuousLog(self) -> None:
+        '''Export the continuous data as a file'''
+        if not self.processing:
+            if self.eventLog != None:
+                #Array to hold continuous results
+                continuousLog = []
+
+                #Iterate through events
+                for e in self.eventLog:
+                    record = []
+                    #Get setup data, time stamp and stp volumes
+                    for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
+                        #Add to the row
+                        record.append(e[i])
+                    #Add the row to the array
+                    continuousLog.append(record)
+                
+                #Convert data to string
+                dataToSave = createSetup.convertArrayToString(continuousLog)
+                #Get path to save file
+                path = filedialog.asksaveasfilename(title="Save continuous event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                #If a path was given (not canceled)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+        else:
+            messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
+
+    def exportHourLog(self) -> None:
+        '''Export the hour log as a file'''
         if not self.processing:
             if self.hourLog != None:
                 dataToSave = createSetup.convertArrayToString(self.hourLog)
@@ -466,11 +557,12 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
-    def exportDayLog(self):
+    def exportDayLog(self) -> None:
+        '''Export the day log as a file'''
         if not self.processing:
             if self.dayLog != None:
                 dataToSave = createSetup.convertArrayToString(self.dayLog)
-                path = filedialog.asksaveasfilename(title="Save event log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                path = filedialog.asksaveasfilename(title="Save day log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
                 #If a path was given (not canceled)
                 if path != "":
                     #Attempt to save file - store result in success
@@ -485,6 +577,49 @@ class mainWindow(tkinter.Frame):
         else:
             messagebox.showinfo(title="Please wait", message="Please wait until data processing is complete.")
     
+    def exportGasLog(self) -> None:
+        '''Export the gas log as a file'''
+        #If not currently processing data
+        if not self.processing:
+            #If there is gas data
+            if self.gasLog != None:
+
+                anyGas = False
+                #Attempt (will fail if the file is not formatted correctly)
+                try:
+                    rowNumber = 0
+                    #Iterate through the gas data
+                    for row in self.gasLog:
+                        #If it is not the header row
+                        if rowNumber != 0:
+                            #If there is a value that is not negative
+                            if float(row[6]) >= 0 or float(row[7]) >= 0:
+                                #There is gas data
+                                anyGas = True
+                        rowNumber = rowNumber + 1
+                except:
+                    #There is not valid gas data
+                    anyGas = False
+                
+                #If there was a valid file with some data in it
+                if anyGas:
+                    #Format the data for the file
+                    dataToSave = createSetup.convertArrayToString(self.gasLog)
+                    #Get the file path
+                    path = filedialog.asksaveasfilename(title="Save gas log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                    #If a path was given (not canceled)
+                    if path != "":
+                        #Attempt to save file - store result in success
+                        success = createSetup.saveAsFile(path, dataToSave)
+                        #If saved successfully
+                        if success:
+                            #Display message to indicate file has been saved
+                            messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                        else:
+                            #Display message to indicate file was not saved
+                            messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+                
+
     def unpopulateWindows(self) -> None:
         '''Remove all canvases and scroll bars and delete all references'''
         #Delete all the created parts
@@ -524,17 +659,21 @@ class mainWindow(tkinter.Frame):
         self.gridFrameHour = tkinter.Frame(self.hourCanvas)
 
         #Iterate through the rows of data and columns and set up grid in frame
-        for col in range(0, 6):
+        for col in range(0, 4):
             self.gridFrameHour.grid_columnconfigure(col, weight=1)
         for row in range(0, rowsHours + 1):
             self.gridFrameHour.grid_rowconfigure(row, weight=1)
 
         #List to hold all the labels
-        labelsHour = [[], [], [], [], []]
-        
+        labelsHour = [[], [], [], []]
+
+        self.progress[0] = 0
+        self.progress[1] = rowsHours + rowsDays
+        self.progress[2] = "Setting up display..."
+
         #Iterate through the rows
         for row in range(0, rowsHours + 1):
-            for col in range(0, 6):
+            for col in range(0, 4):
                 #Create labels
                 label = tkinter.Label(self.gridFrameHour, text="")
                 if row % 2 == 0:
@@ -542,16 +681,13 @@ class mainWindow(tkinter.Frame):
                 label.grid(row=row, column=col, sticky="NESW")
                 #If is is not a header
                 if row != 0:
-                    #If it is not the numbering column
-                    if col > 0:
-                        #Add to list of labels
-                        labelsHour[col - 1].append(label)
-                    else:
-                        #Add the current hour number
-                        label.configure(text=row)
+                    #Add to list of labels
+                    labelsHour[col].append(label)
                 else:
                     #Set the text to the header and change the font
                     label.configure(text=self.hourHeaders[col], font=("courier", 10, "bold"))
+            
+            self.progress[0] = row + 1
 
         #Add the frame to the window of the canvas
         self.hourCanvasWindow = self.hourCanvas.create_window(0, 0, window=self.gridFrameHour, anchor="nw")
@@ -587,17 +723,17 @@ class mainWindow(tkinter.Frame):
         self.gridFrameDay = tkinter.Frame(self.dayCanvas)
 
         #Iterate through columns and rows to create grid
-        for col in range(0, 6):
+        for col in range(0, 4):
             self.gridFrameDay.grid_columnconfigure(col, weight=1)
         for row in range(0, rowsDays + 1):
             self.gridFrameDay.grid_rowconfigure(row, weight=1)
 
         #List to hold the created labels
-        labelsDay = [[], [], [], [], []]
+        labelsDay = [[], [], [], []]
         
         #Iterate through the rows and columns
         for row in range(0, rowsDays + 1):
-            for col in range(0, 6):
+            for col in range(0, 4):
                 #Create a labels
                 label = tkinter.Label(self.gridFrameDay, text="")
                 if row % 2 == 0:
@@ -605,16 +741,13 @@ class mainWindow(tkinter.Frame):
                 label.grid(row=row, column=col, sticky="NESW")
                 #If this is not the header row
                 if row != 0:
-                    #If this is not the day number row
-                    if col > 0:
-                        #Add the label to the list
-                        labelsDay[col - 1].append(label)
-                    else:
-                        #Add the day number to the label
-                        label.configure(text=row)
+                    #Add the label to the list
+                    labelsDay[col].append(label)
                 else:
                     #Add the header text to the label and change the font
                     label.configure(text=self.dayHeaders[col], font=self.headerFont)
+            
+            self.progress[0] = rowsHours + row + 1
 
         #Add the frame to the window of the canvas
         self.dayCanvasWindow = self.dayCanvas.create_window(0, 0, window=self.gridFrameDay, anchor="nw")

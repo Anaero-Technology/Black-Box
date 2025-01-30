@@ -8,7 +8,7 @@ To access the tools just run the mainMenu.pyw file, a menu will open giving acce
 Used to configure the ESP data logging and to download files from the ESP memory.
 Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
 If the connection is successfull, the disconnect and start buttons should activate; as well as the file system openning.
-Start is used to beigin a test and will ask for a unique file name (alphanumeric and fewer than 27 characters) after which the ESP will begin logging data.
+Start is used to beigin a test and will ask for a unique file name (alphanumeric and fewer than 27 characters) and if you want to use the gas analyser after which the ESP will begin logging data.
 Disconnect can be called at any time to terminate the connection (as long as it has power the ESP will continue to log data).
 The files will be open at all times and are refreshed whenever a new connection is made or the logging is started / stopped.
 Downloads can be performed at any time while deletes must be performed while the ESP is not logging data to prevent memory problems.
@@ -22,10 +22,12 @@ Used to combine a setup and event log file together to produce the hourly and da
 Setup and Event log files are loaded in using the buttons in the top left.
 The 'process data' button can then be pressed. The calculations are then performed, this may cause tkinter to freeze temporarily.
 Once complete the information will be displayed in the tables which an be navigated using the channel, hour and day buttons.
-Once processed data is present the 'export data' button can be pressed to save it into a .csv file.
+Once processed data is present the export data buttons can be pressed to save it into a .csv file, the whole data log, hourly data, daily data or continuous data may be exported.
+If there is any gas analysis data within the event log file the gas composition data will also be able to be exported
 
 ### Create Graphs
 Used to produce a variety of graphs from a processed information file (created by the Perform Calculations section).
+Files must be loaded from one of the following: full event log, hour log, day log or the gas log. Press the correct button and choose the file.
 Once the file has been loaded several choices can be made as to the type of graph displayed:
 Single Plot - shows one set of values for one channel, choose channel from first drop down and which value from the lower drop down.
 Compare Channels - show one set of values for two channels on the same axes. Select channels from two drop downs and value from the third.
@@ -38,8 +40,20 @@ Used to adjust the time and date settings on the ESP device.
 Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
 Either set the desired time and date manually using the arrows or check the 'System Time' box which will disable the arrows and keep the time up to date with the computer time.
 The 'Get Time From Clock' button will read the current time from the ESP clock and enter it into the input fields.
-The 'Set Clock Time' button will attempt to write the currently input time to the ESP. A message will be displayed to indicate if this was successful. 
+The 'Set Clock Time' button will attempt to write the currently input time to the ESP. A message will be displayed to indicate if this was successful.
+
+### Calibrate Gas Analyser
+Used to recalibrate the gas analyser for both methane and carbon dioxide. Requires gas analyser to be connected to gas flow meter.
+Once a connection has been made to the gas flow meter it will attempt to connect to the gas analyser. If this is successful the data and state of the analyser will be shown on screen.
+By pressing 'Calibrate CO2' or 'Calibrate CH4' the user can begin calibrating the analyser.
+Each gas sample should be connected one at a time. After each sample is connected press 'Add point' and type in the percentage of gas in the sample. After 15 seconds the data point will be added.
+Repeat for each sample, it is recommended that the percentage should increase each time, until all are added. Then press 'End Calibration' and the calculated line of best fit should appear.
+Once both have been calibrated, two lines should appear on the screen and it should say that the analyser is ready for analysis.
+The analyser uses the SD card to remember its calibration even if switched off, just make sure you finish a calibration so that it is saved.
+
+### Settings
+Used to decide which separators are used for CSV files. This applies to both imported and exported files. It is strongly recommended that you select a separator before you start working and do not change it afterwards.
+Both comma and semicolon sepeared modes are available by default but you can also enter your own pair of separators if you wish; they just have to be two different symbols.
 
 ## Future ideas or plans
 Wireless connection to ESP from laptop.
-Integration for Gas Composition Analysis.

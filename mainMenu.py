@@ -2,11 +2,11 @@ import tkinter
 from tkinter.font import Font
 from tkinter import messagebox
 import setupGUI
-#import eventLogGUI
 import dataReceiveGUI
 import processDataGUI
 import graphCreatorGUI
 import configureClockGUI
+import calibrateAnalyserGUI
 
 class settingsWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -269,7 +269,7 @@ class mainWindow(tkinter.Frame):
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         #Rows needed for this frame
-        self.numberRows = 6
+        self.numberRows = 7
         self.numberColumns = 7
 
         #Setup rows and columns
@@ -284,12 +284,12 @@ class mainWindow(tkinter.Frame):
         self.textFont = Font(size=10)
         
         #Setup each of the option buttons and add them to the correct row
-        #Setup file configuration
-        self.setupButton = tkinter.Button(self, text="Experiment Settings", command=self.openSetupWindow, font=self.buttonFont)
-        self.setupButton.grid(row=1, column=1, columnspan = 5)
         #Event log configuration
         self.eventLogButton = tkinter.Button(self, text="Connect to GFM", command=self.openCommunicationWindow, font=self.buttonFont)
         self.eventLogButton.grid(row=0, column=1, columnspan=5)
+        #Setup file configuration
+        self.setupButton = tkinter.Button(self, text="Experiment Settings", command=self.openSetupWindow, font=self.buttonFont)
+        self.setupButton.grid(row=1, column=1, columnspan = 5)
         #Performing calculations
         self.calculationsButton = tkinter.Button(self, text="Analyse Data", command=self.openCalculationsWindow, font=self.buttonFont)
         self.calculationsButton.grid(row=2, column=1, columnspan=5)
@@ -299,14 +299,16 @@ class mainWindow(tkinter.Frame):
         #Setting clock time
         self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
         self.clockButton.grid(row=4, column=1, columnspan=5)
+        #Calibrate analyser
+        self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
+        self.calibrateButton.grid(row=5, column=1, columnspan=5)
         #Quit all
         self.exitButton = tkinter.Button(self, text="Exit", command=self.closeAll, font=self.buttonFont)
-        self.exitButton.grid(row=5, column=2, columnspan=3)
+        self.exitButton.grid(row=6, column=2, columnspan=3)
 
         self.settingsImage = tkinter.PhotoImage(file="settingsIcon.png")
-
         self.settingsButton = tkinter.Button(self, image=self.settingsImage, command=self.openSettingsWindow)
-        self.settingsButton.grid(row=5, column=5)
+        self.settingsButton.grid(row=6, column=5)
 
         #Get the centre of the screen
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -318,6 +320,7 @@ class mainWindow(tkinter.Frame):
         self.graphWindow = None
         self.clockWindow = None
         self.settingsWindow = None
+        self.calibrateWindow = None
 
         self.dataReceiveTopLevel = None
     
@@ -425,7 +428,7 @@ class mainWindow(tkinter.Frame):
     def openClockWindow(self) -> None:
         '''Create a new instance of the time configuration window, or lift and focus the current one'''
         try:
-            #Attempt to lift and focus a current window (will not work if it does not exist or has been closed)
+            #Attempt to lift and focus the current window (will not work if it does not exist or has been closed)
             self.clockWindow.lift()
             self.clockWindow.focus()
         except:
@@ -439,6 +442,24 @@ class mainWindow(tkinter.Frame):
             self.clockWindow.grid_columnconfigure(0, weight=1)
             configureClockGUI.mainWindow(self.clockWindow).grid(row = 0, column=0, sticky="NESW")
             self.clockWindow.focus()
+
+    def openCalibrateWindow(self) -> None:
+        '''Create a new instance of the analyser calibration window, or lift and focus the current one'''
+        try:
+            #Attempt to lift and focus the current window (will not work if it does not exist or has been closed)
+            self.calibrateWindow.lift()
+            self.calibrateWindow.focus()
+        except:
+            #If unable to do so, create a new calibration window
+            self.calibrateWindow = tkinter.Toplevel(self.parent)
+            self.calibrateWindow.transient(self.parent)
+            self.calibrateWindow.geometry("500x600+{0}+{1}".format(int(self.screenCentre[0] - 250), int(self.screenCentre[1] - 300)))
+            self.calibrateWindow.minsize(500, 600)
+            self.calibrateWindow.title("Calibrate Gas Analyser")
+            self.calibrateWindow.grid_rowconfigure(0, weight=1)
+            self.calibrateWindow.grid_columnconfigure(0, weight=1)
+            calibrateAnalyserGUI.mainWindow(self.calibrateWindow).grid(row = 0, column=0, sticky="NESW")
+            self.calibrateWindow.focus()
 
     def openSettingsWindow(self) -> None:
         '''Create a new instance of the settings window, or lift and focus the current one'''
@@ -466,6 +487,16 @@ class mainWindow(tkinter.Frame):
             #Try to access the graphing window
             self.graphWindow.lift()
             windowsPresent = windowsPresent + 1
+        except:
+            pass
+        try:
+            self.clockWindow.lift()
+            windowsPresent = windowsPresent + 1
+        except:
+            pass
+        try:
+            self.calibrateWindow.lift()
+            windowsPresent = windowsPresent  + 1
         except:
             pass
         

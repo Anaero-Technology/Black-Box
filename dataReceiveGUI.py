@@ -151,6 +151,8 @@ class mainWindow(tkinter.Frame):
         self.downloadedCharacters = 0
         self.charactersToDownload = 0
 
+        self.currentLine = 0
+
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
         #If still waiting
@@ -322,10 +324,15 @@ class mainWindow(tkinter.Frame):
                                     allowed = False
                                     messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
-                        #If the name is allowed to be used
+                        gasAnalysis = False
+
+                        if allowed:
+                            gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
+
+                        #If the name is allowed to be used and an answer was given to gas analysis
                         if allowed:
                             self.currentFileName = "/" + fileName + ".txt"
-                            message = "start " + self.currentFileName + "\n"
+                            message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
@@ -567,6 +574,12 @@ class mainWindow(tkinter.Frame):
                     messagebox.showinfo(title="File Already Exists", message="A file with that name already exists, please choose a different name or delete the existing file.")
                 elif messageParts[2] == "nofiles":
                     messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
+                elif messageParts[2] == "noanalyser":
+                    messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
+                elif messageParts[2] == "analysercalibrating":
+                    messagebox.showinfo(title="Gas Analyser Calibrating", message="The gas analyser is currently in calibration mode, please complete calibration and try again.")
+                elif messageParts[2] == "analysernocalibration":
+                    messagebox.showinfo(title="Gas Analyser Not Calibrated", message="The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging")
@@ -590,7 +603,7 @@ class mainWindow(tkinter.Frame):
             #If this is not the start of the files
             if messageParts[1] != "start":
                 #If it is not the configuration files
-                if messageParts[1] not in ["/setup.txt", "/time.txt"]:
+                if messageParts[1] not in ["/setup.txt", "/time.txt", "/tipcount.txt"]:
                     #Add to the list
                     self.files.append(messageParts[1])
                     size = -1
@@ -622,6 +635,7 @@ class mainWindow(tkinter.Frame):
                 self.setupProgressBar(totalCharacters)
                 #No characters have been downloaded yet
                 self.downloadedCharacters = 0
+                self.currentLine = 0
             #If it is the end of a file
             elif messageParts[1] == "stop":
                 #Attempt to save the file
@@ -668,8 +682,10 @@ class mainWindow(tkinter.Frame):
                     else:
                         #Add a new line
                         self.fileDataToSave = self.fileDataToSave + "\n"
-                    
+                
+                self.currentLine = self.currentLine + 1
                 self.serialConnection.write("next\n".encode("utf-8"))
+                self.after(3000, self.reattemptNextLine, self.currentLine, 0)
 
         #If this is information regarding the memory
         if len(messageParts) > 2 and messageParts[0] == "memory":
@@ -689,6 +705,12 @@ class mainWindow(tkinter.Frame):
             except:
                 #If something went wrong (not an integer) do not update the memory
                 pass
+        
+    def reattemptNextLine(self, lineNumber, count):
+        if lineNumber == self.currentLine and self.downloading and self.serialConnection != None:
+            self.serialConnection.write("next\n".encode("utf-8"))
+            if count < 2:
+                self.after(3000, self.reattemptNextLine, self.currentLine, count + 1)
                     
     def filePressed(self, index : int) -> None:
         '''When a file is clicked on'''
@@ -740,7 +762,6 @@ class mainWindow(tkinter.Frame):
             self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
-            #self.performScan()
             self.parent.destroy()
 
     def setdownFiles(self) -> None:
