@@ -23,8 +23,8 @@ class MainWindow(tkinter.Frame):
         self.portNames = []
         self.portStates = []
         self.portObjects = []
-        self.portWifi = []
-        self.portSsids = []
+        #self.portWifi = []
+        #self.portSsids = []
 
         #The root window (of the main menu)
         self.rootWindow = rw
@@ -150,7 +150,7 @@ class MainWindow(tkinter.Frame):
         #Starting scan - prevents multiple serial connections at once
         self.midScan = True
         #Get a list of the ports
-        portObjects = list_ports.comports()
+        portObjects = list_ports.comports(include_links=True)
         portNames = []
 
         #Convert to port names
@@ -202,13 +202,15 @@ class MainWindow(tkinter.Frame):
         #Iterate through ports needing to be tested
         for port in toTest:
             #Attempt to get the port info
-            name, state, wifi, ssid = self.getPortInfo(port)
+            #name, state, wifi, ssid = self.getPortInfo(port)
+            name, state = self.getPortInfo(port)
             #If it is unknown
             if port not in self.ports:
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of known ports
-                    self.toAdd.append((port, name, state, wifi, ssid))
+                    #self.toAdd.append((port, name, state, wifi, ssid))
+                    self.toAdd.append((port, name, state))
                 else:
                     #If it is not already ignored
                     if port not in self.ignoreList:
@@ -218,7 +220,8 @@ class MainWindow(tkinter.Frame):
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of ports to be updated
-                    self.toUpdate.append((port, name, state, wifi, ssid))
+                    #self.toUpdate.append((port, name, state, wifi, ssid))
+                    self.toUpdate.append((port, name, state))
                 else:
                     #If it is not ignored
                     if port not in self.ignoreList:
@@ -258,7 +261,8 @@ class MainWindow(tkinter.Frame):
                 #If it isn't already there
                 if port[0] not in self.ports:
                     #Add the port
-                    self.addPortToList(port[0], port[1], port[2], port[3], port[4])
+                    #self.addPortToList(port[0], port[1], port[2], port[3], port[4])
+                    self.addPortToList(port[0], port[1], port[2])
             
             #Clear adding list
             self.toAdd = []
@@ -266,7 +270,8 @@ class MainWindow(tkinter.Frame):
             #Iterate through updates
             for port in self.toUpdate:
                 #Update the appropriate port
-                self.updatePortInformation(port[0], port[1], port[2], port[3], port[4])
+                #self.updatePortInformation(port[0], port[1], port[2], port[3], port[4])
+                self.updatePortInformation(port[0], port[1], port[2])
 
             #Clear update list
             self.toUpdate = []
@@ -310,8 +315,8 @@ class MainWindow(tkinter.Frame):
         connectedSuccessfully = True
         nameReceived = None
         stateReceived = None
-        wifiReceived = None
-        ssidReceived = None
+        #wifiReceived = None
+        #ssidReceived = None
 
         try:
             time.sleep(0.2)
@@ -351,23 +356,24 @@ class MainWindow(tkinter.Frame):
                                 state = msgParts[1] == "1"
 
                                 name = None
-                                wifi = None
-                                ssid = None
+                                #wifi = None
+                                #ssid = None
                                 #If there is a name - store it
                                 if len(msgParts) > 3:
                                     name = msgParts[3]
                                 #If there is wifi data - store it
-                                if len(msgParts) > 5:
-                                    wifi = msgParts[4] == "wifion"
-                                    ssid = msgParts[5]
+                                #if len(msgParts) > 5:
+                                    #wifi = msgParts[4] == "wifion"
+                                    #ssid = msgParts[5]
                                 
                                 #If there is a name
-                                if name != None and wifi != None and ssid != None:
+                                #if name != None and wifi != None and ssid != None:
+                                if name != None:
                                     #Correctly received - completed
                                     nameReceived = name
                                     stateReceived = state
-                                    wifiReceived = wifi
-                                    ssidReceived = ssid
+                                    #wifiReceived = wifi
+                                    #ssidReceived = ssid
                                     done = True
         
         #Disconnect from serial (if there is a connection)
@@ -377,12 +383,13 @@ class MainWindow(tkinter.Frame):
         #If there was data received
         if nameReceived != None and stateReceived != None:
             #Return the information (port name is already known)
-            return nameReceived, stateReceived, wifiReceived, ssidReceived
+            return nameReceived, stateReceived#, wifiReceived, ssidReceived
         
         #Failed - return Nones
-        return None, None, None, None
+        return None, None#, None, None
 
-    def addPortToList(self, portCode : str, portName : str, portState : bool, wifiState : bool, ssid : str, index = -1) -> None:
+    #def addPortToList(self, portCode : str, portName : str, portState : bool, wifiState : bool, ssid : str, index = -1) -> None:
+    def addPortToList(self, portCode : str, portName : str, portState : bool, index = -1) -> None:
         '''Add a port to the interface, if index is given that is its place in the list (used for updates)'''
         #Create frame to hold items
         portObject = tkinter.Frame(self.listGridFrame, highlightthickness=4, highlightbackground="black")
@@ -436,16 +443,16 @@ class MainWindow(tkinter.Frame):
             self.ports.append(portCode)
             self.portNames.append(portName)
             self.portStates.append(portState)
-            self.portWifi.append(wifiState)
-            self.portSsids.append(ssid)
+            #self.portWifi.append(wifiState)
+            #self.portSsids.append(ssid)
             self.portObjects.append(portObject)
         else:
             #Add the port at the given index
             self.ports[index] = portCode
             self.portNames[index] = portName
             self.portStates[index] = portState
-            self.portWifi[index] = wifiState
-            self.portSsids[index] = ssid
+            #self.portWifi[index] = wifiState
+            #self.portSsids[index] = ssid
             self.portObjects[index] = portObject
 
     def removePortFromList(self, portCode : str) -> None:
@@ -458,8 +465,8 @@ class MainWindow(tkinter.Frame):
             del self.ports[portId]
             del self.portNames[portId]
             del self.portStates[portId]
-            del self.portWifi[portId]
-            del self.portSsids[portId]
+            #del self.portWifi[portId]
+            #del self.portSsids[portId]
             #Remove the object
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
@@ -484,7 +491,8 @@ class MainWindow(tkinter.Frame):
             #Add them back to the grid
             self.portObjects[index].grid(row=index, column=0, sticky="NESW")
     
-    def updatePortInformation(self, portCode : str, portName : str, portState : bool, wifiState : bool, wifiSsid : str) -> None:
+    #def updatePortInformation(self, portCode : str, portName : str, portState : bool, wifiState : bool, wifiSsid : str) -> None:
+    def updatePortInformation(self, portCode : str, portName : str, portState : bool) -> None:
         '''Update the data of a known port'''
         #Get the id for the port (index)
         portId = self.ports.index(portCode)
@@ -493,12 +501,13 @@ class MainWindow(tkinter.Frame):
             #Change the values
             self.portNames[portId] = portName
             self.portStates[portId] = portState
-            self.portWifi[portId] = wifiState
-            self.portSsids[portId] = wifiSsid
+            #self.portWifi[portId] = wifiState
+            #self.portSsids[portId] = wifiSsid
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
             #Add the port to the list with the given position
-            self.addPortToList(portCode, portName, portState, wifiState, wifiSsid, portId)
+            #self.addPortToList(portCode, portName, portState, wifiState, wifiSsid, portId)
+            self.addPortToList(portCode, portName, portState, portId)
 
     def readSerial(self) -> None:
         '''Read the incoming characters from the serial connection'''
