@@ -3,10 +3,11 @@ from tkinter.font import Font
 from tkinter import messagebox
 import matplotlib.pyplot as plt
 from threading import Thread
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial
 from serial.tools import list_ports
+import os
+import pathlib
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -42,7 +43,7 @@ class MainWindow(tkinter.Frame):
         self.connectButton = tkinter.Button(self, text="Connect", command=self.connectPressed)
         self.connectButton.grid(row=0, column=2, sticky="NESW")
 
-        self.channelData = [[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []],[[], []]]
+        self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
         self.figure, ((ax1, ax2, ax3, ax4, ax5), (ax6, ax7, ax8, ax9, ax10), (ax11, ax12, ax13, ax14, ax15)) = plt.subplots(3, 5)
         self.axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, ax13, ax14, ax15]
@@ -51,23 +52,46 @@ class MainWindow(tkinter.Frame):
             #self.axs[channelNumber].set_xticks([])
             #self.axs[channelNumber].set_yticks([])
             self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
-            self.axs[channelNumber].plot(self.channelData[channelNumber][0], self.channelData[channelNumber][1], "-")
+            self.axs[channelNumber].label_outer()
+            self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+            #self.axs[channelNumber].plot(self.channelData[channelNumber][0], self.channelData[channelNumber][1], "-")
         self.canvas = FigureCanvasTkAgg(figure=self.figure, master=self)
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, rowspan=7, columnspan=3, sticky="NESW")
 
+        self.fileName = "Unnamed.txt"
+       # self.loadPrevious()
+
+        self.timesTried = 0
+        self.timeoutAttempts = 10
+
+        self.scanLoop = None
         self.performScan()
 
         self.updatePlots()
 
-    def updatePlots(self):
+    def clearPlots(self):
         for channelNumber in range(0, 15):
             self.axs[channelNumber].clear()
             self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1))
-            #self.axs[channelNumber].set_xticks([])
-            #self.axs[channelNumber].set_yticks([])
             self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
-            self.axs[channelNumber].plot(self.channelData[channelNumber][0], self.channelData[channelNumber][1], "-")
+            self.axs[channelNumber].label_outer()
+            self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+
+    def updatePlots(self):
+        print(self.channelData)
+        for channelNumber in range(0, 15):
+            self.axs[channelNumber].clear()
+            self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1))
+            self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
+            self.axs[channelNumber].plot([n for n in range(0, len(self.channelData[channelNumber]))], self.channelData[channelNumber], "-")
+            self.axs[channelNumber].label_outer()
+            self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+        self.canvas.draw()
+
     
     def connectPressed(self) -> None:
         '''Attempt to connect to selected port'''
@@ -91,7 +115,6 @@ class MainWindow(tkinter.Frame):
                     self.connectButton.configure(text="Disconnect", command=self.disconnectPressed)
                     self.connected = True
                     self.portOption.configure(state="disabled")
-                    self.openPortLabel.configure(text="Port " + self.connectedPort)
                     #Do not allow action if waiting
                     self.awaiting = True
                     self.timesTried = 0
@@ -110,13 +133,42 @@ class MainWindow(tkinter.Frame):
                     self.connected = False
                     #Allow for connect to be pressed and disable disconnect
                     self.portOption.configure(state="normal")
-                    self.toggleButton.configure(state="disabled", text="No Port")
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
                     messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
                     self.performScan()
+
+    def checkConnection(self) -> None:
+        '''Check if a connection has been made repeatedly until timeout'''
+        #If still waiting
+        if self.awaitingCommunication:
+            #If timeout has been reached or exceeded
+            if self.timesTried >= self.timeoutAttempts:
+                #Close the connection and reset the buttons
+                self.serialConnection.close()
+                self.serialConnection = None
+                self.connected = False
+                self.awaiting = False
+                self.awaitingCommunication = False
+                self.connectButton.configure(text="Connect", command=self.connectPressed)
+                self.portOption.configure(state="normal")
+                #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
+                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
+                self.performScan()
+            else:
+                #Increment timeout
+                self.timesTried = self.timesTried + 1
+                #Test again in .5 seconds
+                self.after(500, self.checkConnection)
     
+    def sendInfoRequest(self) -> None:
+        '''Send the initial request for communication (in function so that it can be delayed)'''
+        #If there is a connection
+        if self.connected and self.serialConnection != None:
+            #Send the information request
+            self.serialConnection.write("info\n".encode("utf-8"))
+
     def performScan(self, target = None) -> None:
         '''Perform a scan of available ports and update option list accordingly'''
         if not self.connected:
@@ -175,7 +227,9 @@ class MainWindow(tkinter.Frame):
                         self.selectedPort.set(self.portLabels[0])
             
             #Scan again shortly
-            self.after(150, self.performScan)
+            self.scanLoop = self.after(150, self.performScan)
+        else:
+            self.scanLoop = ""
 
     def readSerial(self) -> None:
         '''While connected repeatedly read information from serial connection'''
@@ -217,8 +271,6 @@ class MainWindow(tkinter.Frame):
                     self.setdownFiles()
                 self.connectButton.configure(text="Connect", command=self.connectPressed)
                 self.portOption.configure(state="normal")
-                self.toggleButton.configure(state="disabled", text="No Port")
-                self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when device unplugged)
                 messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
                 self.performScan()
@@ -244,7 +296,15 @@ class MainWindow(tkinter.Frame):
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
-        if len(messageParts) > 1 and messageParts[0] == "info":
+        if len(messageParts) > 3 and messageParts[0] == "info":
+
+            name = messageParts[3]
+            if name != "":
+                self.fileName = name.replace("\r", "",) + ".txt"
+            else:
+                self.fileName = "Unnamed.txt"
+            print("Loading previous data")
+            self.loadPrevious()
 
             #If waiting for the response from the device
             if self.awaitingCommunication:
@@ -256,10 +316,51 @@ class MainWindow(tkinter.Frame):
             #No longer waiting for a response
             self.awaiting = False
         
-        if len(messageParts) > 1 and messageParts[0] == "Event":
-            channel = messageParts[4]
-
-    
+        if len(messageParts) > 15 and messageParts[0] == "counts":
+            newValues = []
+            stringValues = []
+            for i in range(1, 16):
+                value = 0
+                try:
+                    value = int(messageParts[i])
+                except:
+                    pass
+                newValues.append(value)
+                stringValues.append(str(value))
+            for i in range(0, 15):
+                try:
+                    self.channelData[i].append(newValues[i])
+                except:
+                    self.channelData[i].append(0)
+            filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
+            if not os.path.isfile(os.path.join(filePath, self.fileName)):
+                pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
+            dataFile = open(os.path.join(filePath, self.fileName), "a")
+            dataFile.write(" ".join(stringValues) + "\n")
+            self.updatePlots()
+        
+    def loadPrevious(self):
+        self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+        filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
+        if os.path.isfile(os.path.join(filePath, self.fileName)):
+            past = open(os.path.join(filePath, self.fileName), "r")
+            data = past.read()
+            past.close()
+            lines = data.split("\n")
+            for line in lines:
+                items = line.split(",")
+                for i in range(0, len(items)):
+                    if i < 15:
+                        try:
+                            self.channelData[i].append(int(items[i]))
+                        except:
+                            self.channelData[i].append(0)
+        else:
+            pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
+            past = open(os.path.join(filePath, self.fileName), "w")
+            past.close()
+        self.updatePlots()
+            
     def disconnectPressed(self) -> None:
         '''Close connection to port'''
         #If there is a connection and there is not data to be recieved
@@ -273,17 +374,18 @@ class MainWindow(tkinter.Frame):
             self.connected = False
             self.connectButton.configure(text="Connect", command=self.connectPressed)
             self.portOption.configure(state="normal")
-            self.toggleButton.configure(state="disabled", text="No Port")
-            #self.openFilesButton.configure(state="disabled", text="No Port")
-            self.openPortLabel.configure(text="Not Connected")
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
+            self.parent.quit()
             self.parent.destroy()
 
     def closeWindow(self):
+        if self.scanLoop != None:
+            self.after_cancel(self.scanLoop)
         if self.connected and self.serialConnection != None:
             self.disconnectPressed()
         else:
+            self.parent.quit()
             self.parent.destroy()
 
 #Only run if this is the main module being run
