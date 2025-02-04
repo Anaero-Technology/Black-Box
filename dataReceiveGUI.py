@@ -7,6 +7,7 @@ from serial.tools import list_ports
 from threading import Thread
 import readSeparators
 import datetime
+import os, pathlib
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -154,6 +155,8 @@ class MainWindow(tkinter.Frame):
         self.charactersToDownload = 0
 
         self.currentLine = 0
+
+        self.deviceName = ""
 
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
@@ -353,6 +356,7 @@ class MainWindow(tkinter.Frame):
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
+                            self.clearTipCounterFile()
         else:
             #If no connection present - display error message (Outside case but catches errors)
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
@@ -529,6 +533,11 @@ class MainWindow(tkinter.Frame):
                 #Set UI to state for allowing starting / interrogating
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging", state="normal", fg=self.blackTextColour)
+
+            if len(messageParts) > 3:
+                self.deviceName = messageParts[3]
+            else:
+                self.deviceName = ""
             
             #No longer waiting for a response
             self.awaiting = False
@@ -797,6 +806,16 @@ class MainWindow(tkinter.Frame):
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
             self.parent.destroy()
+
+    def clearTipCounterFile(self):
+        filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
+        fileName = "unamed.txt"
+        if self.deviceName != "":
+            fileName = self.deviceName + ".txt"
+        if not os.path.isFile(os.path.join(filePath, fileName)):
+            pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
+        dataFile = open(os.path.join(filePath, fileName), "w")
+        dataFile.close()
 
     def setdownFiles(self) -> None:
         '''Remove all file buttons from scroll section'''
