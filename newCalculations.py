@@ -215,7 +215,7 @@ def performGeneralCalculations(setupData, eventData, progress):
             dayArray.append([channelId + 1, setup["names"][channelId], timestamp, d, 0, 0, setup["inUse"][channelId], day["tips"][channelId], round(day["volumeSTP"][channelId], 3), round(day["volumeNet"][channelId], 3), round(totalNetVolume[channelId], 3), round(totalVolume[channelId], 3)])
     
     #Add text headers
-    eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g)"])
+    eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)"])
     hourArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     dayArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Day", "Volume This Day at STP (ml)", "Net Volume This Day (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     setupArray = [setup["names"], setup["inUse"], setup["inoculumOnly"], setup["inoculumMass"], setup["sampleMass"], setup["tumblerVolume"]]
