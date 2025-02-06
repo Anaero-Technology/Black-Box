@@ -6,8 +6,6 @@ from threading import Thread
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial
 from serial.tools import list_ports
-import os
-import pathlib
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -60,11 +58,10 @@ class MainWindow(tkinter.Frame):
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, rowspan=7, columnspan=3, sticky="NESW")
 
-        self.fileName = "Unnamed.txt"
-       # self.loadPrevious()
-
         self.timesTried = 0
         self.timeoutAttempts = 10
+
+        self.gettingData = False
 
         self.scanLoop = None
         self.performScan()
@@ -80,16 +77,24 @@ class MainWindow(tkinter.Frame):
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
 
-    def updatePlots(self):
-        print(self.channelData)
+    def updatePlots(self):  
+        most = 5
         for channelNumber in range(0, 15):
+            if len(self.channelData[channelNumber]) > 0:
+                most = max(most, max(self.channelData[channelNumber]))
+        
+        for channelNumber in range(0, 15):
+            last = 0
+            if len(self.channelData[channelNumber]) > 0:
+                last = self.channelData[channelNumber][-1]
             self.axs[channelNumber].clear()
-            self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1))
+            self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1) + "(" + str(last) + " Tip(s))", fontsize=10)
             self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
             self.axs[channelNumber].plot([n for n in range(0, len(self.channelData[channelNumber]))], self.channelData[channelNumber], "-")
             self.axs[channelNumber].label_outer()
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].set_ylim(0, most)
         self.canvas.draw()
 
     
@@ -292,19 +297,11 @@ class MainWindow(tkinter.Frame):
 
     def messageReceived(self, message):
         #DEBUG display the message
-        print(message)
+        #print(message)
         #Split up the message into parts on spaces
         messageParts = message.split(" ")
         #If this is the information about the state of the esp32
         if len(messageParts) > 3 and messageParts[0] == "info":
-
-            name = messageParts[3]
-            if name != "":
-                self.fileName = name.replace("\r", "",) + ".txt"
-            else:
-                self.fileName = "Unnamed.txt"
-            print("Loading previous data")
-            self.loadPrevious()
 
             #If waiting for the response from the device
             if self.awaitingCommunication:
@@ -312,13 +309,19 @@ class MainWindow(tkinter.Frame):
                 self.awaitingCommunication = False
                 #Display connected message
                 messagebox.showinfo(title="Success", message="Connected to port successfully.")
+                #if messageParts[1] == "1":
+                self.serialConnection.write("getHourly\n".encode("utf-8"))
+                #else:
+                    #Display not logging message
+                    #messagebox.showinfo(title="No Data", message="Device is not currently logging.")
+                
+                
             
             #No longer waiting for a response
             self.awaiting = False
         
         if len(messageParts) > 15 and messageParts[0] == "counts":
             newValues = []
-            stringValues = []
             for i in range(1, 16):
                 value = 0
                 try:
@@ -326,41 +329,32 @@ class MainWindow(tkinter.Frame):
                 except:
                     pass
                 newValues.append(value)
-                stringValues.append(str(value))
             for i in range(0, 15):
                 try:
                     self.channelData[i].append(newValues[i])
                 except:
                     self.channelData[i].append(0)
-            filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
-            if not os.path.isfile(os.path.join(filePath, self.fileName)):
-                pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
-            dataFile = open(os.path.join(filePath, self.fileName), "a")
-            dataFile.write(" ".join(stringValues) + "\n")
             self.updatePlots()
         
-    def loadPrevious(self):
-        self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
-        filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
-        if os.path.isfile(os.path.join(filePath, self.fileName)):
-            past = open(os.path.join(filePath, self.fileName), "r")
-            data = past.read()
-            past.close()
-            lines = data.split("\n")
-            for line in lines:
-                items = line.split(",")
-                for i in range(0, len(items)):
-                    if i < 15:
+        if len(messageParts) > 1 and messageParts[0] == "tipfile":
+            if messageParts[1] == "start":
+                self.gettingData = True
+                self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+            if messageParts[1] == "done":
+                self.gettingData = False
+                self.updatePlots()
+            else:
+                if self.gettingData and len(messageParts) > 15:
+                    for i in range(0, 15):
                         try:
-                            self.channelData[i].append(int(items[i]))
+                            self.channelData[i].append(int(messageParts[i + 1]))
                         except:
-                            self.channelData[i].append(0)
+                            self.channelData[i].append(-1)
         else:
-            pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
-            past = open(os.path.join(filePath, self.fileName), "w")
-            past.close()
-        self.updatePlots()
-            
+            if self.gettingData:
+                self.gettingData = False
+                self.serialConnection.write("getHourly\n".encode("utf-8"))
+
     def disconnectPressed(self) -> None:
         '''Close connection to port'''
         #If there is a connection and there is not data to be recieved
@@ -380,8 +374,10 @@ class MainWindow(tkinter.Frame):
             self.parent.destroy()
 
     def closeWindow(self):
-        if self.scanLoop != None:
+        try:
             self.after_cancel(self.scanLoop)
+        except:
+            pass
         if self.connected and self.serialConnection != None:
             self.disconnectPressed()
         else:
