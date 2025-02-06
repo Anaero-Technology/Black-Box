@@ -87,8 +87,8 @@ def performGeneralCalculations(setupData, eventData, progress):
             if setup["inUse"][channelId]:
                 #Get the time, temperature and pressure
                 eventTime = int(float(event[2]))
-                temperatureK = float(event[4])
-                temperatureC = temperatureK + 273
+                temperatureC = float(event[4])
+                temperatureK = temperatureK + 273
                 pressure = float(event[5])
 
                 #Find the time as parts
@@ -108,7 +108,7 @@ def performGeneralCalculations(setupData, eventData, progress):
                     hours.append({"tips" : [0] * 15, "volumeSTP" : [0.0] * 15, "volumeNet" : [0.0] * 15})
 
                 #Calculate the volume for the tip
-                eventVolume = setup["gasConstants"][channelId] * (pressure / temperatureC)
+                eventVolume = setup["gasConstants"][channelId] * (pressure / temperatureK)
 
                 #Add tip to overall, day and hour as well as the volume for each
                 overall["tips"][channelId] = overall["tips"][channelId] + 1
