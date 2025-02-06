@@ -356,7 +356,6 @@ class MainWindow(tkinter.Frame):
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             self.awaiting = True
-                            self.clearTipCounterFile()
         else:
             #If no connection present - display error message (Outside case but catches errors)
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
@@ -806,16 +805,6 @@ class MainWindow(tkinter.Frame):
             #Display message to indicate that the connection has been closed
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
             self.parent.destroy()
-
-    def clearTipCounterFile(self):
-        filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "TipCounts")
-        fileName = "unamed.txt"
-        if self.deviceName != "":
-            fileName = self.deviceName + ".txt"
-        if not os.path.isFile(os.path.join(filePath, fileName)):
-            pathlib.Path(filePath).mkdir(parents=True, exist_ok=True)
-        dataFile = open(os.path.join(filePath, fileName), "w")
-        dataFile.close()
 
     def setdownFiles(self) -> None:
         '''Remove all file buttons from scroll section'''
