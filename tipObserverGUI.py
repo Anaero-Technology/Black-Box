@@ -13,21 +13,29 @@ class MainWindow(tkinter.Frame):
         #Setup parent configuration
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
+        
+        #Number of internal rows and columns
         self.numRows = 8
         self.numColumns = 3
 
+        #Create the rows and columns so the children are laid out right
         for row in range(0, self.numRows):
             self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numColumns):
             self.grid_columnconfigure(col, weight=1)
 
+        #If a device is connected
         self.connected = False
+        #Connection object
         self.serialConnection = None
+        #If waiting for a response
         self.awaiting = False
+        #If waiting for the first response
         self.awaitingCommunication = False
+        #List to contain port label names for the names on the drop down
         self.portLabels = []
 
+        #Current message being received and list of previously received but unprocessed messages
         self.currentMessage = ""
         self.receivedMessages = []
 
@@ -41,63 +49,75 @@ class MainWindow(tkinter.Frame):
         self.connectButton = tkinter.Button(self, text="Connect", command=self.connectPressed)
         self.connectButton.grid(row=0, column=2, sticky="NESW")
 
+        #2D list of data for each channel, each value represents and hours total tips
         self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
+        #Set up 3 by 5 grid of plots and store figure and axes objects
         self.figure, ((ax1, ax2, ax3, ax4, ax5), (ax6, ax7, ax8, ax9, ax10), (ax11, ax12, ax13, ax14, ax15)) = plt.subplots(3, 5)
+        #Arrange axes into channel id indexed list
         self.axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, ax13, ax14, ax15]
+        #For each of the channels
         for channelNumber in range(0, 15):
+            #Set the name of the plot
             self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1))
-            #self.axs[channelNumber].set_xticks([])
-            #self.axs[channelNumber].set_yticks([])
+            #draw the horizontal axis line
             self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
+            #Use only the outside markers for positions
             self.axs[channelNumber].label_outer()
+            #Integer positions only
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
-            #self.axs[channelNumber].plot(self.channelData[channelNumber][0], self.channelData[channelNumber][1], "-")
+        #Create the canvas to hold the graphs, draw it and place the widget in the frame
         self.canvas = FigureCanvasTkAgg(figure=self.figure, master=self)
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, rowspan=7, columnspan=3, sticky="NESW")
 
+        #Timeout variables
         self.timesTried = 0
         self.timeoutAttempts = 10
 
+        #If receiving data from the device
         self.gettingData = False
 
+        #Start scanning for available ports
         self.scanLoop = None
         self.performScan()
 
+        #Redraw the plots correctly
         self.updatePlots()
 
-    def clearPlots(self):
-        for channelNumber in range(0, 15):
-            self.axs[channelNumber].clear()
-            self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1))
-            self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
-            self.axs[channelNumber].label_outer()
-            self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
-            self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
-
-    def updatePlots(self):  
+    def updatePlots(self) -> None:
+        '''Change the data in the plots to show the most recent data'''
+        #Variable which stores the y limit so the graphs can be scaled correctly
         most = 5
+        #Check channel data for each value and find the maximum - otherwise 5 is used
         for channelNumber in range(0, 15):
             if len(self.channelData[channelNumber]) > 0:
                 most = max(most, max(self.channelData[channelNumber]))
         
+        #Iterate each graph
         for channelNumber in range(0, 15):
             last = 0
+            #Get the most recent value from the data, if there is one
             if len(self.channelData[channelNumber]) > 0:
                 last = self.channelData[channelNumber][-1]
+            #Clear the axes
             self.axs[channelNumber].clear()
+            #Change the title to include the most recent value
             self.axs[channelNumber].set_title("Channel " + str(channelNumber + 1) + "(" + str(last) + " Tip(s))", fontsize=10)
+            #Redraw X axis line, in black
             self.axs[channelNumber].axhline(y=0, color="k", linewidth=0.5)
+            #Plot the data
             self.axs[channelNumber].plot([n for n in range(0, len(self.channelData[channelNumber]))], self.channelData[channelNumber], "-")
+            #Adjust where the ticks appear and how many
             self.axs[channelNumber].label_outer()
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+            #Set the y axis limit to be the same for all the graphs
             self.axs[channelNumber].set_ylim(0, most)
+        #Update the display so changes appear on the screen
         self.canvas.draw()
 
-    
     def connectPressed(self) -> None:
         '''Attempt to connect to selected port'''
         #If a connection does not already exist
@@ -320,38 +340,59 @@ class MainWindow(tkinter.Frame):
             #No longer waiting for a response
             self.awaiting = False
         
+        #If this is a message about the number of tips this hour
         if len(messageParts) > 15 and messageParts[0] == "counts":
+            #List to hold integer versions of each value
             newValues = []
+            #For each channel
             for i in range(1, 16):
+                #Default value
                 value = 0
+                #Attempt to convert to integer
                 try:
                     value = int(messageParts[i])
                 except:
                     pass
+                #Add the value to the list
                 newValues.append(value)
+            #For each channel
             for i in range(0, 15):
+                #Attempt to add the value to the data set
                 try:
                     self.channelData[i].append(newValues[i])
                 except:
+                    #If it failed default to 0 - this happens when the list is not long enough
                     self.channelData[i].append(0)
+            #Redraw the graphs so the new data points are shown
             self.updatePlots()
         
+        #If this is part of the file information containing the tip data
         if len(messageParts) > 1 and messageParts[0] == "tipfile":
+            #If this is the beginning of the file
             if messageParts[1] == "start":
+                #Start receiving and clear stored data
                 self.gettingData = True
                 self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+            #If this is the end of the file
             if messageParts[1] == "done":
+                #Stop receiving data and update the display
                 self.gettingData = False
                 self.updatePlots()
             else:
+                #If data is being received and it is a valid line
                 if self.gettingData and len(messageParts) > 15:
+                    #Go through for each of the channels
                     for i in range(0, 15):
                         try:
+                            #Convert to integer and store
                             self.channelData[i].append(int(messageParts[i + 1]))
                         except:
+                            #If an error occurred store a negative number so it is clearly a data error
                             self.channelData[i].append(-1)
         else:
+            #If expecting more data about tips, but didn't get it
             if self.gettingData:
+                #Reset and ask again
                 self.gettingData = False
                 self.serialConnection.write("getHourly\n".encode("utf-8"))
 
