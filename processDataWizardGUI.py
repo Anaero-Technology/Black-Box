@@ -1,11 +1,15 @@
 import tkinter
 import tkinter.ttk as Ttk
+from tkinter.ttk import Style
 from tkinter import filedialog
 from tkinter import messagebox
 import readSetup
 import readSeparators
 import os, sys
 import setupGUI
+from threading import Thread
+import newCalculations
+import createSetup
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -15,10 +19,12 @@ class MainWindow(tkinter.Frame):
         self.parent = parent
 
         #Grid dimensions for main window
-        self.numberRows = 11
-        self.numberColumns = 4
+        self.numberRows = 16
+        self.numberColumns = 5
 
         self.loading = False
+        self.processing = False
+        self.saving = False
 
         for row in range(0, self.numberRows):
             self.grid_rowconfigure(row, weight=1)
@@ -36,28 +42,41 @@ class MainWindow(tkinter.Frame):
         self.red = "#DD0000"
         self.green = "#00DD00"
 
+        self.eventLog = None
+        self.hourLog = None
+        self.dayLog = None
+        self.continuousLog = None
+
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
+
+        #Allowed file types and extensions
+        self.fileTypes = [("CSV Files", "*.csv")]
 
         self.tabSetupFile = tkinter.Label(self, text="Select Setup File", relief="raised")
         self.onColour = self.tabSetupFile.cget("bg")
         self.offColour = "#999999"
         self.tabEventFile = tkinter.Label(self, text="Select Event File", relief="sunken", bg=self.offColour)
         self.tabProcessing = tkinter.Label(self, text="Processing Data...", relief="sunken", bg=self.offColour)
+        self.tabPreview = tkinter.Label(self, text="Preview Results", relief="sunken", bg=self.offColour)
         self.tabDownload = tkinter.Label(self, text="Save Results", relief="sunken", bg=self.offColour)
 
         self.tabSetupFile.grid(row=0, column=0, sticky="NESW")
         self.tabEventFile.grid(row=0, column=1, sticky="NESW")
         self.tabProcessing.grid(row=0, column=2, sticky="NESW")
-        self.tabDownload.grid(row=0, column=3, sticky="NESW")
+        self.tabPreview.grid(row=0, column=3, sticky="NESW")
+        self.tabDownload.grid(row=0, column=4, sticky="NESW")
 
         self.viewWindow = tkinter.Frame(self)
-        self.viewWindow.grid(row=1, column=0, rowspan=10, columnspan=4, sticky="NESW")
+        self.viewWindow.grid(row=1, column=0, rowspan=15, columnspan=5, sticky="NESW")
 
         self.viewWindow.grid_rowconfigure(0, weight=1)
         self.viewWindow.grid_columnconfigure(0, weight=1)
 
         self.downloadWindow = tkinter.Frame(self.viewWindow)
         self.downloadWindow.grid(row=0, column=0, sticky="NESW")
+
+        self.previewWindow = tkinter.Frame(self.viewWindow)
+        self.previewWindow.grid(row=0, column=0, sticky="NESW")
 
         self.processingWindow = tkinter.Frame(self.viewWindow)
         self.processingWindow.grid(row=0, column=0, sticky="NESW")
@@ -67,11 +86,7 @@ class MainWindow(tkinter.Frame):
 
         self.setupWindow = tkinter.Frame(self.viewWindow)
         self.setupWindow.grid(row=0, column=0, sticky="NESW")
-        
-        self.columns = []
-        self.data = []
-        self.channelColumn = -1
-        self.channelList = []
+    
         
         rowWeights = [4, 2, 1, 1, 2, 1, 4]
         for row in range(0, 7):
@@ -110,175 +125,108 @@ class MainWindow(tkinter.Frame):
 
         self.eventButtonsFrame = tkinter.Frame(self.eventWindow)
         self.eventButtonsFrame.grid(row=4, column=0, sticky="NESW")
-        self.eventBackButton = tkinter.Button(self.eventButtonsFrame, text="Back", font=("", 16), command=self.nextPressedSetup, state="disabled")
-        self.eventNextButton = tkinter.Button(self.eventButtonsFrame, text="Next", font=("", 16), command=self.nextPressedSetup, state="disabled")
+        self.eventBackButton = tkinter.Button(self.eventButtonsFrame, text="Back", font=("", 16), command=self.backPressedEvent)
+        self.eventNextButton = tkinter.Button(self.eventButtonsFrame, text="Next", font=("", 16), command=self.nextPressedEvent, state="disabled")
         self.eventBackButton.pack(side="left", anchor="s")
         self.eventNextButton.pack(side="right", anchor="s")
 
-        self.processingWindow.grid_rowconfigure(0, weight=1)
-        self.processingWindow.grid_rowconfigure(1, weight=10)
-        self.processingWindow.grid_rowconfigure(2, weight=1)
-        self.processingWindow.grid_columnconfigure(0, weight=1)
+        rowWeights = [4, 1, 1, 1, 2, 4]
+        for row in range(0, len(rowWeights)):
+            self.processingWindow.grid_rowconfigure(row, weight=rowWeights[row])
+        for col in range(0, 12):
+            self.processingWindow.grid_columnconfigure(col, weight=1)
 
-        self.linesInstruction = tkinter.Label(self.processingWindow, text="Add lines to be plotted on the graph", font=("", 16))
-        self.linesInstruction.grid(row=0, column=0, sticky="NESW")
+        self.progress = [0, 100, "Processing data..."]
+        self.needToUpdateDisplay = False
 
+        #Get the style object for the parent window
+        self.styles = Style(self.parent)
+        #Create layout for progress bar with a label
+        self.styles.layout("ProgressbarLabeled", [("ProgressbarLabeled.trough", {"children": [("ProgressbarLabeled.pbar", {"side": "left", "sticky": "NS"}), ("ProgressbarLabeled.label", {"sticky": ""})], "sticky": "NESW"})])
+        #Set the bar colour of the progress bar
+        self.styles.configure("ProgressbarLabeled", background="lightgreen", text="Processing: 0%")
 
-        self.itemFrame = tkinter.Frame(self.processingWindow)
-        self.itemFrame.grid(row=1, column=0, sticky="NESW")
+        #Create a progress bar
+        self.progressBar = Ttk.Progressbar(self.processingWindow, orient="horizontal", mode="determinate", maximum=100.0, style="ProgressbarLabeled")
+        self.progressBar.grid(row=1, column=1, columnspan=10, sticky="EW")
 
-        #Create canvas and scroll bar
-        self.itemCanvas = tkinter.Canvas(self.itemFrame)
-        self.itemScroll = tkinter.Scrollbar(self.itemFrame, orient="vertical", command=self.itemCanvas.yview)
+        self.processingLabel = tkinter.Label(self.processingWindow, text="Processing event data with setup file. This may take some time depending on the experiment duration.")
+        self.processingLabel.grid(row=2, column=1, columnspan=10)
 
-        self.itemScroll.pack(side="right", fill="y")
-        self.itemCanvas.pack(side="left", expand=True, fill="both")
+        self.processingButtonsFrame = tkinter.Frame(self.processingWindow)
+        self.processingButtonsFrame.grid(row=5, column=0, columnspan=12, sticky="NESW")
+        self.processingBackButton = tkinter.Button(self.processingButtonsFrame, text="Back", font=("", 16), command=self.backPressedProcessing, state="disabled")
+        self.processingNextButton = tkinter.Button(self.processingButtonsFrame, text="Next", font=("", 16), command=self.nextPressedProcessing, state="disabled")
+        self.processingBackButton.pack(side="left", anchor="s")
+        self.processingNextButton.pack(side="right", anchor="s")
 
-        #Create frame that holds scrolling contents
-        self.internalItemFrame = tkinter.Frame(self.itemCanvas)
-        self.internalItemFrame.grid_columnconfigure(0, weight=1)
-        self.internalItemFrame.grid_rowconfigure(0, minsize=100)
+        rowWeights=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4]
+        for row in range(0, len(rowWeights)):
+            self.previewWindow.grid_rowconfigure(row, weight=rowWeights[row])
+        for col in range(0, 4):
+            self.previewWindow.grid_columnconfigure(col, weight=1)
 
-        #Create frame containing add buttons
-        self.addLineFrame = tkinter.Frame(self.internalItemFrame)
-        for i in range(0, 4):
-            self.addLineFrame.grid_rowconfigure(i, weight=1)
-            self.addLineFrame.grid_columnconfigure(i, weight=1)
-        #Add buttons to add files
-        self.addLineButton = tkinter.Button(self.addLineFrame, text="+ Add Line", command=self.addLine, fg="#00DD00", relief="ridge", bg="#FFFFFF", font=("", 16))
-        #Add to grid
-        self.addLineButton.grid(row=1, column=1, rowspan=2, columnspan=2, sticky="NESW")
-        self.addLineFrame.grid(row=0, column=0, sticky="NESW")
+        titles = ["Channel", "Total Tips", "Total Volume (ml)", "Net Volume (ml/gVs)"]
+        self.headLabels = []
+        for head in range(0, len(titles)):
+            l = tkinter.Label(self.previewWindow, text=titles[head], bg="lightblue")
+            l.grid(row=0, column=head, sticky="NESW")
+            self.headLabels.append(l)
+        self.previewLabels = [[], [], [], []]
+        for channel in range(0, 15):
+            channelNameLabel = tkinter.Label(self.previewWindow, text="Channel {0}".format(channel + 1), bg="lightgreen")
+            channelTipLabel = tkinter.Label(self.previewWindow, text="0")
+            channelVolumeLabel = tkinter.Label(self.previewWindow, text="0")
+            channelNetVolumeLabel = tkinter.Label(self.previewWindow, text="0")
+            channelNameLabel.grid(row=channel + 1, column=0, sticky="NESW")
+            channelTipLabel.grid(row=channel + 1, column=1, sticky="NESW")
+            channelVolumeLabel.grid(row=channel + 1, column=2, sticky="NESW")
+            channelNetVolumeLabel.grid(row=channel + 1, column=3, sticky="NESW")
+            self.previewLabels[0].append(channelNameLabel)
+            self.previewLabels[1].append(channelTipLabel)
+            self.previewLabels[2].append(channelVolumeLabel)
+            self.previewLabels[3].append(channelNetVolumeLabel)
 
-        #Create scrolling canvas window
-        self.itemCanvasWindow = self.itemCanvas.create_window(0, 0, window=self.internalItemFrame, anchor="nw")
-
-        #Setup the resizing commands on the canvas and frame
-        self.internalItemFrame.bind("<Configure>", self.onFrameConfigure)
-        self.itemCanvas.bind("<Configure>", self.frameWidth)
-        self.frameWidth(None)
-
-        #Update the initial size on the canvas (so it looks correct on first load)
-        self.itemCanvas.update_idletasks()
-
-        #Add enter and leave mousewheel binding so it can be scrolled
-        self.internalItemFrame.bind("<Enter>", self.bindMouseWheel)
-        self.internalItemFrame.bind("<Leave>", self.unbindMouseWheel)
+        self.previewButtonsFrame = tkinter.Frame(self.previewWindow)
+        self.previewButtonsFrame.grid(row=17, column=0, columnspan=12, sticky="NESW")
+        self.previewBackButton = tkinter.Button(self.previewButtonsFrame, text="Back", font=("", 16), command=self.backPressedPreview)
+        self.previewNextButton = tkinter.Button(self.previewButtonsFrame, text="Next", font=("", 16), command=self.nextPressedPreview)
+        self.previewBackButton.pack(side="left", anchor="s")
+        self.previewNextButton.pack(side="right", anchor="s")
         
-        #Setup bounding box and scroll region so the scrolling works correctly
-        self.itemCanvas.configure(scrollregion=self.itemCanvas.bbox("all"), yscrollcommand=self.itemScroll.set)
-        
-
-
-        self.linesButtons = tkinter.Frame(self.processingWindow)
-        self.linesButtons.grid(row=2, column=0, sticky="NESW")
-
-        self.linesBackButton = tkinter.Button(self.linesButtons, text="Back", font=("", 16), command=lambda x = 1: self.moveWindows(x))
-        self.linesBackButton.pack(side="left", anchor="s")
-
-        self.linesNextButton = tkinter.Button(self.linesButtons, text="Next", font=("", 16), command=self.showGraph)
-        self.linesNextButton.pack(side="right", anchor="s")
-
-        #Allowed file types and extensions
-        self.fileTypes = [("CSV Files", "*.csv")]
-
-        self.lines = {}
-
-        self.addingLine = True
-        self.currentLineName = ""
-
-        self.lineEditWindow = tkinter.Toplevel(self)
-        self.lineEditWindow.minsize(500, 400)
-        self.lineEditWindow.maxsize(500, 400)
-        self.lineEditWindow.resizable(False, False)
-        self.lineEditWindow.title("Line Customisation Options")
-        self.lineEditWindow.protocol("WM_DELETE_WINDOW", self.lineCancelPressed)
-        self.lineEditWindow.transient(self.parent)
-
-        self.lineEditNameFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditNameLabel = tkinter.Label(self.lineEditNameFrame, text="Line Name:", font=("", 16))
-        self.nameInputVar = tkinter.StringVar()
-        self.lineEditNameInput = tkinter.Entry(self.lineEditNameFrame, textvariable=self.nameInputVar, font=("", 16))
-        self.lineEditNameLabel.pack(side="left")
-        self.lineEditNameInput.pack(side="left")
-        self.lineEditNameFrame.pack(expand="true")
-
-        self.currentColour = "#FF0000"
-
-        self.lineEditColourFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditColourButton = tkinter.Button(self.lineEditColourFrame, text="Choose Line Colour", command="", font=("", 16))
-        self.lineEditColourDisplay = tkinter.Button(self.lineEditColourFrame, bg=self.currentColour, relief="sunken", state="disabled", text="      ", font=("", 16))
-        self.lineEditColourButton.pack(side="left")
-        self.lineEditColourDisplay.pack(side="left")
-        self.lineEditColourFrame.pack(expand="true")
-
-        self.lineEditXAxisFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditXAxisLabel = tkinter.Label(self.lineEditXAxisFrame, text="X Axis Column:", font=("", 16))
-        self.xAxisVar = tkinter.StringVar()
-        self.lineEditXAxisMenu = tkinter.OptionMenu(self.lineEditXAxisFrame, self.xAxisVar, "None")
-        self.lineEditXAxisMenu.configure(font=("", 16))
-        self.lineEditXAxisLabel.pack(side="left")
-        self.lineEditXAxisMenu.pack(side="left")
-        self.lineEditXAxisFrame.pack(expand="true")
-
-        self.lineEditYAxisFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditYAxisLabel = tkinter.Label(self.lineEditYAxisFrame, text="Y Axis Column:", font=("", 16))
-        self.yAxisVar = tkinter.StringVar()
-        self.lineEditYAxisMenu = tkinter.OptionMenu(self.lineEditYAxisFrame, self.yAxisVar, "None")
-        self.lineEditYAxisMenu.configure(font=("", 16))
-        self.lineEditYAxisLabel.pack(side="left")
-        self.lineEditYAxisMenu.pack(side="left")
-        self.lineEditYAxisFrame.pack(expand="true")
-
-        self.lineEditChannelFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditChannelLabel = tkinter.Label(self.lineEditChannelFrame, text="Channel filter:", font=("", 16))
-        self.lineChannelVar = tkinter.StringVar()
-        self.lineEditChannelMenu = tkinter.OptionMenu(self.lineEditChannelFrame, self.lineChannelVar, "None")
-        self.lineEditChannelMenu.configure(font=("", 16))
-        self.lineEditChannelLabel.pack(side="left")
-        self.lineEditChannelMenu.pack(side="left")
-        self.lineEditChannelFrame.pack(expand="true")
-
-        self.lineEditCumulativeFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineCumulativeVar = tkinter.IntVar()
-        self.lineEditCumulativeCheck = tkinter.Checkbutton(self.lineEditCumulativeFrame, text="Cumulative", variable=self.lineCumulativeVar, onvalue=1, offvalue=0, font=("", 16))
-        self.lineEditCumulativeCheck.pack(side="left")
-        self.lineEditCumulativeFrame.pack(expand="true")
-
-        self.lineEditControlsFrame = tkinter.Frame(self.lineEditWindow)
-        self.lineEditCancelButton = tkinter.Button(self.lineEditControlsFrame, text="Cancel", command=self.lineCancelPressed, font=("", 16))
-        self.lineEditAcceptButton = tkinter.Button(self.lineEditControlsFrame, text="Accept", command=self.lineAcceptPressed, font=("", 16))
-        self.lineEditCancelButton.pack(side="left")
-        self.lineEditAcceptButton.pack(side="left")
-        self.lineEditControlsFrame.pack(expand="true")
-        self.lineEditWindow.withdraw()
-
-        self.downloadWindow.grid_rowconfigure(0, weight=10)
-        self.downloadWindow.grid_rowconfigure(1, weight=1)
+        rowWeights = [4, 1, 1, 1, 1, 1, 1, 1, 1, 4]
+        for row in range(0, len(rowWeights)):
+            self.downloadWindow.grid_rowconfigure(row, weight=rowWeights[row])
         self.downloadWindow.grid_columnconfigure(0, weight=1)
 
-        self.graphFrame = tkinter.Frame(self.downloadWindow)
-        self.graphFrame.grid(row=0, column=0, sticky="NESW")
+        self.eventLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Event Log", command=self.saveEventLog, font=("", 16))
+        self.eventLogSaveButton.grid(row=1, column=0)
 
-        self.graphOptions = tkinter.Frame(self.downloadWindow)
-        self.graphOptions.grid(row=1, column=0, sticky="NESW")
+        self.eventLogInfo = tkinter.Label(self.downloadWindow, text="Complete log of every event in order. Contains total volumes and net volumes per gram of volatile solids.")
+        self.eventLogInfo.grid(row=2, column=0)
 
-        #Checkbox to toggle display of grid
-        self.gridEnabled = tkinter.IntVar()
-        self.gridEnabled.set(1)
-        self.gridEnabled.trace("w", self.updateGraphOptions)
-        self.gridCheckBox = tkinter.Checkbutton(self.graphOptions, text="Grid", variable=self.gridEnabled, onvalue=1, offvalue=0)
-        self.gridCheckBox.pack(side="right", anchor="s")
+        self.hourLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Hour Log", command=self.saveHourLog, font=("", 16))
+        self.hourLogSaveButton.grid(row=3, column=0)
 
-        self.legendEnabled = tkinter.IntVar()
-        self.legendEnabled.set(1)
-        self.legendEnabled.trace("w", self.updateGraphOptions)
-        self.legendCheckBox = tkinter.Checkbutton(self.graphOptions, text="Legend", variable=self.legendEnabled, onvalue=1, offvalue=0)
-        self.legendCheckBox.pack(side="right", anchor="s")
+        self.hourLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log grouped by hour.")
+        self.hourLogInfo.grid(row=4, column=0)
 
-        self.graphBackButton = tkinter.Button(self.graphOptions, text="Back", font=("", 16), command=lambda x=2: self.moveWindows(x))
-        self.graphBackButton.pack(side="left", anchor="s")
-        self.graphOptions.grid(row=1, column=0, sticky="NESW")
+        self.dayLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Day Log", command=self.saveDayLog, font=("", 16))
+        self.dayLogSaveButton.grid(row=5, column=0)
+
+        self.dayLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log grouped by day.")
+        self.dayLogInfo.grid(row=6, column=0)
+
+        self.continuousLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Continuous Log", command=self.saveContinuousLog, font=("", 16))
+        self.continuousLogSaveButton.grid(row=7, column=0)
+
+        self.eventLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log with no adjustments for inoculum applied.")
+        self.eventLogInfo.grid(row=8, column=0)
+
+        self.downloadButtonsFrame = tkinter.Frame(self.downloadWindow)
+        self.downloadButtonsFrame.grid(row=9, column=0, columnspan=12, sticky="NESW")
+        self.downloadBackButton = tkinter.Button(self.downloadButtonsFrame, text="Back", font=("", 16), command=self.backPressedDownload)
+        self.downloadBackButton.pack(side="left", anchor="s")
 
         #Currently loaded setup and event data
         self.setupData = None
@@ -295,6 +243,8 @@ class MainWindow(tkinter.Frame):
         if stage == 2:
             self.processingWindow.tkraise()
         if stage == 3:
+            self.previewWindow.tkraise()
+        if stage == 4:
             self.downloadWindow.tkraise()
         
         if stage > 0:
@@ -306,6 +256,10 @@ class MainWindow(tkinter.Frame):
         else:
             self.tabProcessing.configure(bg=self.offColour, relief="sunken")
         if stage > 2:
+            self.tabPreview.configure(bg=self.onColour, relief="raised")
+        else:
+            self.tabPreview.configure(bg=self.offColour, relief="sunken")
+        if stage > 3:
             self.tabDownload.configure(bg=self.onColour, relief="raised")
         else:
             self.tabDownload.configure(bg=self.offColour, relief="sunken")
@@ -333,11 +287,15 @@ class MainWindow(tkinter.Frame):
                     #Format the data into an array
                     self.setupData = readSetup.formatData(allFileData)
                     #Set the text of the label
-                    self.setupFileLabel.config(text=fileName + "loaded correctly.", fg=self.green)
+                    self.setupFileLabel.config(text=fileName + " loaded correctly.", fg=self.green)
                     self.setupNextButton.configure(state="normal")
                 else:
                     #Display error
                     self.setupLabel.config(text="File invalid or could not be read.", fg=self.red)
+                    self.setupData = None
+            else:
+                if self.setupData != None and len(self.setupData) > 0:
+                    self.setupNextButton.configure(state="normal")
             self.loading = False
     
     def openSetupFileCreator(self) -> None:
@@ -370,278 +328,230 @@ class MainWindow(tkinter.Frame):
             self.moveWindows(1)
 
     def loadEventFile(self) -> None:
-        pass
+        '''Load an event log file'''
+        #If not currently processing data
+        if not self.loading:
+            self.loading = True
+            self.eventNextButton.config(state="disabled")
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select event log csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            fileName = ""
+            #If there i sa file present
+            if filePath != "" and filePath != None and len(pathParts) > 0:
+                #Reset the event data
+                self.eventData = None
+                #Get the file's name from the end of the path
+                fileName = pathParts[-1]
+                #Attempt to read the file data
+                allFileData = readSetup.getFile(filePath)
+                #If there was data present
+                if allFileData != []:
+                    #Format the data as an array and store it
+                    self.eventData = readSetup.formatData(allFileData)
+                    #Set the text of the display label
+                    self.eventFileLabel.config(text=fileName + " loaded correctly.", fg=self.green)
+                    self.eventNextButton.config(state="normal")
+                else:
+                    #Display an error message
+                    self.eventFileLabel.config(text="Invalid file or could not be read.", fg=self.red)
+                    self.eventData = None
+            else:
+                if self.eventData != None and len(self.eventData) > 0:
+                    self.eventNextButton.configure(state="normal")
+        self.loading = False
 
     def nextPressedEvent(self) -> None:
-        pass
+        if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
+            self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
+            self.processingNextButton.configure(state="disabled")
+            self.processingBackButton.configure(state="disabled")
+            self.moveWindows(2)
+            self.startProcessing()
 
     def backPressedEvent(self) -> None:
-        pass
+        self.moveWindows(0)
     
-    def arrangeData(self, dataArray : list) -> str:
-        '''Move the loaded data into arrays for hours, days and setup'''
-        #Reset data arrays
-        self.columns = []
-        self.data = []
+    def updateProgressBar(self) -> None:
+        '''Update the progress bar'''
+        value = 0
+        limit = 100
+        message = "Processing: 0%"
+        #Repeat until processing ends
+        while self.processing:
+            #If the maximum value has changed
+            if self.progress[1] != limit:
+                limit = self.progress[1]
+                self.progressBar.configure(maximum=limit)
+                self.progressBar["value"] = 0
+                value = 0
+            #If the value has changed
+            if self.progress[0] != value:
+                value = self.progress[0]
+                self.progressBar["value"] = value
+                self.progress[2] = "Processing: {0}%".format(int(value/limit))
+            #If the text has changed
+            if self.progress[2] != message:
+                message = self.progress[2]
+                self.styles.configure("ProgressbarLabeled", text=message)
+    
+    def startProcessing(self) -> None:
+        if not self.processing:
+            self.progressBar["value"] = 0
+            self.progress = [0, 100, "Processing: 0%"]
+            self.progressBar.grid()
+            self.processing = True
+            processThread = Thread(target=self.processInformation, daemon=True)
+            processThread.start()
+            progressThread = Thread(target=self.updateProgressBar, daemon=True)
+            progressThread.start()
 
-        if len(dataArray) < 1:
-            return "File is empty"
-        if len(dataArray) < 2:
-            return "No data found in file"
+    def processInformation(self) -> None:
+        '''Perform a data processing pass'''
+        #If there is data to be processed
+        if self.setupData != None and self.eventData != None:
+            #Disable the export buttons until the process is complete
+            #self.exportGasButton.configure(state="disabled")
+            self.progressBar.configure(maximum=len(self.eventData))
+            #Call for the calculations and receive the results and any errors   
+            error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            #If there are no errors
+            if error == None:
+                #Iterate through the setup data and labels
+                for setupNum in range(0, len(setup[0])):
+                    #Message to display - the name of the tube
+                    msg = setup[0][setupNum]
+                    #Update drop down labels
+                    #self.channelLabels[setupNum] = "Channel " + str(setupNum + 1) + " (" + setup[0][setupNum] + ")"
+                    #If the tube is in use
+                    if setup[1][setupNum]:
+                        #IF it is an innoculum only tube
+                        if setup[2][setupNum]:
+                            #Add the innoculum only message
+                            msg = msg + "  (Innoculum Only)"
+                        #Add the innoculum mass
+                        msg = msg + "  Innoculum:" + str(round(setup[3][setupNum], 3)) + "g"
+                        #If this is not innoculum only
+                        if not setup[2][setupNum]:
+                            #Add the sample mass
+                            msg = msg + "  Sample:" + str(round(setup[4][setupNum], 3)) + "g"
+                        #Add the tumbler volume
+                        msg = msg + "  Volume:" + str(round(setup[5][setupNum], 3)) + "ml"
+                    else:
+                        #Otherwise add not in use message
+                        msg = msg + "  (Not in use)"
+                    #Add the text to the label
+                    #self.setupTexts.append(msg)
 
-        self.columns = dataArray[0]
+                #Lists of each of the data arrays for hours
+                hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
-        if len(self.columns) < 2:
-            return "File only contains one column"
+                #Iterate through the lists of hour data
+                for hour in range(1, len(hours)):
+                    #Get the data for this hour
+                    thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
+                    hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
 
-        for i in range(0, len(self.columns)):
-            self.data.append([])
-            for j in range(1, len(dataArray)):
-                item = dataArray[j][i]
-                try:
-                    item = float(item)
-                    if item == int(item):
-                        item = int(item)
-                except:
-                    pass
-                self.data[-1].append(item)
+                #Set the display data
+                #self.displayData[0] = hourDataList
+                
+                #Lists for each of the channels for day data
+                dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
-        return ""
+                #Iterate through lists of day data
+                for day in range(1, len(days)):
+                    #Get the data for this day
+                    thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
+                    dayDataList[int(days[day][0]) - 1].append(thisDayData)
+                
+                #Set the display data
+                #self.displayData[1] = dayDataList
+                
+                #Store each of the logs
+                self.eventLog = events
+                self.hourLog = hours
+                self.dayLog = days
+                self.continuousLog = []
 
-    def nextChannel(self) -> None:           
-        chosen = self.channelSelectVar.get()
-        if chosen in self.columns:
-            self.channelColumn = self.columns.index(chosen)
-            self.channelList = []
-            for index in range(0, len(self.data[self.channelColumn])):
-                item = str(self.data[self.channelColumn][index])
-                if item not in self.channelList:
-                    self.channelList.append(item)
-            self.channelList.sort()
+                #Iterate through events
+                for e in self.eventLog:
+                    record = []
+                    #Get setup data, time stamp and stp volumes
+                    for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
+                        #Add to the row
+                        record.append(e[i])
+                    #Add the row to the array
+                    self.continuousLog.append(record)
+
+                #An update to the display is needed
+                self.needToUpdateDisplay = True
+
+                self.processingNextButton.configure(state="normal")
+                self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
+                
+            else:
+                #Display the error if it occurred
+                self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                messagebox.showinfo(title="Error", message=error)
+
         else:
-            self.channelColumn = -1
-
-        for key in self.lines:
-            self.lines[key].grid_remove()
-            self.lines[key].destroy()
+            #Display error that files need to be loaded (should not generally occur but in case)
+            self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222", )
+            messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
         
-        self.lines = {}
-        
-        self.updateLineList()
-        
-        self.moveWindows(2)
+        self.processing = False
+        self.processingBackButton.configure(state="normal")
 
-    def changeColumnNames(self):
-        '''Change the labels for the columns'''
-        #Get the menu objects and remove all values
-        menu = self.channelMenu["menu"]
-        menu.delete(0, tkinter.END)
-        for columnNumber in range(-1, len(self.columns)):
-            name = "None"
-            if columnNumber != -1:
-                name = self.columns[columnNumber]
-            menu.add_command(label=name, command=lambda v=self.channelSelectVar, l=name: v.set(l))
 
-    def showGraph(self) -> None:
-        if len(self.lines) > 0:
-            self.clearGraphs()
-            for key in self.lines:
-                lineData = self.lines[key]
-                xAxis = lineData.xCol
-                yAxis = lineData.yCol
-                colour = lineData.colour
-                lineName = lineData.lineName
-                channel = lineData.channel
-                cumulative = lineData.cumulative == 1
-                total = 0
-                xData = []
-                yData = []
-                for i in range(0, len(self.data[0])):
-                    if channel == "" or str(self.data[self.channelColumn][i]) == channel:
-                        xData.append(self.data[xAxis][i])
-                        if cumulative:
-                            total = total + self.data[yAxis][i]
-                            yData.append(total)
-                        else:
-                            yData.append(self.data[yAxis][i])
-                self.subPlot.plot(xData, yData, "-", label=lineName, color=colour)
-            #Show grid if needed
-            self.subPlot.grid(self.gridEnabled.get() == 1)
-            #Draw legend if needed
-            if self.legendEnabled.get() == 1:
-                self.subPlot.legend()
-            #Draw the new graph
-            self.graphCanvas.draw()
+    def nextPressedProcessing(self) -> None:
+        if not self.processing:
+            #Also need to check for valid data...
             self.moveWindows(3)
 
-
-    def createLine(self, name, colour, xAxis, yAxis, channel, cumulative):
-        lineData = LineObject(self.internalItemFrame, self, name, colour, xAxis, yAxis, channel, cumulative, highlightbackground="black", highlightthickness=2)
-        self.lines[name] = lineData
-        self.updateLineList()
-
-    def removeLine(self, lineName):
-        if lineName in self.lines:
-            self.lines[lineName].grid_remove()
-            self.lines[lineName].destroy()
-            del self.lines[lineName]
-            self.updateLineList()
-
-    def updateLineList(self):
-        i = 0
-        for key in self.lines:
-            self.lines[key].grid_remove()
-            self.internalItemFrame.grid_rowconfigure(i, minsize=0)
-            i = i + 1
-        self.addLineFrame.grid_remove()
-        self.internalItemFrame.grid_rowconfigure(i, minsize=0)
-        i = 0
-        for key in self.lines:
-            self.lines[key].grid(row=i, column=0, sticky="NESW")
-            self.internalItemFrame.grid_rowconfigure(i, minsize=100)
-            i = i + 1
-        self.addLineFrame.grid(row=i, column=0, sticky="NESW")
-        self.internalItemFrame.grid_rowconfigure(i, minsize=100)
-
-    def addLine(self) -> None:
-        self.addingLine = True
-        self.openLineEdit("", "#FF0000", "", "", "", 0)
-
-    def editLine(self, lineName) -> None:
-        self.addingLine = False
-        if lineName in self.lines:
-            lineData = self.lines[lineName]
-            linesName = lineData.lineName
-            colourCode = lineData.colour
-            xAxis = lineData.xCol
-            xAxis = self.columns[xAxis]
-            yAxis = lineData.yCol
-            yAxis = self.columns[yAxis]
-            channel = lineData.channel
-            cumulative = lineData.cumulative
-            self.openLineEdit(linesName, colourCode, xAxis, yAxis, channel, cumulative)
+    def backPressedProcessing(self) -> None:
+        if not self.processing:
+            self.moveWindows(1)
     
-    def openLineEdit(self, name : str, colour : str, xA : str, yA : str, channel : str, cumulative : int):
-        self.nameInputVar.set(name)
-        self.currentLineName = name
-        self.currentColour = colour
-        self.lineEditColourDisplay.configure(bg=self.currentColour)
+    def saveEventLog(self) -> None:
+        self.saveFile(self.eventLog, "Save event log to csv file")
 
-        validColumns = []
-        for i in range(0, len(self.columns)):
-            if i != self.channelColumn:
-                validColumns.append(self.columns[i])
-        
-        xMenu = self.lineEditXAxisMenu["menu"]
-        yMenu = self.lineEditYAxisMenu["menu"]
-        xMenu.delete(0, tkinter.END)
-        yMenu.delete(0, tkinter.END)
-        xMenu.add_command(label="None", command=lambda v=self.xAxisVar, l="None": v.set(l))
-        yMenu.add_command(label="None", command=lambda v=self.yAxisVar, l="None": v.set(l))
-        for col in validColumns:
-            xMenu.add_command(label=col, command=lambda v=self.xAxisVar, l=col: v.set(l))
-            yMenu.add_command(label=col, command=lambda v=self.yAxisVar, l=col: v.set(l))
+    def saveHourLog(self) -> None:
+        self.saveFile(self.hourLog, "Save hour log to csv file")
 
-        chMenu = self.lineEditChannelMenu["menu"]
-        chMenu.delete(0, tkinter.END)
-        chMenu.add_command(label="Any", command=lambda v=self.lineChannelVar, l="Any": v.set(l))
-        for chan in self.channelList:
-            chMenu.add_command(label=chan, command=lambda v=self.lineChannelVar, l=chan: v.set(l))
-
-        if xA not in validColumns:
-            self.xAxisVar.set("None")
-        else:
-            self.xAxisVar.set(xA)
-
-        if yA not in validColumns:
-            self.yAxisVar.set("None")
-        else:
-            self.yAxisVar.set(yA)
-
-        if channel in self.channelList:
-            self.lineChannelVar.set(channel)
-        else:
-            self.lineChannelVar.set("Any")
-
-        if self.channelColumn == -1:
-            self.lineEditChannelFrame.configure(bg=self.offColour)
-            self.lineEditChannelLabel.configure(bg=self.offColour)
-            self.lineEditChannelMenu.configure(state="disabled")
-        else:
-            self.lineEditChannelFrame.configure(bg=self.onColour)
-            self.lineEditChannelLabel.configure(bg=self.onColour)
-            self.lineEditChannelMenu.configure(state="normal")
-
-        self.lineCumulativeVar.set(cumulative)
-
-        self.lineEditWindow.deiconify()
-
-    def lineCancelPressed(self) -> None:
-        self.lineEditWindow.withdraw()
-
-    def lineAcceptPressed(self) -> None:
-        if self.addingLine:
-            allowed = True
-            name = self.nameInputVar.get().strip()
-            if name == "" or name in self.lines:
-                allowed = False
-            xAxis = self.xAxisVar.get()
-            yAxis = self.yAxisVar.get()
-            if xAxis not in self.columns or yAxis not in self.columns:
-                allowed = False
-            else:
-                xAxis = self.columns.index(xAxis)
-                yAxis = self.columns.index(yAxis)
-            if not allowed:
-                messagebox.showinfo(title="Invalid Line", message="Line must have a unique name and valid x and y columns.")
-            else:
-                colour = self.currentColour
-                channel = self.lineChannelVar.get()
-                if channel not in self.channelList:
-                    channel = ""
-                cumulative = self.lineCumulativeVar.get()
-                self.createLine(name, colour, xAxis, yAxis, channel, cumulative)
-                self.lineEditWindow.withdraw()
-        else:
-            allowed = True
-            name = self.nameInputVar.get().strip()
-            if name == "" or (name in self.lines and name != self.currentLineName):
-                allowed = False
-            xAxis = self.xAxisVar.get()
-            yAxis = self.yAxisVar.get()
-            if xAxis not in self.columns or yAxis not in self.columns:
-                allowed = False
-            else:
-                xAxis = self.columns.index(xAxis)
-                yAxis = self.columns.index(yAxis)
-            if not allowed:
-                messagebox.showinfo(title="Invalid Line", message="Line must have a unique name and valid x and y columns.")
-            else:
-                colour = self.currentColour
-                channel = self.lineChannelVar.get()
-                if channel not in self.channelList:
-                    channel = ""
-                cumulative = self.lineCumulativeVar.get()
-                lineData = self.lines[self.currentLineName]
-                lineData.lineName = name
-                lineData.colour = colour
-                lineData.xCol = xAxis
-                lineData.yCol = yAxis
-                lineData.channel = channel
-                lineData.cumulative = cumulative
-                lineData.updateWidgets()
-                self.lineEditWindow.withdraw()
-
-
-    def clearGraphs(self) -> None:
-        self.figure.clf()
-        self.subPlot = self.figure.add_subplot(111)
-        self.graphCanvas.draw()
-
-    def updateGraphOptions(self, *args) -> None:
-        self.subPlot.grid(self.gridEnabled.get() == 1)
-        self.showGraph()
+    def saveDayLog(self) -> None:
+        self.saveFile(self.dayLog, "Save day log to csv file")
     
+    def saveContinuousLog(self) -> None:
+        self.saveFile(self.continuousLog, "Save continuous log to csv file")
+
+    def saveFile(self, data, prompt) -> None:
+        if not self.saving:
+            self.saving = True
+            if data != None and len(data) > 0:
+                dataToSave = createSetup.convertArrayToString(data)
+                path = filedialog.asksaveasfilename(title="Save hour log to csv file", filetypes=self.fileTypes, defaultextension=self.fileTypes)
+                if path != "":
+                    #Attempt to save file - store result in success
+                    success = createSetup.saveAsFile(path, dataToSave)
+                    #If saved successfully
+                    if success:
+                        #Display message to indicate file has been saved
+                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                    else:
+                        #Display message to indicate file was not saved
+                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+        self.saving = False
+
+    def backPressedDownload(self) -> None:
+        self.moveWindows(3)
+
+    def backPressedPreview(self) -> None:
+        self.moveWindows(1)
+    
+    def nextPressedPreview(self) -> None:
+        self.moveWindows(4)
+
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
         #Update canvas bounding box
@@ -669,49 +579,6 @@ class MainWindow(tkinter.Frame):
         if self.itemCanvas != None:
             self.itemCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-class LineObject(tkinter.Frame):
-    def __init__ (self, parent, parentObject, lineName : str, colour : str, xCol : int, yCol : int, channel : str, cumulative : bool, *args, **kwargs):
-        #Initialise parent class
-        tkinter.Frame.__init__(self, parent, *args, **kwargs)
-        #Store the parent window
-        self.window = parentObject
-
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(2, weight=1)
-        self.grid_columnconfigure(3, weight=1)
-
-        self.lineName = lineName
-        self.colour = colour
-        self.xCol = xCol
-        self.yCol = yCol
-        self.channel = channel
-        self.cumulative = cumulative
-
-        self.colourBox = tkinter.Button(self, bg=self.colour, relief="sunken", state="disabled", text="     ")
-        self.colourBox.grid(row=0, column=0)
-
-        self.nameLabel = tkinter.Label(self, text=self.lineName, font=("", 16))
-        self.nameLabel.grid(row=0, column=1)
-        
-        self.settingsImage = tkinter.PhotoImage(file=self.window.pathTo("settingsIcon.png"))
-        self.editButton = tkinter.Button(self, image=self.settingsImage, command=self.edit)
-        self.editButton.grid(row=0, column=2)
-
-        self.removeImage = tkinter.PhotoImage(file=self.window.pathTo("cancel.png"))
-        self.deleteButton = tkinter.Button(self, image=self.removeImage, command=self.delete)
-        self.deleteButton.grid(row=0, column=3)
-
-    def edit(self):
-        self.window.editLine(self.lineName)
-
-    def delete(self):
-        self.window.removeLine(self.lineName)
-    
-    def updateWidgets(self):
-        self.colourBox.configure(bg=self.colour)
-        self.nameLabel.configure(text=self.lineName)
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
