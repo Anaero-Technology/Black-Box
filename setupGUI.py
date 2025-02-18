@@ -198,29 +198,29 @@ class MainWindow(tkinter.Frame):
                 #Format the information as 2d array
                 dataArray = readSetup.formatData(fileData)
                 #Attempt to store in table
-                #try:
-                #Iterate through row indexes
-                for row in range(1, len(dataArray)):
-                    #If it does not go beyond rows in the table
-                    if row - 1 < len(self.tubeVariables):
-                        #Iterate through column indexes
-                        for col in range(0, len(dataArray[row])):
-                            #If it is a text field
-                            if col == 0 or col > 2:
-                                #Add the data as text
-                                self.tubeVariables[row - 1][col].set(dataArray[row][col])
-                            #If it is a checkbox field
-                            elif col == 1 or col == 2:
-                                #A 1 is a checked box
-                                if dataArray[row][col].strip() == "1":
-                                    self.tubeVariables[row - 1][col].set(1)
-                                else:
-                                    #Otherwise it is unchecked
-                                    self.tubeVariables[row - 1][col].set(0)
-                """except Exception as e:
+                try:
+                    #Iterate through row indexes
+                    for row in range(1, len(dataArray)):
+                        #If it does not go beyond rows in the table
+                        if row - 1 < len(self.tubeVariables):
+                            #Iterate through column indexes
+                            for col in range(0, len(dataArray[row])):
+                                #If it is a text field
+                                if col == 0 or col > 2:
+                                    #Add the data as text
+                                    self.tubeVariables[row - 1][col].set(dataArray[row][col])
+                                #If it is a checkbox field
+                                elif col == 1 or col == 2:
+                                    #A 1 is a checked box
+                                    if dataArray[row][col].strip() == "1":
+                                        self.tubeVariables[row - 1][col].set(1)
+                                    else:
+                                        #Otherwise it is unchecked
+                                        self.tubeVariables[row - 1][col].set(0)
+                except Exception as e:
                     #If an error occurs then the file was not the correct shape/format so display error message
                     self.displayMessage("File formatted incorrectly, not all values may have been imported successfully.", "Error")
-                    success = False"""
+                    success = False
             else:
                 #If there was no data then either a file was not chosesn or it was not readable so display error message
                 self.displayMessage("Invalid file, please make sure the correct file was chosen.", "Error")
