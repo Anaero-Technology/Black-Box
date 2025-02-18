@@ -160,8 +160,6 @@ def performGeneralCalculations(setupData, eventData, progress):
                 eventCount[channelId] = eventCount[channelId] + 1
             #Move progress bar forward
             progress[0] = progress[0] + 1
-        
-        print(eventCount)
 
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
