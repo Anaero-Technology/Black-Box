@@ -7,9 +7,9 @@ import dataReceiveGUI
 import networkViewGUI
 import processDataGUI
 import combineDataGUI
-import graphCreatorGUI
-import configureClockGUI
-import calibrateAnalyserGUI
+#import graphCreatorGUI
+#import configureClockGUI
+#import calibrateAnalyserGUI
 import os, sys
 import pathlib
 
@@ -324,14 +324,14 @@ class MainWindow(tkinter.Frame):
         self.calculationsButton = tkinter.Button(self, text="Analyse Data", command=self.openCalculationsWindow, font=self.buttonFont)
         self.calculationsButton.grid(row=3, column=1, columnspan=5)
         #Combining data
-        self.combineButton = tkinter.Button(self, text="Combine pH / Redox or Gas Data", command=self.openCombineWindow, font=self.buttonFont)
-        self.combineButton.grid(row=4, column=1, columnspan=5)
+        #self.combineButton = tkinter.Button(self, text="Combine pH / Redox or Gas Data", command=self.openCombineWindow, font=self.buttonFont)
+        #self.combineButton.grid(row=4, column=1, columnspan=5)
         #Creating graphs
-        self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
-        self.graphsButton.grid(row=5, column=1, columnspan=5)
+        #self.graphsButton = tkinter.Button(self, text="Create Graphs", command=self.openGraphsWindow, font=self.buttonFont)
+        #self.graphsButton.grid(row=5, column=1, columnspan=5)
         #Setting clock time
-        self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
-        self.clockButton.grid(row=6, column=1, columnspan=5)
+        #self.clockButton = tkinter.Button(self, text="Set Date/Time", command=self.openClockWindow, font=self.buttonFont)
+        #self.clockButton.grid(row=6, column=1, columnspan=5)
         #Calibrate analyser
         '''self.calibrateButton = tkinter.Button(self, text="Calibrate Gas Analyer", command=self.openCalibrateWindow, font=self.buttonFont)
         self.calibrateButton.grid(row=7, column=1, columnspan=5)'''
@@ -555,7 +555,7 @@ class MainWindow(tkinter.Frame):
             combineDataGUI.MainWindow(self.combineWindow).grid(row = 0, column=0, sticky="NESW")
             self.combineWindow.focus()
 
-    def openGraphsWindow(self) -> None:
+    """def openGraphsWindow(self) -> None:
         '''Create a new instance of the graphs window, or lift and focus the current one'''
         try:
             #If the settings window is open - destroy it
@@ -578,9 +578,9 @@ class MainWindow(tkinter.Frame):
             self.graphWindow.grid_rowconfigure(0, weight=1)
             self.graphWindow.grid_columnconfigure(0, weight=1)
             graphCreatorGUI.MainWindow(self.graphWindow).grid(row = 0, column=0, sticky="NESW")
-            self.graphWindow.focus()
+            self.graphWindow.focus()"""
 
-    def openClockWindow(self) -> None:
+    """def openClockWindow(self) -> None:
         '''Create a new instance of the time configuration window, or lift and focus the current one'''
         try:
             #Attempt to lift and focus the current window (will not work if it does not exist or has been closed)
@@ -596,9 +596,9 @@ class MainWindow(tkinter.Frame):
             self.clockWindow.grid_rowconfigure(0, weight=1)
             self.clockWindow.grid_columnconfigure(0, weight=1)
             configureClockGUI.MainWindow(self.clockWindow).grid(row = 0, column=0, sticky="NESW")
-            self.clockWindow.focus()
+            self.clockWindow.focus()"""
 
-    def openCalibrateWindow(self) -> None:
+    """def openCalibrateWindow(self) -> None:
         '''Create a new instance of the analyser calibration window, or lift and focus the current one'''
         try:
             #Attempt to lift and focus the current window (will not work if it does not exist or has been closed)
@@ -614,7 +614,7 @@ class MainWindow(tkinter.Frame):
             self.calibrateWindow.grid_rowconfigure(0, weight=1)
             self.calibrateWindow.grid_columnconfigure(0, weight=1)
             calibrateAnalyserGUI.MainWindow(self.calibrateWindow).grid(row = 0, column=0, sticky="NESW")
-            self.calibrateWindow.focus()
+            self.calibrateWindow.focus()"""
 
     def openSettingsWindow(self) -> None:
         '''Create a new instance of the settings window, or lift and focus the current one'''
@@ -723,7 +723,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Setup GFM - Version 4.0.3")
+    root.title("Setup GFM - Version 4.1")
     #Add the editor to the root windows
     rootWindow = MainWindow(root).grid(row = 0, column=0, sticky="NESW")
     #Start running the root

@@ -16,7 +16,7 @@ class MainWindow(tkinter.Frame):
         self.height = 610
         #Number of rows and columns present
         self.numberRows = 17
-        self.numberColumns = 6
+        self.numberColumns = 7
 
         #Get separators from file
         self.column, self.decimal = readSeparators.read()
@@ -36,7 +36,7 @@ class MainWindow(tkinter.Frame):
                 self.grid_columnconfigure(colNumber, weight = 2)
         
         #Column headers
-        self.headers = ["Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
+        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
 
         #Holds all the label objects
         self.headerLabels = []
@@ -61,6 +61,9 @@ class MainWindow(tkinter.Frame):
             #To Hold this current row of widgets and variables
             tubeRow = []
             tubeVars = []
+
+            channelLabel = tkinter.Label(self, text = str(row - 1))
+            tubeRow.append(channelLabel)
 
             #Description field setup
             descVar = tkinter.StringVar()
@@ -109,9 +112,9 @@ class MainWindow(tkinter.Frame):
                 self.tubeInfo[row][col].grid(row = row + 2, column = col, sticky="NESW")
         
         #Add import and export buttons with correct callbacks
-        self.importButton = tkinter.Button(self, text="Import Setup", command=self.openFile)
+        self.importButton = tkinter.Button(self, text="Load Setup", command=self.openFile)
         self.importButton.grid(row=0, column=0, sticky="NESW")
-        self.exportButton = tkinter.Button(self, text="Export Setup", command=self.exportData)
+        self.exportButton = tkinter.Button(self, text="Save Setup", command=self.exportData)
         self.exportButton.grid(row=0, column=1, sticky="NESW")
 
         #Colours for use with mesages for indicator colour
@@ -214,7 +217,7 @@ class MainWindow(tkinter.Frame):
                                     else:
                                         #Otherwise it is unchecked
                                         self.tubeVariables[row - 1][col].set(0)
-                except:
+                except Exception as e:
                     #If an error occurs then the file was not the correct shape/format so display error message
                     self.displayMessage("File formatted incorrectly, not all values may have been imported successfully.", "Error")
                     success = False
