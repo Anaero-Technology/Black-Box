@@ -74,9 +74,10 @@ class MainWindow(tkinter.Frame):
 
         #If receiving data from the device
         self.gettingData = False
-
+        #If the connection was shut by the user
         self.shuttingDown = False
 
+        #Start connection after short delay
         self.after(1000, self.attemptConnection)
 
         #Redraw the plots correctly
@@ -346,15 +347,18 @@ class MainWindow(tkinter.Frame):
     def terminate(self) -> None:
         '''Closes the window forcefully'''
         self.shuttingDown = True
+        #Close the serial connection
         try:
             self.serialConnection.close()
             messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
         except:
             pass
         self.serialConnection = None
+        #If it has a parent, call it to close this object
         if self.controller != None:
             self.controller.quitMonitor()
         else:
+            #Otherwise close itself
             self.quit()
             self.destroy()
 

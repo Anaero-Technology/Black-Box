@@ -153,8 +153,7 @@ class MainWindow(tkinter.Frame):
 
         self.currentLine = 0
 
-        #self.deviceName = ""
-
+        #Call for start connection after short delay
         self.after(1000, self.attemptConnection)
 
     def checkConnection(self) -> None:
