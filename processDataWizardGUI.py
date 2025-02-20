@@ -55,6 +55,8 @@ class MainWindow(tkinter.Frame):
         self.tabSetupFile = tkinter.Label(self, text="Select Setup File", relief="raised")
         self.onColour = self.tabSetupFile.cget("bg")
         self.offColour = "#999999"
+        self.selectedColour = "#6666BB"
+        self.tabSetupFile.configure(bg=self.selectedColour)
         self.tabEventFile = tkinter.Label(self, text="Select Event File", relief="sunken", bg=self.offColour)
         self.tabProcessing = tkinter.Label(self, text="Processing Data...", relief="sunken", bg=self.offColour)
         self.tabPreview = tkinter.Label(self, text="Preview Results", relief="sunken", bg=self.offColour)
@@ -136,8 +138,7 @@ class MainWindow(tkinter.Frame):
         for col in range(0, 12):
             self.processingWindow.grid_columnconfigure(col, weight=1)
 
-        self.progress = [0, 100, "Processing data..."]
-        self.needToUpdateDisplay = False
+        self.progress = [0, 100, "Processing: {0}%"]
 
         #Get the style object for the parent window
         self.styles = Style(self.parent)
@@ -247,6 +248,7 @@ class MainWindow(tkinter.Frame):
         if stage == 4:
             self.downloadWindow.tkraise()
         
+        self.tabSetupFile.configure(bg=self.onColour)
         if stage > 0:
             self.tabEventFile.configure(bg=self.onColour, relief="raised")
         else:
@@ -263,6 +265,17 @@ class MainWindow(tkinter.Frame):
             self.tabDownload.configure(bg=self.onColour, relief="raised")
         else:
             self.tabDownload.configure(bg=self.offColour, relief="sunken")
+        
+        if stage == 0:
+            self.tabSetupFile.configure(bg=self.selectedColour)
+        elif stage == 1:
+            self.tabEventFile.configure(bg=self.selectedColour)
+        elif stage == 2:
+            self.tabProcessing.configure(bg=self.selectedColour)
+        elif stage == 3:
+            self.tabPreview.configure(bg=self.selectedColour)
+        elif stage == 4:
+            self.tabDownload.configure(bg=self.selectedColour)
 
     def loadSetupFile(self) -> None:
         '''Load a setup file for processing'''
@@ -367,40 +380,39 @@ class MainWindow(tkinter.Frame):
             self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
             self.processingNextButton.configure(state="disabled")
             self.processingBackButton.configure(state="disabled")
+            self.progressBar["value"] = 0
+            self.progress = [0, len(self.eventData), "Processing: {0}%"]
             self.moveWindows(2)
-            self.startProcessing()
+            self.after(250, self.startProcessing)
 
     def backPressedEvent(self) -> None:
         self.moveWindows(0)
     
     def updateProgressBar(self) -> None:
         '''Update the progress bar'''
-        value = 0
-        limit = 100
-        message = "Processing: 0%"
+        value = self.progress[0]
+        limit = self.progress[1]
+        self.progressBar["value"] = value
+        self.styles.configure("ProgressbarLabeled", text=self.progress[2].format(int((value/limit) * 100)))
+
+        changing = False
         #Repeat until processing ends
         while self.processing:
-            #If the maximum value has changed
-            if self.progress[1] != limit:
+            if limit != self.progress[1]:
                 limit = self.progress[1]
-                self.progressBar.configure(maximum=limit)
-                self.progressBar["value"] = 0
-                value = 0
+                changing = True
             #If the value has changed
-            if self.progress[0] != value:
+            if self.progress[0] != value or changing:
                 value = self.progress[0]
-                self.progressBar["value"] = value
-                self.progress[2] = "Processing: {0}%".format(int(value/limit))
-            #If the text has changed
-            if self.progress[2] != message:
-                message = self.progress[2]
-                self.styles.configure("ProgressbarLabeled", text=message)
+                percent = int((value/limit) * 100)
+                self.progressBar["value"] = percent
+                self.styles.configure("ProgressbarLabeled", text=self.progress[2].format(percent))
+                changing = False
     
     def startProcessing(self) -> None:
         if not self.processing:
             self.progressBar["value"] = 0
-            self.progress = [0, 100, "Processing: 0%"]
-            self.progressBar.grid()
+            self.progress = [0, len(self.eventData), "Processing: {0}%"]
             self.processing = True
             processThread = Thread(target=self.processInformation, daemon=True)
             processThread.start()
@@ -412,8 +424,7 @@ class MainWindow(tkinter.Frame):
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
             #Disable the export buttons until the process is complete
-            #self.exportGasButton.configure(state="disabled")
-            self.progressBar.configure(maximum=len(self.eventData))
+            #self.progressBar.configure(maximum=len(self.eventData))
             #Call for the calculations and receive the results and any errors   
             error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
             #If there are no errors
@@ -474,6 +485,22 @@ class MainWindow(tkinter.Frame):
                 self.dayLog = days
                 self.continuousLog = []
 
+                self.progress[0] = 0
+                self.progress[1] = 30 + len(events)
+                self.progress[2] = "Preparing Data: {0}%"
+
+                #Name, tips, volume, net volume
+                maxTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                maxVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                finalNetVolume = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                channelNames = []
+                for i in range(1, 16):
+                    try:
+                        channelNames.append(self.setupData[i][0])
+                    except:
+                        channelNames.append("Channel {0}".format(i))
+                    self.progress[0] = self.progress[0] + 1
+
                 #Iterate through events
                 for e in self.eventLog:
                     record = []
@@ -483,12 +510,38 @@ class MainWindow(tkinter.Frame):
                         record.append(e[i])
                     #Add the row to the array
                     self.continuousLog.append(record)
+                    try:
+                        channel = int(e[0]) - 1
+                        try:
+                            maxTips[channel] = int(e[9])
+                        except:
+                            pass
+                        try:
+                            maxVolumes[channel] = round(float(e[11]), 2)
+                        except:
+                            pass
+                        try:
+                            finalNetVolume[channel] = round(float(e[16]), 2)
+                        except:
+                            pass
+                    except:
+                        pass
+                    
+                    self.progress[0] = self.progress[0] + 1
 
-                #An update to the display is needed
-                self.needToUpdateDisplay = True
+                
+                for i in range(0, 15):
+                    self.previewLabels[0][i].configure(text=channelNames[i])
+                    self.previewLabels[1][i].configure(text=maxTips[i])
+                    self.previewLabels[2][i].configure(text=maxVolumes[i])
+                    self.previewLabels[3][i].configure(text=finalNetVolume[i])
+                    self.progress[0] = self.progress[0] + 1
+                
+                self.processing = False
 
                 self.processingNextButton.configure(state="normal")
                 self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
+                self.progressBar["value"] = 100.0
                 
             else:
                 #Display the error if it occurred
