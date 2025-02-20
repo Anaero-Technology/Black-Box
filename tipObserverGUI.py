@@ -205,9 +205,8 @@ class MainWindow(tkinter.Frame):
 
     def readSerial(self) -> None:
         '''While connected repeatedly read information from serial connection'''
-        stopped = False
         #If there is a connection
-        while self.connected and self.serialConnection != None and not stopped:
+        while self.connected and self.serialConnection != None:
             #Attempt
             try:
                 done = False
@@ -234,18 +233,18 @@ class MainWindow(tkinter.Frame):
                         done = True
                 
             except:
-                stopped = True
-        if not self.shuttingDown:
-            #Close the connection
-            try:
-                self.serialConnection.close()
-            except:
-                pass
-            self.serialConnection = None
-            self.connected = False
-            #Display message to user to indicate that connection was lost (Occurs when device unplugged)
-            messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
-            self.terminate()
+                if not self.shuttingDown:
+                    #Close the connection
+                    try:
+                        self.serialConnection.close()
+                    except:
+                        pass
+                    self.serialConnection = None
+                    self.connected = False
+                    #Display message to user to indicate that connection was lost (Occurs when device unplugged)
+                    messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
+                    self.terminate()
+        
 
     def checkMessages(self):
         '''Repeatedly check for a new message and handle it'''
