@@ -461,7 +461,7 @@ class MainWindow(tkinter.Frame):
                 self.awaitingCommunication = False
                 #Display connected message
                 messagebox.showinfo(title="Success", message="Connected to port successfully.")
-                self.connectionInfoLabel.configure(text="Connected to {0} on port {1}.".format(self.selectedPort, self.deviceName))
+                self.connectionInfoLabel.configure(text="Connected to {0} on port {1}.".format(self.deviceName, self.selectedPort))
             
             #If the esp32 is collecting information
             if messageParts[1] == "1":
