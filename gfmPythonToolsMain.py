@@ -9,6 +9,7 @@ from PIL import Image, ImageTk
 import pathlib
 import processDataWizardGUI
 import tipObserverGUI
+import dataReceiveGUI
 
 class MainWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -30,8 +31,6 @@ class MainWindow(tkinter.Frame):
         self.portNames = []
         self.portStates = []
         self.portObjects = []
-        #self.portWifi = []
-        #self.portSsids = []
 
         self.connectedWindowOpen = False
 
@@ -144,12 +143,9 @@ class MainWindow(tkinter.Frame):
         #If currently scanning the ports
         self.midScan = False
 
-        #Images used to display wifi state
-        self.wifiIconOn = tkinter.PhotoImage(file=self.pathTo("wirelessIconOn.png"))
-        self.wifiIconOff = tkinter.PhotoImage(file=self.pathTo("wirelessIconOff.png"))
-
         self.graphIcon = tkinter.PhotoImage(file=self.pathTo("graphIcon.png"))
 
+        self.portChangesThread = None
         #Make a check for any changes
         self.checkForPortChanges()
 
@@ -163,7 +159,6 @@ class MainWindow(tkinter.Frame):
             return os.path.join(sys._MEIPASS, path)
         except:
             return os.path.join(os.path.abspath("."), path)
-
 
     def repeatedScan(self) -> None:
         '''Repeatedly scan the ports if possible'''
@@ -233,14 +228,12 @@ class MainWindow(tkinter.Frame):
         #Iterate through ports needing to be tested
         for port in toTest:
             #Attempt to get the port info
-            #name, state, wifi, ssid = self.getPortInfo(port)
             name, state = self.getPortInfo(port)
             #If it is unknown
             if port not in self.ports:
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of known ports
-                    #self.toAdd.append((port, name, state, wifi, ssid))
                     self.toAdd.append((port, name, state))
                 else:
                     #If it is not already ignored
@@ -251,7 +244,6 @@ class MainWindow(tkinter.Frame):
                 #If info was received
                 if name != None and state != None:
                     #Add it to the list of ports to be updated
-                    #self.toUpdate.append((port, name, state, wifi, ssid))
                     self.toUpdate.append((port, name, state))
                 else:
                     #If it is not ignored
@@ -351,20 +343,17 @@ class MainWindow(tkinter.Frame):
         #No longer updating the ports
         self.updatingPorts = False
         #Repeat check in a tenth of a second
-        self.after(100, self.checkForPortChanges)
+        self.portChangesThread = self.after(100, self.checkForPortChanges)
 
     def getPortInfo(self, portCode : str) -> list:
         '''Attempt to get the info regarding a port'''
         connectedSuccessfully = True
         nameReceived = None
         stateReceived = None
-        #wifiReceived = None
-        #ssidReceived = None
 
         try:
             time.sleep(0.2)
             #Establish connection
-            #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
             self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
             #Start the reading thread
             readThread = Thread(target=self.readSerial, daemon=True)
@@ -397,26 +386,14 @@ class MainWindow(tkinter.Frame):
                             if len(msgParts) > 1:
                                 #Check what the logging state is
                                 state = msgParts[1] == "1"
-
                                 name = None
-                                #wifi = None
-                                #ssid = None
                                 #If there is a name - store it
                                 if len(msgParts) > 3:
                                     name = msgParts[3]
-                                #If there is wifi data - store it
-                                #if len(msgParts) > 5:
-                                    #wifi = msgParts[4] == "wifion"
-                                    #ssid = msgParts[5]
-                                
-                                #If there is a name
-                                #if name != None and wifi != None and ssid != None:
                                 if name != None:
                                     #Correctly received - completed
                                     nameReceived = name
                                     stateReceived = state
-                                    #wifiReceived = wifi
-                                    #ssidReceived = ssid
                                     done = True
         
         #Disconnect from serial (if there is a connection)
@@ -426,12 +403,11 @@ class MainWindow(tkinter.Frame):
         #If there was data received
         if nameReceived != None and stateReceived != None:
             #Return the information (port name is already known)
-            return nameReceived, stateReceived#, wifiReceived, ssidReceived
+            return nameReceived, stateReceived
         
         #Failed - return Nones
         return None, None#, None, None
 
-    #def addPortToList(self, portCode : str, portName : str, portState : bool, wifiState : bool, ssid : str, index = -1) -> None:
     def addPortToList(self, portCode : str, portName : str, portState : bool, index = -1) -> None:
         '''Add a port to the interface, if index is given that is its place in the list (used for updates)'''
         #Create frame to hold items
@@ -458,46 +434,22 @@ class MainWindow(tkinter.Frame):
             nameChangeButton.configure(state="disabled")
         nameChangeButton.grid(row=0, column=3, sticky="NESW")
         #Open window button
-        openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode: self.openPressed(x))
+        openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode, y = portName: self.openPressed(x, y))
         openButton.grid(row=0, column=4, sticky="NESW")
         graphButton = tkinter.Button(portObject, text="Monitor", image=self.graphIcon, compound="top", command=lambda x = portCode, y=portName: self.graphPressed(x, y))
         graphButton.grid(row=0, column=5, sticky="NESW")
-        #Icon defaults to disabled
-        """wifiIcon = self.wifiIconOff
-        #Wireless changes button
-        options = ["Enable", "Change SSID", "Change Password"]
-        #If the wifi is on
-        if wifiState:
-            #Switch to turn off and display 'on' symbol
-            options[0] = "Disable"
-            wifiIcon = self.wifiIconOn
-        #Set the option being displayed
-        portObject.optionVar = tkinter.StringVar()
-        portObject.optionVar.set("WiFi")
-        #Create drop down menu to select action
-        wifiOption = tkinter.OptionMenu(portObject, portObject.optionVar, *options, command=lambda *args: self.wifiOptionPressed(portCode, portObject.optionVar))
-        #Disable drop down indicator
-        wifiOption.configure(indicatoron=False)
-        wifiOption.grid(row=0, column=6, sticky="NSEW")
-        #Display the state of the wifi
-        wifiIndicator = tkinter.Button(portObject, text=ssid, image=wifiIcon, compound="top", state="disabled")
-        wifiIndicator.grid(row=0, column=5, sticky="NESW")"""
         #If no index or an invalid index was given
         if index <= -1 or len(self.portObjects) <= index:
             #Add port to end
             self.ports.append(portCode)
             self.portNames.append(portName)
             self.portStates.append(portState)
-            #self.portWifi.append(wifiState)
-            #self.portSsids.append(ssid)
             self.portObjects.append(portObject)
         else:
             #Add the port at the given index
             self.ports[index] = portCode
             self.portNames[index] = portName
             self.portStates[index] = portState
-            #self.portWifi[index] = wifiState
-            #self.portSsids[index] = ssid
             self.portObjects[index] = portObject
 
     def removePortFromList(self, portCode : str) -> None:
@@ -510,8 +462,6 @@ class MainWindow(tkinter.Frame):
             del self.ports[portId]
             del self.portNames[portId]
             del self.portStates[portId]
-            #del self.portWifi[portId]
-            #del self.portSsids[portId]
             #Remove the object
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
@@ -536,7 +486,6 @@ class MainWindow(tkinter.Frame):
             #Add them back to the grid
             self.portObjects[index].grid(row=index, column=0, sticky="NESW")
     
-    #def updatePortInformation(self, portCode : str, portName : str, portState : bool, wifiState : bool, wifiSsid : str) -> None:
     def updatePortInformation(self, portCode : str, portName : str, portState : bool) -> None:
         '''Update the data of a known port'''
         #Get the id for the port (index)
@@ -546,12 +495,9 @@ class MainWindow(tkinter.Frame):
             #Change the values
             self.portNames[portId] = portName
             self.portStates[portId] = portState
-            #self.portWifi[portId] = wifiState
-            #self.portSsids[portId] = wifiSsid
             self.portObjects[portId].grid_remove()
             self.portObjects[portId].destroy()
             #Add the port to the list with the given position
-            #self.addPortToList(portCode, portName, portState, wifiState, wifiSsid, portId)
             self.addPortToList(portCode, portName, portState, portId)
 
     def readSerial(self) -> None:
@@ -598,7 +544,7 @@ class MainWindow(tkinter.Frame):
     def startPressed(self, portCode : str) -> None:
         '''Start button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating:
+        if not self.communicating and not self.connectedWindowOpen:
             self.communicating = True
             startTime = time.time_ns()
             #Wait unti no longer updating or scanning (for timeout)
@@ -707,7 +653,7 @@ class MainWindow(tkinter.Frame):
     def stopPressed(self, portCode : str) -> None:
         '''Stop button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating:
+        if not self.communicating and not self.connectedWindowOpen:
             self.communicating = True
             startTime = time.time_ns()
             #Wait for end of updates and scanning or for timeout
@@ -786,7 +732,7 @@ class MainWindow(tkinter.Frame):
     def renamePressed(self, portCode : str) -> None:
         '''Rename button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating:
+        if not self.communicating and not self.connectedWindowOpen:
             self.communicating = True
             extraString = ""
             #If the port is valid
@@ -867,16 +813,37 @@ class MainWindow(tkinter.Frame):
             #No longer communicating
             self.communicating = False
 
-    def openPressed(self, portCode : str) -> None:
+    def openPressed(self, port : str, portName : str) -> None:
         '''If open button is pressed on a port'''
         #If not currently mid action
         if not self.communicating:
             try:
-                #Open the communication window for the given port
-                self.rootWindow.openCommunicationWindow(portCode)
+                self.analysisWindow.lift()
+                self.analysisWindow.focus()
             except:
-                #Something went wrong - probably there is no parent window (occurrs when run standalone, impossible once packaged)
-                self.displayMessage("Cannot Open", "Unable to open connection window, please try again or open the connection screen manually.")
+                try:
+                    self.monitorWindow.lift()
+                    self.monitorWindow.focus()
+                except:
+                    try:
+                        self.settingsWindow.lift()
+                        self.settingsWindow.focus()
+                    except:
+                        try:
+                            self.receiveWindow.lift()
+                            self.receiveWindow.focus()
+                        except:
+                            self.receiveWindow = tkinter.Toplevel(self.parent)
+                            self.receiveWindow.transient(self.parent)
+                            self.receiveWindow.grid_columnconfigure(0, weight=1)
+                            self.receiveWindow.grid_rowconfigure(0, weight=1)
+                            self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                            self.receiveWindow.minsize(400, 500)
+                            self.receiveWindow.title("Settings")
+                            window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
+                            window.grid(row=0, column=0, sticky="NESW")
+                            self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                            self.receiveWindow.focus()
 
     def graphPressed(self, port : str, portName : str) -> None:
         try:
@@ -888,272 +855,82 @@ class MainWindow(tkinter.Frame):
                 self.analysisWindow.focus()
             except:
                 try:
+                    self.receiveWindow.lift()
+                    self.receiveWindow.focus()
+                except:
+                    try:
+                        self.monitorWindow.lift()
+                        self.monitorWindow.focus()
+                    except:
+                        if self.updatingPorts:
+                            time.sleep(0.05)
+                        self.monitorWindow = tkinter.Toplevel(self.parent)
+                        self.monitorWindow.transient(self.parent)
+                        self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
+                        self.monitorWindow.minsize(1000, 750)
+                        self.monitorWindow.title("GFM Tip Monitor")
+                        self.monitorWindow.grid_rowconfigure(0, weight=1)
+                        self.monitorWindow.grid_columnconfigure(0, weight=1)
+                        window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
+                        window.grid(row=0, column=0, sticky="NESW")
+                        self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                        self.monitorWindow.focus()
+
+    def analysisButtonPressed(self) -> None:
+        if not self.communicating:
+            try:
+                self.settingsWindow.lift()
+                self.settingsWindow.focus()
+            except:
+                try:
                     self.monitorWindow.lift()
                     self.monitorWindow.focus()
                 except:
-                    if self.updatingPorts:
-                        time.sleep(0.05)
-                    self.monitorWindow = tkinter.Toplevel(self.parent)
-                    self.monitorWindow.transient(self.parent)
-                    self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
-                    self.monitorWindow.minsize(1000, 750)
-                    self.monitorWindow.title("GFM Tip Monitor")
-                    self.monitorWindow.grid_rowconfigure(0, weight=1)
-                    self.monitorWindow.grid_columnconfigure(0, weight=1)
-                    window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
-                    window.grid(row=0, column=0, sticky="NESW")
-                    self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                    self.monitorWindow.focus()
-
-    def wifiOptionPressed(self, portCode : str, optionVar : tkinter.StringVar) -> None:
-        '''When a wifi option is selected, perform the correct action'''
-        #Get the selected option
-        option = optionVar.get()
-        #Reset the drop down - use it as a menu button rather than a multiple choice selection
-        optionVar.set("WiFi")
-        #Message to be sent to the device
-        message = ""
-        collectionRunning = False
-        #If the port is known
-        if portCode in self.ports:
-            #Get the collecting state from the device
-            index = self.ports.index(portCode)
-            collectionRunning = self.portStates[index]
-
-        #If enabling the WiFi
-        if option == "Enable":
-            message = "wifi enable\n"
-        #If disabling the WiFi
-        if option == "Disable":
-            message = "wifi disable\n"
-        #If requesting the change the device SSID
-        if option == "Change SSID":
-            #Check if running
-            if not collectionRunning:
-                #Ask user for new ssid
-                givenSSID = simpledialog.askstring("Enter New SSID", "Enter the new SSID for this device.", parent=self)
-                givenSSID.strip()
-                givenSSID.replace(" ", "")
-                allowed = True
-                #If a value was given
-                if givenSSID != "":
-                    #If the value is too long
-                    if len(givenSSID) > 31:
-                        #Error message - too long
-                        self.displayMessage("Invalid SSID", "SSID must be a maximum of 31 characters long.")
-                        allowed = False
-                    else:
-                        #Check each character
-                        for char in givenSSID:
-                            if allowed:
-                                #If the character is invalid
-                                if char not in self.acceptedChars:
-                                    #Error message - invalid characters
-                                    self.displayMessage("Invalid SSID", "Please only use alphanumeric characters, underscores and hyphens.")
-                                    allowed = False
-                else:
-                    #Error message - empty field
-                    self.displayMessage("Invalid SSID", "Please ensure you enter an SSID.")
-                    allowed = False
-                
-                #Check if allowed and store message
-                if allowed:
-                    message = "wifi rename " + givenSSID + "\n"
-            else:
-                #Error message - not possible while logging
-                self.displayMessage("Cannot Change SSID", "SSID can only be changed when not logging.")
-        #If requesting to change the password
-        if option == "Change Password":
-            #Check if running
-            if not collectionRunning:
-                #Ask user for new password
-                givenPass = simpledialog.askstring("Enter New Password", "Enter the new password for this device.", parent=self)
-                givenPass.strip()
-                givenPass.replace(" ", "")
-                allowed = True
-                #If a value was entered
-                if givenPass != "":
-                    #If the value is too long
-                    if len(givenPass) > 31:
-                        #Error message - too long
-                        self.displayMessage("Invalid Password", "Password must be a maximum of 31 characters long.")
-                        allowed = False
-                    else:
-                        #Iterate through characters
-                        for char in givenPass:
-                            if allowed:
-                                #If the character is not allowed
-                                if char not in self.acceptedChars:
-                                    #Error message - invalid characters
-                                    self.displayMessage("Invalid Password", "Please only use alphanumeric characters, underscores and hyphens.")
-                                    allowed = False
-                else:
-                    #Error message - empty field
-                    self.displayMessage("Invalid Password", "Please ensure you enter a password.")
-                    allowed = False
-
-                #Check if allowed and store message
-                if allowed:
-                    message = "wifi newpass " + givenPass + "\n" 
-            else:
-                #Report not possible
-                self.displayMessage("Cannot Change Password", "Password can only be changed when not logging.")
-
-        #If a message is stored - valid input received
-        if message != "":
-            #Prevent multiple button presses
-            if not self.communicating:
-                self.communicating = True
-                #Store start time of communication
-                startTime = time.time_ns()
-                #Wait for end of updates and scanning or for timeout
-                while (self.updatingPorts or self.midScan) and startTime + self.timeout > time.time_ns():
-                    pass
-                #If not updating or scanning
-                if not self.updatingPorts and not self.midScan:
-                    success = True
                     try:
-                        #Connect to serial
-                        self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
-                        #Start reading thread
-                        readThread = Thread(target=self.readSerial, daemon=True)
-                        readThread.start()
-                            
-                        time.sleep(0.2)
+                        self.receiveWindow.lift()
+                        self.receiveWindow.focus()
                     except:
-                        success = False
-                        
-                    if success:
-                        #Clear message
-                        self.purgeMessages()
-                        #Send stop message
-                        self.serialConnection.write(message.encode("utf-8"))
-                        done = False
-                        start = time.time_ns()
-                        #Repeat until complete or timed out
-                        while not done and start + self.longTimeout > time.time_ns():
-                            #If there is a message
-                            if len(self.messages) > 0:
-                                #Pop the message
-                                msg = self.messages[0]
-                                del self.messages[0]
-                                #Split into parts
-                                msgParts = msg.split(" ")
-                                if len(msgParts) > 1:
-                                    #If it is about the stop
-                                    if msgParts[0] == "wifi":
-                                        #Started WiFi correctly
-                                        if msgParts[1] == "started":
-                                            self.displayMessage("WiFi Started", "Started WiFi successfully.")
-                                            done = True
-                                        #Stopped WiFi correction
-                                        if msgParts[1] == "stopped":
-                                            self.displayMessage("WiFi Stopped", "Stopped WiFi successfully.")
-                                            done = True
-                                        #Could not start/stop as already in that state
-                                        if msgParts[1] == "already":
-                                            if msgParts[2] == "started":
-                                                self.displayMessage("WiFi Already Started", "Could not start WiFi, it is already on.")
-                                            if msgParts[2] == "stopped":
-                                                self.displayMessage("WiFi Already Stopped", "Could not stop WiFi, it is already off.")
-                                            done = True
-                                        #Error / issue occurred
-                                        if msgParts[1] == "failed" or (msgParts[1] == "unchanged" and msgParts[2] == "failed"):
-                                            #Cannot change WiFi over wifi
-                                            if msgParts[2] == "serialonly":
-                                                self.displayMessage("WiFi Cannot Change", "Cannot change WiFi settings over WiFi.")
-                                            else:
-                                                #Other unknown issue occurred
-                                                self.displayMessage("WiFi Failed", "Could not change WiFi settings, please try again.")
-                                            done = True
-                                        #Changed a value successfully
-                                        if msgParts[1] == "changed":
-                                            #SSID changed
-                                            if msgParts[2] == "name":
-                                               self.displayMessage("SSID Changed", "SSID has been successfully changed.")
-                                               done = True
-                                            #Password changed
-                                            if msgParts[2] == "pass":
-                                                self.displayMessage("Password Changed", "Password has been successfully changed.") 
-                                                done = True
-                                        #Failed to change a value
-                                        if msgParts[1] == "unchanged":
-                                            #No SIID value was given
-                                            if msgParts[2] == "noname":
-                                                self.displayMessage("No SSID Given", "A valid SSID must be entered.")
-                                                done = True
-                                            #No password value was given
-                                            if msgParts[2] == "noPass":
-                                                self.displayMessage("No Password Given", "A valid password must be entered.")
-                                                done = True
-                                            #Currently logging, SSID and password cannot be changed
-                                            if msgParts[2] == "running":
-                                                self.displayMessage("WiFi Cannot Change", "Cannot change WiFi while logging.")
-                                                done = True
-                        if not done:
-                            #No response received
-                            self.displayMessage("Timed out", "No response received, timeout occurred.")
-
-                        #Disconnect serial connection if present
-                        if self.serialConnection != None:
-                            self.serialConnection.close()
-                            self.serialConnection = None
-                else:
-                    #Unable to send message another process blocked
-                    self.displayMessage("Could Not Send", "Connection attempt timed out, please try again.")
-                
-                #Check the port for updates
-                self.updateChecks.append(portCode)
-                #No longer communicating
-                self.communicating = False
-        
-        #Dissallow change to option menu
-        return False
-
-    def analysisButtonPressed(self) -> None:
-        try:
-            self.settingsWindow.lift()
-            self.settingsWindow.focus()
-        except:
-            try:
-                self.monitorWindow.lift()
-                self.monitorWindow.focus()
-            except:
-                try:
-                    self.analysisWindow.lift()
-                    self.analysisWindow.focus()
-                except:
-                    self.analysisWindow = tkinter.Toplevel(self.parent)
-                    self.analysisWindow.transient(self.parent)
-                    self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
-                    self.analysisWindow.minsize(850, 650)
-                    self.analysisWindow.title("Setup GFM")
-                    self.analysisWindow.grid_rowconfigure(0, weight=1)
-                    self.analysisWindow.grid_columnconfigure(0, weight=1)
-                    processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
-                    self.analysisWindow.focus()
+                        try:
+                            self.analysisWindow.lift()
+                            self.analysisWindow.focus()
+                        except:
+                            self.analysisWindow = tkinter.Toplevel(self.parent)
+                            self.analysisWindow.transient(self.parent)
+                            self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+                            self.analysisWindow.minsize(850, 650)
+                            self.analysisWindow.title("Setup GFM")
+                            self.analysisWindow.grid_rowconfigure(0, weight=1)
+                            self.analysisWindow.grid_columnconfigure(0, weight=1)
+                            processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
+                            self.analysisWindow.focus()
 
     def settingsButtonPressed(self) -> None:
-        try:
-            self.analysisWindow.lift()
-            self.analysisWindow.focus()
-        except:
+        if not self.communicating:
             try:
-                self.monitorWindow.lift()
-                self.monitorWindow.focus()
+                self.analysisWindow.lift()
+                self.analysisWindow.focus()
             except:
                 try:
-                    self.settingsWindow.lift()
-                    self.settingsWindow.focus()
+                    self.monitorWindow.lift()
+                    self.monitorWindow.focus()
                 except:
-                    self.settingsWindow = tkinter.Toplevel(self.parent)
-                    self.settingsWindow.transient(self.parent)
-                    self.settingsWindow.grid_columnconfigure(0, weight=1)
-                    self.settingsWindow.grid_rowconfigure(0, weight=1)
-                    self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                    self.settingsWindow.title("Settings")
-                    SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
-                    self.settingsWindow.focus()
+                    try:
+                        self.receiveWindow.lift()
+                        self.receiveWindow.focus()
+                    except:
+                        try:
+                            self.settingsWindow.lift()
+                            self.settingsWindow.focus()
+                        except:
+                            self.settingsWindow = tkinter.Toplevel(self.parent)
+                            self.settingsWindow.transient(self.parent)
+                            self.settingsWindow.grid_columnconfigure(0, weight=1)
+                            self.settingsWindow.grid_rowconfigure(0, weight=1)
+                            self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                            self.settingsWindow.minsize(600, 300)
+                            self.settingsWindow.title("Settings")
+                            SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                            self.settingsWindow.focus()
 
     def quitMonitor(self) -> None:
         self.monitorWindow.destroy()
@@ -1193,6 +970,30 @@ class MainWindow(tkinter.Frame):
         '''Change y scroll position when mouse wheel moved'''
         if self.listCanvas != None:
             self.listCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    
+    def closeWindow(self):
+        try:
+            self.receiveWindow.terminate()
+        except:
+            pass
+        try:
+            self.monitorWindow.terminate()
+        except:
+            pass
+        try:
+            self.analysisWindow.destroy()
+        except:
+            pass
+        try:
+            self.settingsWindow.destroy()
+        except:
+            pass
+        try:
+            self.after_cancel(self.portChangesThread)
+        except:
+            pass
+        self.parent.destroy()
+
 
 class SettingsWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -1478,5 +1279,6 @@ if __name__ == "__main__":
     ico = Image.open(window.pathTo("icon.png"))
     photo = ImageTk.PhotoImage(ico)
     root.wm_iconphoto(True, photo)
+    root.protocol("WM_DELETE_WINDOW", window.closeWindow)
     #Start running the root
     root.mainloop()
