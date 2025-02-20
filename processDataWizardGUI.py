@@ -602,7 +602,7 @@ class MainWindow(tkinter.Frame):
         '''Move to the preview window from the processing window'''
         #Check not still processing and there is data
         if not self.processing:
-            if self.eventLog != None and self.hourLog != None and self.dayLog != None and self.continuousLog != None and len(self.eventLog > 0):
+            if self.eventLog != None and self.hourLog != None and self.dayLog != None and self.continuousLog != None and len(self.eventLog) > 0:
                 self.moveWindows(3)
 
     def backPressedProcessing(self) -> None:
