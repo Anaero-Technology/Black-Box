@@ -6,12 +6,17 @@ from threading import Thread
 import time
 import os, sys
 from PIL import Image, ImageTk
+import pathlib
+import processDataWizardGUI
 
 class MainWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
     def __init__ (self, parent, rw = None, *args, **kwargs):
         #Initialise parent class
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
+
+        self.parent = parent
+        self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
         
         #Object to hold serial connection information
         self.serialConnection = None;
@@ -41,6 +46,7 @@ class MainWindow(tkinter.Frame):
         #Grid for main frame
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=10)
+        self.grid_rowconfigure(2, weight=3)
         self.grid_columnconfigure(0, weight=1)
 
         #Grid in both frames
@@ -89,6 +95,23 @@ class MainWindow(tkinter.Frame):
         self.updateText = tkinter.Label(self.updateFrame, text="No Devices Found, Try Reconnecting")
         self.updateText.grid(row=0, column=0, sticky="NESW")
 
+        self.buttonsFrame = tkinter.Frame(self)
+        self.buttonsFrame.grid(row=2, column=0, sticky="NESW")
+        self.buttonsFrame.grid_columnconfigure(0, weight=4)
+        self.buttonsFrame.grid_columnconfigure(1, weight=1)
+        self.buttonsFrame.grid_rowconfigure(0, weight=0)
+
+        self.analysisButton = tkinter.Button(self.buttonsFrame, text="Analyse Data", font=("", 16), command=self.analysisButtonPressed)
+        self.analysisButton.grid(row=0, column=0)
+
+        self.analysisWindow = None
+
+        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("settingsIcon.png"))
+        self.settingsButton = tkinter.Button(self.buttonsFrame, image=self.settingsImage, command=self.settingsButtonPressed)
+        self.settingsButton.grid(row=0, column=1)
+
+        self.settingsWindow = None
+
         #Connection timeouts
         self.timeout = 4000000000
         self.longTimeout = self.timeout * 8
@@ -115,12 +138,6 @@ class MainWindow(tkinter.Frame):
         #If currently scanning the ports
         self.midScan = False
 
-        self.thisPath = os.path.abspath(".")
-        try:
-            self.thisPath = sys._MEIPASS
-        except:
-            pass
-
         #Images used to display wifi state
         self.wifiIconOn = tkinter.PhotoImage(file=self.pathTo("wirelessIconOn.png"))
         self.wifiIconOff = tkinter.PhotoImage(file=self.pathTo("wirelessIconOff.png"))
@@ -131,9 +148,14 @@ class MainWindow(tkinter.Frame):
         #Create and start a thread to scan the ports regularly
         self.portScanThread = Thread(target=self.repeatedScan, daemon=True)
         self.portScanThread.start()
+
     
     def pathTo(self, path):
-        return os.path.join(self.thisPath, path)
+        try:
+            return os.path.join(sys._MEIPASS, path)
+        except:
+            return os.path.join(os.path.abspath("."), path)
+
 
     def repeatedScan(self) -> None:
         '''Repeatedly scan the ports if possible'''
@@ -1039,6 +1061,43 @@ class MainWindow(tkinter.Frame):
         #Dissallow change to option menu
         return False
 
+    def analysisButtonPressed(self) -> None:
+        try:
+            self.settingsWindow.lift()
+            self.settingsWindow.focus()
+        except:
+            try:
+                self.analysisWindow.lift()
+                self.analysisWindow.focus()
+            except:
+                self.analysisWindow = tkinter.Toplevel(self.parent)
+                self.analysisWindow.transient(self.parent)
+                self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+                self.analysisWindow.minsize(850, 650)
+                self.analysisWindow.title("Setup GFM")
+                self.analysisWindow.grid_rowconfigure(0, weight=1)
+                self.analysisWindow.grid_columnconfigure(0, weight=1)
+                processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
+                self.analysisWindow.focus()
+
+    def settingsButtonPressed(self) -> None:
+        try:
+            self.analysisWindow.lift()
+            self.analysisWindow.focus()
+        except:
+            try:
+                self.settingsWindow.lift()
+                self.settingsWindow.focus()
+            except:
+                self.settingsWindow = tkinter.Toplevel(self.parent)
+                self.settingsWindow.transient(self.parent)
+                self.settingsWindow.grid_columnconfigure(0, weight=1)
+                self.settingsWindow.grid_rowconfigure(0, weight=1)
+                self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                self.settingsWindow.title("Settings")
+                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                self.settingsWindow.focus()
+
     def displayMessage(self, title : str, message : str) -> None:
         '''Display a message box - slight shorthand'''
         messagebox.showinfo(title=title, message=message)
@@ -1070,6 +1129,269 @@ class MainWindow(tkinter.Frame):
         if self.listCanvas != None:
             self.listCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
+class SettingsWindow(tkinter.Frame):
+    '''Class for the settings window toplevel'''
+    def __init__ (self, parent, *args, **kwargs):
+        #Initialise parent class
+        tkinter.Frame.__init__(self, parent, *args, **kwargs)
+        
+        #Setup internal grid
+        self.grid_rowconfigure(0, weight=1)
+        for col in range(0, 3):
+            self.grid_columnconfigure(col, weight=1)
+
+        #Colours to use for the highlighting
+        self.defaultColour = self.cget("bg")
+        self.selectedColour = "#AADDAA"
+
+        #Create a font for the text
+        self.headerFont = ("", 14)
+        self.textFont = ("", 10)
+
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
+
+        #Section to hold comma separated option
+        self.commaSection = tkinter.Frame(self)
+        self.commaSection.grid(row=0, column=0, sticky="NSEW")
+        #Section to hold semicolon separated option
+        self.semicolonSection = tkinter.Frame(self)
+        self.semicolonSection.grid(row=0, column=1, sticky="NSEW")
+        #Section to hold custom separator option
+        self.customSection = tkinter.Frame(self)
+        self.customSection.grid(row=0, column=2, sticky="NSEW")
+        #Set up rows for each
+        for row in range(0, 4):
+            self.commaSection.grid_rowconfigure(row, weight=1)
+            self.semicolonSection.grid_rowconfigure(row, weight=1)
+            self.customSection.grid_rowconfigure(row, weight=1)
+        #Set up single column for each
+        self.commaSection.grid_columnconfigure(0, weight=1)
+        self.semicolonSection.grid_columnconfigure(0, weight=1)
+        self.customSection.grid_columnconfigure(0, weight=1)
+
+        #Create frame for inputing custom column separator
+        self.customColumnFrame = tkinter.Frame(self.customSection)
+        self.customColumnFrame.grid(row=1, column=0, sticky="NESW")
+        self.customColumnFrame.grid_rowconfigure(0, weight=1)
+        self.customColumnFrame.grid_rowconfigure(1, weight=1)
+        self.customColumnFrame.grid_columnconfigure(0, weight=1)
+
+        #Create frame for inputting custom decimal symbol
+        self.customDecimalFrame = tkinter.Frame(self.customSection)
+        self.customDecimalFrame.grid(row=2, column=0, sticky="NESW")
+        self.customDecimalFrame.grid_rowconfigure(0, weight=1)
+        self.customDecimalFrame.grid_rowconfigure(1, weight=1)
+        self.customDecimalFrame.grid_columnconfigure(0, weight=1)
+        
+        #Comma separated text
+        self.commaSeparatedHeader = tkinter.Label(self.commaSection, text="Comma Separated", font=self.headerFont)
+        self.commaSeparatedColumn = tkinter.Label(self.commaSection, text="Column Separator: ,", font=self.textFont)
+        self.commaSeparatedDecimal = tkinter.Label(self.commaSection, text="Decimal Point: .", font=self.textFont)
+        self.commaSeparatedHeader.grid(row=0, column=0)
+        self.commaSeparatedColumn.grid(row=1, column=0)
+        self.commaSeparatedDecimal.grid(row=2, column=0)
+        #Semicolon separated text
+        self.semicolonSeparatedHeader = tkinter.Label(self.semicolonSection, text="Semicolon Separated", font=self.headerFont)
+        self.semicolonSeparatedColumn = tkinter.Label(self.semicolonSection, text="Column Separator: ;", font=self.textFont)
+        self.semicolonSeparatedDecimal = tkinter.Label(self.semicolonSection, text="Decimal Point: ,", font=self.textFont)
+        self.semicolonSeparatedHeader.grid(row=0, column=0)
+        self.semicolonSeparatedColumn.grid(row=1, column=0)
+        self.semicolonSeparatedDecimal.grid(row=2, column=0)
+        #Custom separated text
+        self.customSeparatedHeader = tkinter.Label(self.customSection, text="Custom Separators", font=self.headerFont)
+        self.customSeparatedColumn = tkinter.Label(self.customColumnFrame, text="Column Separator:", font=self.textFont)
+        self.customSeparatedDecimal = tkinter.Label(self.customDecimalFrame, text="Decimal Point:", font=self.textFont)
+        self.customSeparatedHeader.grid(row=0, column=0)
+        self.customSeparatedColumn.grid(row=0, column=0)
+        self.customSeparatedDecimal.grid(row=0, column=0)
+        
+        #Which option is selected
+        self.selectorType = tkinter.IntVar()
+        #Add radio buttons for each option
+        self.separatorOptionComma = tkinter.Radiobutton(self.commaSection, variable=self.selectorType, value=0, command=lambda x=0: self.chooseSeparator(x))
+        self.separatorOptionSemicolon = tkinter.Radiobutton(self.semicolonSection, variable=self.selectorType, value=1, command=lambda x=1: self.chooseSeparator(x))
+        self.separatorOptionCustom = tkinter.Radiobutton(self.customSection, variable=self.selectorType, value=2, command=lambda x=2: self.chooseSeparator(x))
+        self.separatorOptionComma.grid(row=3, column=0)
+        self.separatorOptionSemicolon.grid(row=3, column=0)
+        self.separatorOptionCustom.grid(row=3, column=0)
+
+        #Values for custom separators
+        self.customColumnEntryValue = tkinter.StringVar()
+        self.customDecimalEntryValue = tkinter.StringVar()
+
+        #Read the separators from the file
+        self.readSeparators()
+        #Widgets for custom separator entry
+        self.customColumnEntry = tkinter.Entry(self.customColumnFrame, justify="center", width=3, textvariable=self.customColumnEntryValue)
+        self.customColumnEntry.grid(row=1, column=0)
+        self.customDecimalEntry = tkinter.Entry(self.customDecimalFrame, justify="center", width=3, textvariable=self.customDecimalEntryValue)
+        self.customDecimalEntry.grid(row=1, column=0)
+
+        #Add callback to check if input is valid
+        self.separatorCheck = self.register(self.validateCustomSeparator)
+        #Add validation to entries
+        self.customColumnEntry.configure(validate="key", validatecommand=(self.separatorCheck, "%P"))
+        self.customDecimalEntry.configure(validate="key", validatecommand=(self.separatorCheck, "%P"))
+
+        #Setup which option is selected
+        self.chooseSeparator(self.selectorType.get())
+
+    def chooseSeparator(self, type : int) -> None:
+        '''Update which option is chosen'''
+        #Write the values to a file
+        self.writeSeparators()
+        #If comma is selected - highlight it and return the others to normal
+        if type == 0:
+            self.commaSection.configure(bg=self.selectedColour)
+            self.commaSeparatedHeader.configure(bg=self.selectedColour)
+            self.commaSeparatedColumn.configure(bg=self.selectedColour)
+            self.commaSeparatedDecimal.configure(bg=self.selectedColour)
+            self.separatorOptionComma.configure(bg=self.selectedColour)
+            self.semicolonSection.configure(bg=self.defaultColour)
+            self.semicolonSeparatedHeader.configure(bg=self.defaultColour)
+            self.semicolonSeparatedColumn.configure(bg=self.defaultColour)
+            self.semicolonSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionSemicolon.configure(bg=self.defaultColour)
+            self.customSection.configure(bg=self.defaultColour)
+            self.customSeparatedHeader.configure(bg=self.defaultColour)
+            self.customSeparatedColumn.configure(bg=self.defaultColour)
+            self.customSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionCustom.configure(bg=self.defaultColour)
+            self.customColumnFrame.configure(bg=self.defaultColour)
+            self.customDecimalFrame.configure(bg=self.defaultColour)
+        #If semicolon is selected - highlight it and return the others to normal
+        elif type == 1:
+            self.commaSection.configure(bg=self.defaultColour)
+            self.commaSeparatedHeader.configure(bg=self.defaultColour)
+            self.commaSeparatedColumn.configure(bg=self.defaultColour)
+            self.commaSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionComma.configure(bg=self.defaultColour)
+            self.semicolonSection.configure(bg=self.selectedColour)
+            self.semicolonSeparatedHeader.configure(bg=self.selectedColour)
+            self.semicolonSeparatedColumn.configure(bg=self.selectedColour)
+            self.semicolonSeparatedDecimal.configure(bg=self.selectedColour)
+            self.separatorOptionSemicolon.configure(bg=self.selectedColour)
+            self.customSection.configure(bg=self.defaultColour)
+            self.customSeparatedHeader.configure(bg=self.defaultColour)
+            self.customSeparatedColumn.configure(bg=self.defaultColour)
+            self.customSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionCustom.configure(bg=self.defaultColour)
+            self.customColumnFrame.configure(bg=self.defaultColour)
+            self.customDecimalFrame.configure(bg=self.defaultColour)
+        #If comma is selected - highlight it and return the others to normal
+        elif type == 2:
+            self.commaSection.configure(bg=self.defaultColour)
+            self.commaSeparatedHeader.configure(bg=self.defaultColour)
+            self.commaSeparatedColumn.configure(bg=self.defaultColour)
+            self.commaSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionComma.configure(bg=self.defaultColour)
+            self.semicolonSection.configure(bg=self.defaultColour)
+            self.semicolonSeparatedHeader.configure(bg=self.defaultColour)
+            self.semicolonSeparatedColumn.configure(bg=self.defaultColour)
+            self.semicolonSeparatedDecimal.configure(bg=self.defaultColour)
+            self.separatorOptionSemicolon.configure(bg=self.defaultColour)
+            self.customSection.configure(bg=self.selectedColour)
+            self.customSeparatedHeader.configure(bg=self.selectedColour)
+            self.customSeparatedColumn.configure(bg=self.selectedColour)
+            self.customSeparatedDecimal.configure(bg=self.selectedColour)
+            self.separatorOptionCustom.configure(bg=self.selectedColour)
+            self.customColumnFrame.configure(bg=self.selectedColour)
+            self.customDecimalFrame.configure(bg=self.selectedColour)
+
+    def readSeparators(self) -> None:
+        '''Read the separators from the file and assign to variables'''
+        try:
+            #Attempt to open the file and read
+            optionPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "options.txt")
+            settingsFile = open(optionPath, "r")
+            data = settingsFile.read()
+            settingsFile.close()
+            data = data.split("\n")
+            #Iterate through rows
+            for row in data:
+                #Remove excess whitespace
+                row = row.strip()
+                #Split into parts
+                parts = row.split(" ")
+                #If this is info about which option is selected
+                if parts[0] == "selected:":
+                    #Set the selector type to the value on that row
+                    self.selectorType.set(int(parts[1]))
+                #If this is info about the custom column separator
+                if parts[0] == "column:":
+                    #Check if the part is valid
+                    if self.validateCustomSeparator(parts[1], True):
+                        #Set the custom separator
+                        self.customColumnEntryValue.set(parts[1])
+                    else:
+                        #If invalid - set as a comma
+                        self.customColumnEntryValue.set(",")
+                #If this is info about the custom decimal symbol
+                if parts[0] == "decimal:":
+                    #Check if the part is valid
+                    if self.validateCustomSeparator(parts[1], True):
+                        #Set custom decimal symbol
+                        self.customDecimalEntryValue.set(parts[1])
+                    else:
+                        #If invalid - set as period
+                        self.customDecimalEntryValue.set(".")
+
+        except:
+            #If something went wrong (file missing or invalid structure)
+            #Default custom to comma separated
+            self.customColumnEntryValue.set(",")
+            self.customDecimalEntryValue.set(".")
+            #Write the file
+            self.writeSeparators()
+    
+    def writeSeparators(self) -> None:
+        '''Write the separator options to a file'''
+        #Create data with selected option and custom separators
+        data = "selected: {0}\ncolumn: {1}\ndecimal: {2}\n".format(self.selectorType.get(), self.customColumnEntryValue.get(), self.customDecimalEntryValue.get())
+        #Open the file
+        optionPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(optionPath).mkdir(parents=True, exist_ok=True)
+        settingsFile = open(os.path.join(optionPath, "options.txt"), "w")
+        #Write the data
+        settingsFile.write(data)
+        #Close the file
+        settingsFile.close()
+
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
+    
+    def validateCustomSeparator(self, value, noSave = False) -> bool:
+        '''Returns True if the given valus is a valid separator'''
+
+        #If there is more than one character
+        if len(value) > 1:
+            #It is not valid
+            return False
+
+        #String of characters that cannot be used
+        disallowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -"
+
+        #If the value given is any of the characters in the string
+        if any(d in value for d in disallowed):
+            #It is not valid
+            return False
+        
+        #If the separator matches the other separator given
+        if self.customColumnEntryValue.get() == value or self.customDecimalEntryValue.get() == value:
+            #It is not valid
+            return False
+
+        #Unless told to do so (when loading data)
+        if not noSave:
+            #Save the values into the file after a short delay (to allow for data to be stored in variables after validation)
+            self.after(100, self.writeSeparators)
+
+        #The separator is valid and the entry value can be updated
+        return True
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
@@ -1078,13 +1400,13 @@ if __name__ == "__main__":
     #Calculate the position of the centre of the screen
     screenMiddle = [root.winfo_screenwidth() / 2, root.winfo_screenheight() / 2]
     #Set the shape of the window and place it in the centre of the screen
-    root.geometry("750x500+{0}+{1}".format(int(screenMiddle[0] - 375), int(screenMiddle[1] - 250)))
-    root.minsize(750, 500)
+    root.geometry("750x600+{0}+{1}".format(int(screenMiddle[0] - 375), int(screenMiddle[1] - 250)))
+    root.minsize(750, 600)
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("Device Overview")
+    root.title("GFM Python Tools V2.0")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
