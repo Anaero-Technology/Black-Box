@@ -112,8 +112,8 @@ class MainWindow(tkinter.Frame):
         self.settingsButton = tkinter.Button(self.buttonsFrame, image=self.settingsImage, command=self.settingsButtonPressed)
         self.settingsButton.grid(row=0, column=1)
 
+        #Objects to hold windows
         self.settingsWindow = None
-
         self.monitorWindow = None
         self.receiveWindow = None
 
@@ -154,7 +154,8 @@ class MainWindow(tkinter.Frame):
         self.portScanThread.start()
 
     
-    def pathTo(self, path):
+    def pathTo(self, path : str) -> str:
+        '''Convert local path to compiled or directory path'''
         try:
             return os.path.join(sys._MEIPASS, path)
         except:
@@ -273,6 +274,7 @@ class MainWindow(tkinter.Frame):
         '''Check the lists for updates and change the interface to match'''
         monitorOpen = False
         receiveOpen = False
+        #Check if either window exists
         try:
             monitorOpen = self.monitorWindow.winfo_exists()
         except:
@@ -281,9 +283,9 @@ class MainWindow(tkinter.Frame):
             receiveOpen = self.receiveWindow.winfo_exists()
         except:
             pass
+        #Only allow other access if connection type window is not open
         self.connectedWindowOpen = monitorOpen or receiveOpen
-
-        #If not currently transferring data
+        #If not currently transferring data of any kind
         if not self.communicating and not self.connectedWindowOpen:
             #Started updating the port information
             self.updatingPorts = True
@@ -406,7 +408,7 @@ class MainWindow(tkinter.Frame):
             return nameReceived, stateReceived
         
         #Failed - return Nones
-        return None, None#, None, None
+        return None, None
 
     def addPortToList(self, portCode : str, portName : str, portState : bool, index = -1) -> None:
         '''Add a port to the interface, if index is given that is its place in the list (used for updates)'''
@@ -817,6 +819,7 @@ class MainWindow(tkinter.Frame):
         '''If open button is pressed on a port'''
         #If not currently mid action
         if not self.communicating:
+            #Check if another window is open then lift and focus it
             try:
                 self.analysisWindow.lift()
                 self.analysisWindow.focus()
@@ -833,6 +836,7 @@ class MainWindow(tkinter.Frame):
                             self.receiveWindow.lift()
                             self.receiveWindow.focus()
                         except:
+                            #Create a new toplevel and configure it as data receive
                             self.receiveWindow = tkinter.Toplevel(self.parent)
                             self.receiveWindow.transient(self.parent)
                             self.receiveWindow.grid_columnconfigure(0, weight=1)
@@ -840,44 +844,52 @@ class MainWindow(tkinter.Frame):
                             self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
                             self.receiveWindow.minsize(400, 500)
                             self.receiveWindow.title("Settings")
+                            #Create object for interface
                             window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
                             window.grid(row=0, column=0, sticky="NESW")
                             self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
                             self.receiveWindow.focus()
 
     def graphPressed(self, port : str, portName : str) -> None:
-        try:
-            self.settingsWindow.lift()
-            self.settingsWindow.focus()
-        except:
+        '''If graph button is pressed on a port'''
+        #If not currently in the middle of another action
+        if not self.communicating:
+            #Check if another window is open then lift and focus it
             try:
-                self.analysisWindow.lift()
-                self.analysisWindow.focus()
+                self.settingsWindow.lift()
+                self.settingsWindow.focus()
             except:
                 try:
-                    self.receiveWindow.lift()
-                    self.receiveWindow.focus()
+                    self.analysisWindow.lift()
+                    self.analysisWindow.focus()
                 except:
                     try:
-                        self.monitorWindow.lift()
-                        self.monitorWindow.focus()
+                        self.receiveWindow.lift()
+                        self.receiveWindow.focus()
                     except:
-                        if self.updatingPorts:
-                            time.sleep(0.05)
-                        self.monitorWindow = tkinter.Toplevel(self.parent)
-                        self.monitorWindow.transient(self.parent)
-                        self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
-                        self.monitorWindow.minsize(1000, 750)
-                        self.monitorWindow.title("GFM Tip Monitor")
-                        self.monitorWindow.grid_rowconfigure(0, weight=1)
-                        self.monitorWindow.grid_columnconfigure(0, weight=1)
-                        window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
-                        window.grid(row=0, column=0, sticky="NESW")
-                        self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                        self.monitorWindow.focus()
+                        try:
+                            self.monitorWindow.lift()
+                            self.monitorWindow.focus()
+                        except:
+                            #Create a new toplevel and configure it as data receive
+                            self.monitorWindow = tkinter.Toplevel(self.parent)
+                            self.monitorWindow.transient(self.parent)
+                            self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
+                            self.monitorWindow.minsize(1000, 750)
+                            self.monitorWindow.title("GFM Tip Monitor")
+                            self.monitorWindow.grid_rowconfigure(0, weight=1)
+                            self.monitorWindow.grid_columnconfigure(0, weight=1)
+                            #Object for user interface
+                            window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
+                            window.grid(row=0, column=0, sticky="NESW")
+                            self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                            self.monitorWindow.focus()
 
     def analysisButtonPressed(self) -> None:
+        '''If analysis button is pressed'''
+        #If not currently in the middle of another action
         if not self.communicating:
+            #Check if another window is open then lift and focus it
             try:
                 self.settingsWindow.lift()
                 self.settingsWindow.focus()
@@ -894,6 +906,7 @@ class MainWindow(tkinter.Frame):
                             self.analysisWindow.lift()
                             self.analysisWindow.focus()
                         except:
+                            #Create a new toplevel and configure it as data receive
                             self.analysisWindow = tkinter.Toplevel(self.parent)
                             self.analysisWindow.transient(self.parent)
                             self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
@@ -901,11 +914,15 @@ class MainWindow(tkinter.Frame):
                             self.analysisWindow.title("Setup GFM")
                             self.analysisWindow.grid_rowconfigure(0, weight=1)
                             self.analysisWindow.grid_columnconfigure(0, weight=1)
+                            #Object for user interface
                             processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
                             self.analysisWindow.focus()
 
     def settingsButtonPressed(self) -> None:
+        '''If settings button is pressed'''
+        #If not currently in the middle of another action
         if not self.communicating:
+            #Check if another window is open then lift and focus it
             try:
                 self.analysisWindow.lift()
                 self.analysisWindow.focus()
@@ -922,6 +939,7 @@ class MainWindow(tkinter.Frame):
                             self.settingsWindow.lift()
                             self.settingsWindow.focus()
                         except:
+                            #Create a new toplevel and configure it as data receive
                             self.settingsWindow = tkinter.Toplevel(self.parent)
                             self.settingsWindow.transient(self.parent)
                             self.settingsWindow.grid_columnconfigure(0, weight=1)
@@ -929,14 +947,17 @@ class MainWindow(tkinter.Frame):
                             self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
                             self.settingsWindow.minsize(600, 300)
                             self.settingsWindow.title("Settings")
+                            #Object for user interface
                             SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
                             self.settingsWindow.focus()
 
     def quitMonitor(self) -> None:
+        '''Close the monitor window'''
         self.monitorWindow.destroy()
         self.monitorWindow = None
     
     def quitReceive(self) -> None:
+        '''Close the data receive window'''
         self.receiveWindow.destroy()
         self.receiveWindow = None
 
@@ -972,6 +993,8 @@ class MainWindow(tkinter.Frame):
             self.listCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     
     def closeWindow(self):
+        '''Close all sub windows and self'''
+        #Attempt to destroy all child windows
         try:
             self.receiveWindow.terminate()
         except:
@@ -988,10 +1011,12 @@ class MainWindow(tkinter.Frame):
             self.settingsWindow.destroy()
         except:
             pass
+        #Cancel the repeated action if necessary
         try:
             self.after_cancel(self.portChangesThread)
         except:
             pass
+        #Destroy this object
         self.parent.destroy()
 
 
