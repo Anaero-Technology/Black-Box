@@ -8,6 +8,7 @@ import os, sys
 from PIL import Image, ImageTk
 import pathlib
 import processDataWizardGUI
+import tipObserverGUI
 
 class MainWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -31,6 +32,8 @@ class MainWindow(tkinter.Frame):
         self.portObjects = []
         #self.portWifi = []
         #self.portSsids = []
+
+        self.connectedWindowOpen = False
 
         #The root window (of the main menu)
         self.rootWindow = rw
@@ -112,6 +115,9 @@ class MainWindow(tkinter.Frame):
 
         self.settingsWindow = None
 
+        self.monitorWindow = None
+        self.receiveWindow = None
+
         #Connection timeouts
         self.timeout = 4000000000
         self.longTimeout = self.timeout * 8
@@ -141,6 +147,8 @@ class MainWindow(tkinter.Frame):
         #Images used to display wifi state
         self.wifiIconOn = tkinter.PhotoImage(file=self.pathTo("wirelessIconOn.png"))
         self.wifiIconOff = tkinter.PhotoImage(file=self.pathTo("wirelessIconOff.png"))
+
+        self.graphIcon = tkinter.PhotoImage(file=self.pathTo("graphIcon.png"))
 
         #Make a check for any changes
         self.checkForPortChanges()
@@ -271,8 +279,20 @@ class MainWindow(tkinter.Frame):
     
     def checkForPortChanges(self) -> None:
         '''Check the lists for updates and change the interface to match'''
+        monitorOpen = False
+        receiveOpen = False
+        try:
+            monitorOpen = self.monitorWindow.winfo_exists()
+        except:
+            pass
+        try:
+            receiveOpen = self.receiveWindow.winfo_exists()
+        except:
+            pass
+        self.connectedWindowOpen = monitorOpen or receiveOpen
+
         #If not currently transferring data
-        if not self.communicating:
+        if not self.communicating and not self.connectedWindowOpen:
             #Started updating the port information
             self.updatingPorts = True
 
@@ -419,7 +439,7 @@ class MainWindow(tkinter.Frame):
         #Configure the frames rows and columns
         portObject.grid_rowconfigure(0, weight=1)
         #for col in range(0, 7):
-        for col in range(0, 5):
+        for col in range(0, 6):
             portObject.grid_columnconfigure(col, weight=1)
         #Label for the port name
         codeLabel = tkinter.Label(portObject, text="Port:\n" + portCode)
@@ -440,6 +460,8 @@ class MainWindow(tkinter.Frame):
         #Open window button
         openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode: self.openPressed(x))
         openButton.grid(row=0, column=4, sticky="NESW")
+        graphButton = tkinter.Button(portObject, text="Monitor", image=self.graphIcon, compound="top", command=lambda x = portCode, y=portName: self.graphPressed(x, y))
+        graphButton.grid(row=0, column=5, sticky="NESW")
         #Icon defaults to disabled
         """wifiIcon = self.wifiIconOff
         #Wireless changes button
@@ -856,6 +878,33 @@ class MainWindow(tkinter.Frame):
                 #Something went wrong - probably there is no parent window (occurrs when run standalone, impossible once packaged)
                 self.displayMessage("Cannot Open", "Unable to open connection window, please try again or open the connection screen manually.")
 
+    def graphPressed(self, port : str, portName : str) -> None:
+        try:
+            self.settingsWindow.lift()
+            self.settingsWindow.focus()
+        except:
+            try:
+                self.analysisWindow.lift()
+                self.analysisWindow.focus()
+            except:
+                try:
+                    self.monitorWindow.lift()
+                    self.monitorWindow.focus()
+                except:
+                    if self.updatingPorts:
+                        time.sleep(0.05)
+                    self.monitorWindow = tkinter.Toplevel(self.parent)
+                    self.monitorWindow.transient(self.parent)
+                    self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
+                    self.monitorWindow.minsize(1000, 750)
+                    self.monitorWindow.title("GFM Tip Monitor")
+                    self.monitorWindow.grid_rowconfigure(0, weight=1)
+                    self.monitorWindow.grid_columnconfigure(0, weight=1)
+                    window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
+                    window.grid(row=0, column=0, sticky="NESW")
+                    self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                    self.monitorWindow.focus()
+
     def wifiOptionPressed(self, portCode : str, optionVar : tkinter.StringVar) -> None:
         '''When a wifi option is selected, perform the correct action'''
         #Get the selected option
@@ -1067,18 +1116,22 @@ class MainWindow(tkinter.Frame):
             self.settingsWindow.focus()
         except:
             try:
-                self.analysisWindow.lift()
-                self.analysisWindow.focus()
+                self.monitorWindow.lift()
+                self.monitorWindow.focus()
             except:
-                self.analysisWindow = tkinter.Toplevel(self.parent)
-                self.analysisWindow.transient(self.parent)
-                self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
-                self.analysisWindow.minsize(850, 650)
-                self.analysisWindow.title("Setup GFM")
-                self.analysisWindow.grid_rowconfigure(0, weight=1)
-                self.analysisWindow.grid_columnconfigure(0, weight=1)
-                processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
-                self.analysisWindow.focus()
+                try:
+                    self.analysisWindow.lift()
+                    self.analysisWindow.focus()
+                except:
+                    self.analysisWindow = tkinter.Toplevel(self.parent)
+                    self.analysisWindow.transient(self.parent)
+                    self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+                    self.analysisWindow.minsize(850, 650)
+                    self.analysisWindow.title("Setup GFM")
+                    self.analysisWindow.grid_rowconfigure(0, weight=1)
+                    self.analysisWindow.grid_columnconfigure(0, weight=1)
+                    processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
+                    self.analysisWindow.focus()
 
     def settingsButtonPressed(self) -> None:
         try:
@@ -1086,17 +1139,29 @@ class MainWindow(tkinter.Frame):
             self.analysisWindow.focus()
         except:
             try:
-                self.settingsWindow.lift()
-                self.settingsWindow.focus()
+                self.monitorWindow.lift()
+                self.monitorWindow.focus()
             except:
-                self.settingsWindow = tkinter.Toplevel(self.parent)
-                self.settingsWindow.transient(self.parent)
-                self.settingsWindow.grid_columnconfigure(0, weight=1)
-                self.settingsWindow.grid_rowconfigure(0, weight=1)
-                self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                self.settingsWindow.title("Settings")
-                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
-                self.settingsWindow.focus()
+                try:
+                    self.settingsWindow.lift()
+                    self.settingsWindow.focus()
+                except:
+                    self.settingsWindow = tkinter.Toplevel(self.parent)
+                    self.settingsWindow.transient(self.parent)
+                    self.settingsWindow.grid_columnconfigure(0, weight=1)
+                    self.settingsWindow.grid_rowconfigure(0, weight=1)
+                    self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                    self.settingsWindow.title("Settings")
+                    SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                    self.settingsWindow.focus()
+
+    def quitMonitor(self) -> None:
+        self.monitorWindow.destroy()
+        self.monitorWindow = None
+    
+    def quitReceive(self) -> None:
+        self.receiveWindow.destroy()
+        self.receiveWindow = None
 
     def displayMessage(self, title : str, message : str) -> None:
         '''Display a message box - slight shorthand'''
