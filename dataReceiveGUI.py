@@ -29,9 +29,10 @@ class MainWindow(tkinter.Frame):
         #Get Separators from file
         self.column, self.decimal = readSeparators.read()
 
-        #Setup port drop down (with debug values)
+        #Setup port information
         self.selectedPort = targetPort
         self.deviceName = deviceName
+        #Label to show the user where it is connected to
         self.connectionInfoLabel = tkinter.Label(self, text="Connecting to {0} on port {1}".format(self.deviceName, self.selectedPort), font=("", 14))
         self.connectionInfoLabel.grid(row=0, column=0, columnspan=4, sticky="NESW")
 
@@ -170,13 +171,11 @@ class MainWindow(tkinter.Frame):
                 self.awaitingCommunication = False
                 if self.filesOpen:
                     self.setdownFiles()
-                self.connectButton.configure(text="Connect", command=self.connectPressed)
-                self.portOption.configure(state="normal")
-                self.toggleButton.configure(state="disabled", text="No Port")
+                self.toggleButton.configure(state="disabled", text="Not Connected")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
                 messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
-                self.performScan()
+                self.terminate()
             else:
                 #Increment timeout
                 self.timesTried = self.timesTried + 1
@@ -728,28 +727,6 @@ class MainWindow(tkinter.Frame):
                     self.downloadFileButton.configure(state="normal")
                     self.deleteFileButton.configure(state="normal")
                     self.fileButtons[index].configure(bg=self.selectedButtonColour)
-
-    def disconnectPressed(self) -> None:
-        '''Close connection to port'''
-        #If there is a connection and there is not data to be recieved
-        if self.connected and not self.awaiting:
-            #If there is a serial connection object
-            if self.serialConnection != None:
-                #Close the connection
-                self.serialConnection.close()
-                self.serialConnection = None
-            #Switch buttons so disconnect is disabled and connect is enabled
-            self.connected = False
-            if self.filesOpen:
-                self.setdownFiles()
-            self.connectButton.configure(text="Connect", command=self.connectPressed)
-            self.portOption.configure(state="normal")
-            self.toggleButton.configure(state="disabled", text="No Port")
-            #self.openFilesButton.configure(state="disabled", text="No Port")
-            self.openPortLabel.configure(text="Not Connected")
-            #Display message to indicate that the connection has been closed
-            messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
-            self.parent.destroy()
     
     def terminate(self) -> None:
         '''Closes the window forcefully'''
