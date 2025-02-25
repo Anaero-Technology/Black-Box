@@ -296,16 +296,10 @@ class MainWindow(tkinter.Frame):
                                     allowed = False
                                     self.sendNotification("Invalid File Name", "File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
-                        #gasAnalysis = False
-
-                        #if allowed:
-                            #gasAnalysis = messagebox.askyesno(title="Use Gas Analyser?", message="Would you like to collect information from a connected gas analyser? Please make sure the analyser is connected if you want to use it.")
-
                         #If the name is allowed to be used
                         if allowed:
                             self.sendTime()
                             self.currentFileName = "/" + fileName + ".txt"
-                            #message = "start " + self.currentFileName + " " + str(gasAnalysis).lower() + "\n"
                             message = "start " + self.currentFileName + "\n"
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
@@ -575,12 +569,6 @@ class MainWindow(tkinter.Frame):
                     self.sendNotification("File System Failed", "The file system failed, please restart esp32 and try again.")
                 elif messageParts[2] == "noarduino":
                     self.sendNotification("Could Not Contact Arduino", "A connection to the Arduino could not be established, please try again.")
-                elif messageParts[2] == "noanalyser":
-                    self.sendNotification("No Gas Analyser", "The gas analyser was not found, please ensure it is connected and try again.")
-                elif messageParts[2] == "analysercalibrating":
-                    self.sendNotification("Gas Analyser Calibrating", "The gas analyser is currently in calibration mode, please complete calibration and try again.")
-                elif messageParts[2] == "analysernocalibration":
-                    self.sendNotification("Gas Analyser Not Calibrated", "The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging", fg=self.blackTextColour)
