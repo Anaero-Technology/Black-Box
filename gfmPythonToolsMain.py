@@ -11,6 +11,7 @@ import datetime
 import processDataWizardGUI
 import tipObserverGUI
 import dataReceiveGUI
+import notifypy
 
 class MainWindow(tkinter.Frame):
     '''Class for the settings window toplevel'''
@@ -991,7 +992,12 @@ class MainWindow(tkinter.Frame):
 
     def displayMessage(self, title : str, message : str) -> None:
         '''Display a message box - slight shorthand'''
-        messagebox.showinfo(title=title, message=message)
+        #messagebox.showinfo(title=title, message=message)
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = message
+        notification.icon = self.pathTo("icon.png")
+        notification.send()
 
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
