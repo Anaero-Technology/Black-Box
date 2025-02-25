@@ -252,9 +252,12 @@ class MainWindow(tkinter.Frame):
             if not self.awaiting:
                 #If currently recieving data
                 if self.receiving:
-                    #Send the stop message
-                    self.serialConnection.write("stop\n".encode("utf-8"))
-                    self.awaiting = True
+                    #Check with the user if they want to stop
+                    response = messagebox.askokcancel(title="Are you sure?", message="You cannot restart the experiment on the same file, are you sure you want to stop logging?")
+                    if(response):
+                        #Send the stop message
+                        self.serialConnection.write("stop\n".encode("utf-8"))
+                        self.awaiting = True
                 else:
                     #Ask for file name
                     fileName = simpledialog.askstring("Enter File Name To Store Data", "Enter file name (without extension)", parent=self)
