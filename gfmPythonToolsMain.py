@@ -144,6 +144,9 @@ class MainWindow(tkinter.Frame):
         #If currently scanning the ports
         self.midScan = False
 
+        #Port name for most recently opened port
+        self.lastOpened = ""
+
         self.graphIcon = tkinter.PhotoImage(file=self.pathTo("graphIcon.png"))
 
         self.portChangesThread = None
@@ -676,65 +679,68 @@ class MainWindow(tkinter.Frame):
                 pass
             #If not updating or scanning
             if not self.updatingPorts and not self.midScan:
-                #Construct message
-                message = "stop\n"
-                success = True
-                try:
-                    #Connect to serial
-                    #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
-                    self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
-                    #Start reading thread
-                    readThread = Thread(target=self.readSerial, daemon=True)
-                    readThread.start()
+                #Check with the user if they want to stop
+                response = messagebox.askokcancel(title="Are you sure?", message="You cannot restart the experiment on the same file, are you sure you want to stop logging?")
+                if(response):
+                    #Construct message
+                    message = "stop\n"
+                    success = True
+                    try:
+                        #Connect to serial
+                        #self.serialConnection = serial.Serial(port=portCode, baudrate=115200, dsrdtr=False, rtscts=False)
+                        self.serialConnection = serial.Serial(port=portCode, baudrate=115200)
+                        #Start reading thread
+                        readThread = Thread(target=self.readSerial, daemon=True)
+                        readThread.start()
+                            
+                        time.sleep(0.2)
+                    except:
+                        success = False
                         
-                    time.sleep(0.2)
-                except:
-                    success = False
-                    
-                if success:
-                    #Clear message
-                    self.purgeMessages()
-                    #Send stop message
-                    self.serialConnection.write(message.encode("utf-8"))
-                    done = False
-                    start = time.time_ns()
-                    #Repeat until complete or timed out
-                    while not done and start + self.longTimeout > time.time_ns():
-                        #If there is a message
-                        if len(self.messages) > 0:
-                            #Pop the message
-                            msg = self.messages[0]
-                            del self.messages[0]
-                            #Split into parts
-                            msgParts = msg.split(" ")
-                            if len(msgParts) > 1:
-                                #If it is about the stop
-                                if msgParts[1] == "stop":
-                                    #Completed successfully
-                                    if msgParts[0] == "done":
-                                        self.displayMessage("Done", "Stopped logging successfully.")
-                                        done = True
-                                    #Error occurred
-                                    elif msgParts[0] == "failed":
-                                        code = ""
-                                        if len(msgParts) > 2:
-                                            code = "\nError : " + msgParts[2]
-                                        #Display error message
-                                        self.displayMessage("Failed", "Something went wrong, please try again." + code)
-                                        done = True
-                                    #Already stopped
-                                    elif msgParts[0] == "already":
-                                        self.displayMessage("Already Stopped", "The logger is not running.")
-                                        done = True
-                    
-                    if not done:
-                        #No response received
-                        self.displayMessage("Timed out", "No response received, timeout occurred.")
+                    if success:
+                        #Clear message
+                        self.purgeMessages()
+                        #Send stop message
+                        self.serialConnection.write(message.encode("utf-8"))
+                        done = False
+                        start = time.time_ns()
+                        #Repeat until complete or timed out
+                        while not done and start + self.longTimeout > time.time_ns():
+                            #If there is a message
+                            if len(self.messages) > 0:
+                                #Pop the message
+                                msg = self.messages[0]
+                                del self.messages[0]
+                                #Split into parts
+                                msgParts = msg.split(" ")
+                                if len(msgParts) > 1:
+                                    #If it is about the stop
+                                    if msgParts[1] == "stop":
+                                        #Completed successfully
+                                        if msgParts[0] == "done":
+                                            self.displayMessage("Done", "Stopped logging successfully.")
+                                            done = True
+                                        #Error occurred
+                                        elif msgParts[0] == "failed":
+                                            code = ""
+                                            if len(msgParts) > 2:
+                                                code = "\nError : " + msgParts[2]
+                                            #Display error message
+                                            self.displayMessage("Failed", "Something went wrong, please try again." + code)
+                                            done = True
+                                        #Already stopped
+                                        elif msgParts[0] == "already":
+                                            self.displayMessage("Already Stopped", "The logger is not running.")
+                                            done = True
+                        
+                        if not done:
+                            #No response received
+                            self.displayMessage("Timed out", "No response received, timeout occurred.")
 
-                    #Disconnect serial connection if present
-                    if self.serialConnection != None:
-                        self.serialConnection.close()
-                        self.serialConnection = None
+                        #Disconnect serial connection if present
+                        if self.serialConnection != None:
+                            self.serialConnection.close()
+                            self.serialConnection = None
             else:
                 #Unable to send message another process blocked
                 self.displayMessage("Could Not Send", "Connection attempt timed out, please try again.")
@@ -862,6 +868,7 @@ class MainWindow(tkinter.Frame):
                             window.grid(row=0, column=0, sticky="NESW")
                             self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
                             self.receiveWindow.focus()
+                            self.lastOpened = port
 
     def graphPressed(self, port : str, portName : str) -> None:
         '''If graph button is pressed on a port'''
@@ -897,6 +904,7 @@ class MainWindow(tkinter.Frame):
                             window.grid(row=0, column=0, sticky="NESW")
                             self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
                             self.monitorWindow.focus()
+                            self.lastOpened = port
 
     def analysisButtonPressed(self) -> None:
         '''If analysis button is pressed'''
@@ -964,15 +972,22 @@ class MainWindow(tkinter.Frame):
                             SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
                             self.settingsWindow.focus()
 
+    def checkLastPort(self) -> None:
+        if self.lastOpened != "":
+            self.updateChecks.append(self.lastOpened)
+        self.lastOpened = ""
+
     def quitMonitor(self) -> None:
         '''Close the monitor window'''
         self.monitorWindow.destroy()
         self.monitorWindow = None
+        self.checkLastPort()
     
     def quitReceive(self) -> None:
         '''Close the data receive window'''
         self.receiveWindow.destroy()
         self.receiveWindow = None
+        self.checkLastPort()
 
     def displayMessage(self, title : str, message : str) -> None:
         '''Display a message box - slight shorthand'''
