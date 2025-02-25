@@ -300,12 +300,17 @@ class MainWindow(tkinter.Frame):
             messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
     
     def sendTime(self):
+        '''Send current pc time to connected device'''
+        #Check to make sure that the connection exists
         if self.connected and self.serialConnection != None and not self.awaiting:
+            #Get the time from the device
             t = datetime.datetime.now()
+            #Construct correctly formatted message
             message = "setTime {0},{1},{2},{3},{4},{5}\n".format(t.year, t.month, t.day, t.hour, t.minute, t.second)
+            #Send the message
             self.serialConnection.write(message.encode("utf-8"))
 
-    def fileTogglePressed(self):
+    def filesRequest(self):
         '''Ask the esp32 for the list of held files'''
         #If opening the files
         if not self.filesOpen:
@@ -485,7 +490,7 @@ class MainWindow(tkinter.Frame):
             self.awaiting = False
             #Cycle the files so they are up to date
             self.setdownFiles()
-            self.fileTogglePressed()
+            self.filesRequest()
         
         #If an action has been successfully performed
         if len(messageParts) > 1 and messageParts[0] == "done":
@@ -499,7 +504,7 @@ class MainWindow(tkinter.Frame):
                 self.toggleButton.configure(text="Stop Data Logging", fg=self.redTextColour)
                 #Cycle the files so they are up to date
                 self.setdownFiles()
-                self.fileTogglePressed()
+                self.filesRequest()
                 messagebox.showinfo(title="Logging Started", message="Started logging sucessfully.")
             #Stopped receiving
             if messageParts[1] == "stop":
@@ -510,7 +515,7 @@ class MainWindow(tkinter.Frame):
                 self.currentFileName = ""
                 #Cycle the files so they are up to date
                 self.setdownFiles()
-                self.fileTogglePressed()
+                self.filesRequest()
                 messagebox.showinfo(title="Logging Stopped", message="Stopped logging sucessfully.")
             #Finished sending files
             if messageParts[1] == "files":
@@ -522,7 +527,7 @@ class MainWindow(tkinter.Frame):
                 #Show message that files were deleted
                 messagebox.showinfo(title="File Deleted", message="File was deleted sucessfully.")
                 self.setdownFiles()
-                self.fileTogglePressed()
+                self.filesRequest()
 
         #If an action failed because it was already in a given state
         if len(messageParts) > 1 and messageParts[0] == "already":
@@ -690,10 +695,15 @@ class MainWindow(tkinter.Frame):
                 #If something went wrong (not an integer) do not update the memory
                 pass
         
-    def reattemptNextLine(self, lineNumber, count):
+    def reattemptNextLine(self, lineNumber, count) -> None:
+        '''If a received line was invalid, send the signal to try again until timeout occurs'''
+        #If the line number has not changed and the connection is still valid - i.e. invalid line received
         if lineNumber == self.currentLine and self.downloading and self.serialConnection != None:
+            #Send request for the next line
             self.serialConnection.write("next\n".encode("utf-8"))
+            #If this has been done less than twice
             if count < 2:
+                #Delay to try again
                 self.after(3000, self.reattemptNextLine, self.currentLine, count + 1)
                     
     def filePressed(self, index : int) -> None:
