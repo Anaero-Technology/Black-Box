@@ -7,6 +7,7 @@ import time
 import os, sys
 from PIL import Image, ImageTk
 import pathlib
+import datetime
 import processDataWizardGUI
 import tipObserverGUI
 import dataReceiveGUI
@@ -602,6 +603,7 @@ class MainWindow(tkinter.Frame):
                         if success:
                             #Clear the messages
                             self.purgeMessages()
+                            self.sendTime()
                             #Send the start message
                             self.serialConnection.write(message.encode("utf-8"))
                             done = False
@@ -651,6 +653,17 @@ class MainWindow(tkinter.Frame):
             self.updateChecks.append(portCode)
             #No longer communicating
             self.communicating = False
+        
+    def sendTime(self) -> None:
+        '''Send current pc time to connected device - should only be called between connect and disconnect'''
+        #Check to make sure that the connection exists
+        if self.serialConnection != None:
+            #Get the time from the device
+            t = datetime.datetime.now()
+            #Construct correctly formatted message
+            message = "setTime {0},{1},{2},{3},{4},{5}\n".format(t.year, t.month, t.day, t.hour, t.minute, t.second)
+            #Send the message
+            self.serialConnection.write(message.encode("utf-8"))
     
     def stopPressed(self, portCode : str) -> None:
         '''Stop button pressed on port'''
