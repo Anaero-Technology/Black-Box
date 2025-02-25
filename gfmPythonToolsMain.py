@@ -991,7 +991,7 @@ class MainWindow(tkinter.Frame):
         self.checkLastPort()
 
     def displayMessage(self, title : str, message : str) -> None:
-        '''Display a message box - slight shorthand'''
+        '''Send user a popup notification with the current title and message'''
         #messagebox.showinfo(title=title, message=message)
         notification = notifypy.Notify()
         notification.title = title
@@ -1287,6 +1287,7 @@ class SettingsWindow(tkinter.Frame):
         settingsFile.close()
 
     def pathTo(self, path):
+        '''Get local path to file'''
         return os.path.join(self.thisPath, path)
     
     def validateCustomSeparator(self, value, noSave = False) -> bool:

@@ -6,6 +6,8 @@ from threading import Thread
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial
 from serial.tools import list_ports
+import notifypy
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -23,6 +25,13 @@ class MainWindow(tkinter.Frame):
             self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numColumns):
             self.grid_columnconfigure(col, weight=1)
+
+        #Get path for images
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
 
         #If a device is connected
         self.connected = False
@@ -82,6 +91,10 @@ class MainWindow(tkinter.Frame):
 
         #Redraw the plots correctly
         #self.updatePlots()
+    
+    def pathTo(self, path):
+        '''Get local path to file'''
+        return os.path.join(self.thisPath, path)
 
     def updatePlots(self) -> None:
         '''Change the data in the plots to show the most recent data'''
@@ -156,13 +169,13 @@ class MainWindow(tkinter.Frame):
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
-                    messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
+                    self.sendNotification("Failed", "Failed to connect to port, check the device is still connected and the port is available.")
                     self.terminate()
             else:
-                messagebox.showinfo(title="Failed", message="Failed to connect to port, port could not be found ,check the device is still connected.")
+                self.sendNotification("Failed", "Failed to connect to port, port could not be found ,check the device is still connected.")
                 self.terminate()
         else:
-            messagebox.showinfo(title="Failed", message="Connection failed, please try again.")
+            self.sendNotification("Failed", "Connection failed, please try again.")
             self.terminate()
     
     def checkConnection(self) -> None:
@@ -178,7 +191,7 @@ class MainWindow(tkinter.Frame):
                 self.awaiting = False
                 self.awaitingCommunication = False
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
-                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
+                self.sendNotification("Connection Failed", "Connection could not be established, please check this is the correct port and try again.")
                 self.terminate()
             else:
                 #Increment timeout
@@ -243,7 +256,7 @@ class MainWindow(tkinter.Frame):
                     self.serialConnection = None
                     self.connected = False
                     #Display message to user to indicate that connection was lost (Occurs when device unplugged)
-                    messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
+                    self.sendNotification("Connection Lost", "Connection to device was lost, please check connection and try again.")
                     self.terminate()
         
 
@@ -275,13 +288,12 @@ class MainWindow(tkinter.Frame):
                 #No longer waiting
                 self.awaitingCommunication = False
                 #Display connected message
-                messagebox.showinfo(title="Success", message="Connected to port successfully.")
+                self.sendNotification("Success", "Connected to port successfully.")
                 self.portInfoLabel.configure(text="Connected to device {0} on port {1}.".format(self.deviceName, self.selectedPort))
-                #if messageParts[1] == "1":
                 self.serialConnection.write("getHourly\n".encode("utf-8"))
-                #else:
+                if messageParts[1] != "1":
                     #Display not logging message
-                    #messagebox.showinfo(title="No Data", message="Device is not currently logging.")
+                    self.sendNotification("No Data", "Device is not currently logging.")
                 
                 
             
@@ -350,7 +362,7 @@ class MainWindow(tkinter.Frame):
         #Close the serial connection
         try:
             self.serialConnection.close()
-            messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
+            self.sendNotification("Connection Closed", "The connection has been terminated successfully.")
         except:
             pass
         self.serialConnection = None
@@ -361,6 +373,14 @@ class MainWindow(tkinter.Frame):
             #Otherwise close itself
             self.quit()
             self.destroy()
+    
+    def sendNotification(self, title : str, message : str) -> None:
+        '''Send user a popup notification with the current title and message'''
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = message
+        notification.icon = self.pathTo("icon.png")
+        notification.send()
 
 #Only run if this is the main module being run
 if __name__ == "__main__":

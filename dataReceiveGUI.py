@@ -166,6 +166,7 @@ class MainWindow(tkinter.Frame):
         self.after(1000, self.attemptConnection)
 
     def pathTo(self, path):
+        '''Get local path to file'''
         return os.path.join(self.thisPath, path)
 
     def checkConnection(self) -> None:
@@ -916,6 +917,7 @@ class MainWindow(tkinter.Frame):
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def sendNotification(self, title : str, message : str) -> None:
+        '''Send user a popup notification with the current title and message'''
         notification = notifypy.Notify()
         notification.title = title
         notification.message = message

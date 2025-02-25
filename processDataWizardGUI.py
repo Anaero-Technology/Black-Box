@@ -11,6 +11,7 @@ from threading import Thread
 import newCalculations
 import createSetup
 from PIL import Image, ImageTk
+import notifypy
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -660,6 +661,14 @@ class MainWindow(tkinter.Frame):
     def nextPressedPreview(self) -> None:
         '''Move to the download window from the preview window'''
         self.moveWindows(4)
+
+    def sendNotification(self, title : str, message : str) -> None:
+        '''Send user a popup notification with the current title and message'''
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = message
+        notification.icon = self.pathTo("icon.png")
+        notification.send()
 
 
 #Only run if this is the main module being run
