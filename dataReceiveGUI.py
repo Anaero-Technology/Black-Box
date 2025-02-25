@@ -2,12 +2,14 @@ import tkinter
 import tkinter.ttk as Ttk
 from tkinter.ttk import Style
 from tkinter import messagebox, simpledialog, filedialog
+from PIL import Image
 import serial
 from serial.tools import list_ports
 from threading import Thread
 import readSeparators
 import datetime
-import os, pathlib
+import notifypy
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -97,6 +99,13 @@ class MainWindow(tkinter.Frame):
         #List of available port names
         self.portLabels = []
 
+        #Get path for images
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
+
         #Button colours
         self.defaultButtonColour = self.toggleButton.cget("bg")
         self.selectedButtonColour = "#70D070"
@@ -156,6 +165,9 @@ class MainWindow(tkinter.Frame):
         #Call for start connection after short delay
         self.after(1000, self.attemptConnection)
 
+    def pathTo(self, path):
+        return os.path.join(self.thisPath, path)
+
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
         #If still waiting
@@ -173,7 +185,7 @@ class MainWindow(tkinter.Frame):
                 self.toggleButton.configure(state="disabled", text="Not Connected")
                 self.openPortLabel.configure(text="Not Connected")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
-                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
+                self.sendNotification("Connection Failed", "Connection could not be established, please check this is the correct port and try again.")
                 self.terminate()
             else:
                 #Increment timeout
@@ -241,7 +253,7 @@ class MainWindow(tkinter.Frame):
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
-                    messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
+                    self.sendNotification("Failed", "Failed to connect to port, check the device is still connected and the port is available.")
                     self.terminate()
 
     def togglePressed(self) -> None:
@@ -270,19 +282,19 @@ class MainWindow(tkinter.Frame):
                         #Check characters were entered
                         if len(fileName) < 1:
                             allowed = False
-                            messagebox.showinfo(title="Invalid File Name", message="File name must contain at least 1 character.")
+                            self.sendNotification("Invalid File Name", "File name must contain at least 1 character.")
 
                         #Check maximum name length
                         if len(fileName) > 26:
                             allowed = False
-                            messagebox.showinfo(title="Invalid File Name", message="File name must not exceed 26 characters.")
+                            self.sendNotification("Invalid File Name", "File name must not exceed 26 characters.")
 
                         #Check for invalid characters
                         for char in fileName:
                             if allowed:
                                 if char not in self.acceptedChars:
                                     allowed = False
-                                    messagebox.showinfo(title="Invalid File Name", message="File name must be alphanumeric, only hyphens and underscores are allowed.")
+                                    self.sendNotification("Invalid File Name", "File name must be alphanumeric, only hyphens and underscores are allowed.")
                         
                         #gasAnalysis = False
 
@@ -300,7 +312,7 @@ class MainWindow(tkinter.Frame):
                             self.awaiting = True
         else:
             #If no connection present - display error message (Outside case but catches errors)
-            messagebox.showinfo(title="Not Connected", message="You must be connected to a port to toggle the message state.")
+            self.sendNotification("Not Connected", "You must be connected to a port to toggle the message state.")
     
     def sendTime(self):
         '''Send current pc time to connected device'''
@@ -327,7 +339,7 @@ class MainWindow(tkinter.Frame):
                     self.serialConnection.write("files\n".encode("utf-8"))
                     self.awaiting = True
             else:
-                messagebox.showinfo(title="Not Connected", message="You must be connected to a port to access the files.")
+                self.sendNotification("Not Connected", "You must be connected to a port to access the files.")
         else:
             #Close the files section
             self.setdownFiles()
@@ -352,11 +364,11 @@ class MainWindow(tkinter.Frame):
                             #Wait for confirmation of deletion
                             self.awaiting = True
                     else:
-                        messagebox.showinfo(title="No File Selected", message="Please select a file to delete.")
+                        self.sendNotification("No File Selected", "Please select a file to delete.")
             else:
-                messagebox.showinfo(title="Collection Running", message="Cannot delete files while data collection is running.")
+                self.sendNotification("Collection Running", "Cannot delete files while data collection is running.")
         else:
-            messagebox.showinfo(title="Not Connected", message="You must be connected to a port to delete files.")
+            self.sendNotification("Not Connected", "You must be connected to a port to delete files.")
 
     def downloadPressed(self) -> None:
         '''Send request to download the selected file to the computer'''
@@ -385,9 +397,9 @@ class MainWindow(tkinter.Frame):
                         self.awaiting = True
                         self.downloadFileButton.configure(state="disabled")
                 else:
-                    messagebox.showinfo(title="No File Selected", message="Please select a file to download.")
+                    self.sendNotification("No File Selected", "Please select a file to download.")
         else:
-            messagebox.showinfo(title="Not Connected", message="You must be connected to a port to download files.")
+            self.sendNotification("Not Connected", "You must be connected to a port to download files.")
 
     def readSerial(self) -> None:
         '''While connected repeatedly read information from serial connection'''
@@ -435,7 +447,7 @@ class MainWindow(tkinter.Frame):
                     self.toggleButton.configure(state="disabled", text="Not Connected")
                     self.openPortLabel.configure(text="Not Connected")
                     #Display message to user to indicate that connection was lost (Occurs when device unplugged)
-                    messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
+                    self.sendNotification("Connection Lost", "Connection to device was lost, please check connection and try again.")
                     self.terminate()
 
     def checkMessages(self):
@@ -466,7 +478,7 @@ class MainWindow(tkinter.Frame):
                 #No longer waiting
                 self.awaitingCommunication = False
                 #Display connected message
-                messagebox.showinfo(title="Success", message="Connected to port successfully.")
+                self.sendNotification("Success", "Connected to port successfully.")
                 self.connectionInfoLabel.configure(text="Connected to {0} on port {1}.".format(self.deviceName, self.selectedPort))
             
             #If the esp32 is collecting information
@@ -508,7 +520,7 @@ class MainWindow(tkinter.Frame):
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.filesRequest()
-                messagebox.showinfo(title="Logging Started", message="Started logging sucessfully.")
+                self.sendNotification("Logging Started", "Started logging sucessfully.")
             #Stopped receiving
             if messageParts[1] == "stop":
                 #Configure UI state
@@ -519,7 +531,7 @@ class MainWindow(tkinter.Frame):
                 #Cycle the files so they are up to date
                 self.setdownFiles()
                 self.filesRequest()
-                messagebox.showinfo(title="Logging Stopped", message="Stopped logging sucessfully.")
+                self.sendNotification("Logging Stopped", "Stopped logging sucessfully.")
             #Finished sending files
             if messageParts[1] == "files":
                 #Display the files that were received
@@ -528,7 +540,7 @@ class MainWindow(tkinter.Frame):
             #Finished deleting file
             if messageParts[1] == "delete":
                 #Show message that files were deleted
-                messagebox.showinfo(title="File Deleted", message="File was deleted sucessfully.")
+                self.sendNotification("File Deleted", "File was deleted sucessfully.")
                 self.setdownFiles()
                 self.filesRequest()
 
@@ -552,37 +564,37 @@ class MainWindow(tkinter.Frame):
             if messageParts[1] == "start":
                 #Display appropriate error message (invalid file names, some should not occur but are present in case they are needed)
                 if messageParts[2] == "noname":
-                    messagebox.showinfo(title="No File Name", message="A file name must be given to store the data in.")
+                    self.sendNotification("No File Name", "A file name must be given to store the data in.")
                 elif messageParts[2] == "namelength":
-                    messagebox.showinfo(title="Name Too Long", message="The file name must have a maximum of 28 characters.")
+                    self.sendNotification("Name Too Long", "The file name must have a maximum of 28 characters.")
                 elif messageParts[2] == "invalidname":
-                    messagebox.showinfo(title="Invalid File Name", message="The file name must not contain any special chatacters.")
+                    self.sendNotification("Invalid File Name", "The file name must not contain any special chatacters.")
                 elif messageParts[2] == "alreadyexists":
-                    messagebox.showinfo(title="File Already Exists", message="A file with that name already exists, please choose a different name or delete the existing file.")
+                    self.sendNotification("File Already Exists", "A file with that name already exists, please choose a different name or delete the existing file.")
                 elif messageParts[2] == "nofiles":
-                    messagebox.showinfo(title="File System Failed", message="The file system failed, please restart esp32 and try again.")
+                    self.sendNotification("File System Failed", "The file system failed, please restart esp32 and try again.")
                 elif messageParts[2] == "noarduino":
-                    messagebox.showinfo(title="Could Not Contact Arduino", message="A connection to the Arduino could not be established, please try again.")
+                    self.sendNotification("Could Not Contact Arduino", "A connection to the Arduino could not be established, please try again.")
                 elif messageParts[2] == "noanalyser":
-                    messagebox.showinfo(title="No Gas Analyser", message="The gas analyser was not found, please ensure it is connected and try again.")
+                    self.sendNotification("No Gas Analyser", "The gas analyser was not found, please ensure it is connected and try again.")
                 elif messageParts[2] == "analysercalibrating":
-                    messagebox.showinfo(title="Gas Analyser Calibrating", message="The gas analyser is currently in calibration mode, please complete calibration and try again.")
+                    self.sendNotification("Gas Analyser Calibrating", "The gas analyser is currently in calibration mode, please complete calibration and try again.")
                 elif messageParts[2] == "analysernocalibration":
-                    messagebox.showinfo(title="Gas Analyser Not Calibrated", message="The gas analyser is currently not calibrated, please complete calibration and try again.")
+                    self.sendNotification("Gas Analyser Not Calibrated", "The gas analyser is currently not calibrated, please complete calibration and try again.")
                 #Set UI for stopped
                 self.receiving = False
                 self.toggleButton.configure(text="Start Data Logging", fg=self.blackTextColour)
             if messageParts[1] == "stop":
                 if messageParts[2] == "nofiles":
-                    messagebox.showinfo(title="File System Failed", message="The file system failed, please reconnect esp32 and try again.")
+                    self.sendNotification("File System Failed", "The file system failed, please reconnect esp32 and try again.")
             if messageParts[1] == "download":
                 if messageParts[2] == "nofile":
-                    messagebox.showinfo(title="File Not Found", message="The requested file could not be found, download stopped.")
+                    self.sendNotification("File Not Found", "The requested file could not be found, download stopped.")
                     self.downloadFileButton.configure(state="normal")
                 self.downloading = False
             if messageParts[1] == "delete":
                 if messageParts[2] == "nofile":
-                    messagebox.showinfo(title="File Not Found", message="The requested file could not be found, delete could not be completed.")
+                    self.sendNotification("File Not Found", "The requested file could not be found, delete could not be completed.")
             
             #No longer waiting for a response
             self.awaiting = False
@@ -639,10 +651,10 @@ class MainWindow(tkinter.Frame):
                     #Close the file
                     saveFile.close()
                     #Success message
-                    messagebox.showinfo(title="Download Successful", message="File successfully downloaded.")
+                    self.sendNotification("Download Successful", "File successfully downloaded.")
                 except:
                     #Something went wrong - failed message
-                    messagebox.showinfo(title="Download Failed", message="File was not downloaded correctly, please try again.")
+                    self.sendNotification("Download Failed", "File was not downloaded correctly, please try again.")
                 
                 #No longer downloading or waiting for a response
                 self.downloading = False
@@ -653,7 +665,7 @@ class MainWindow(tkinter.Frame):
                 self.downloadFileButton.configure(state="normal")
             elif messageParts[1] == "failed":
                 #Something went wrong - failed message
-                messagebox.showinfo(title="Download Failed", message="File was not downloaded correctly, timeout occurred.")
+                self.sendNotification("Download Failed", "File was not downloaded correctly, timeout occurred.")
                 self.downloading = False
                 self.awaiting = False
                 self.setdownProgressBar()
@@ -745,7 +757,7 @@ class MainWindow(tkinter.Frame):
         self.shuttingDown = True
         try:
             self.serialConnection.close()
-            messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
+            self.sendNotification("Connection Closed", "The connection has been terminated successfully.")
         except:
             pass
         self.serialConnection = None
@@ -914,6 +926,13 @@ class MainWindow(tkinter.Frame):
         '''Change y scroll position when mouse wheel moved'''
         if self.fileCanvas != None:
             self.fileCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def sendNotification(self, title : str, message : str) -> None:
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = message
+        notification.icon = self.pathTo("icon.png")
+        notification.send()
     
 
 #Only run if this is the main module being run
