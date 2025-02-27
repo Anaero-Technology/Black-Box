@@ -1,60 +1,51 @@
-# GFM Python Data Tools V0.2.13
-This is a collection of tools for creating and processing data files that are associated with a Gas Flow Meter (GFM).
+# GFM Python Data Tools V0.4
+This is a collection of tools for creating and processing data files that are associated with a Gas Flow Meter logger.
 
 ## Usage
-To access the tools just run the mainMenu.exe file, a menu will open giving access to all of the different tools.
+To access the tools either run the executable file from the compiled version or run gfmPythonToolsMain.py a menu will open giving access to all of the different tools.
 
-### Connect To GFM
-Used to configure the ESP data logging and to download files from the ESP memory.
-Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
-If the connection is successfull, the disconnect and start buttons should activate; as well as the file system openning.
-Start is used to beigin a test and will ask for a unique file name (alphanumeric and fewer than 27 characters) and if you want to use the gas analyser after which the ESP will begin logging data.
-Disconnect can be called at any time to terminate the connection (as long as it has power the ESP will continue to log data).
-The files will be open at all times and are refreshed whenever a new connection is made or the logging is started / stopped.
-Downloads can be performed at any time while deletes must be performed while the ESP is not logging data to prevent memory problems.
+### Main Screen
+The initial view when starting the software will display a list of currently connected gas flow logger devices. If no devices could be found a message will be displayed to show this.
+Once a device has been found it will display as a row on the main screen, showing the user the port name that it is connected to, what name the device has been assigned and whether or not it is logging.
+There are several buttons associated with each device:
+- Start or stop logging, depending on the state of the logger.
+- Rename the device, to assign it a new, unique, name. This cannot be done while the device is logging.
+- Open the full file view window, allows the user to see the list of files and download or delete any they choose.
+- Open the monitor window, this allows the user to see how many tips have occured per hour on each channel
+Below this section the analyse data button opens the dialogue window to process downloaded data and the settings gear opens the options menu.
+No two windows can be opened at the same time to prevent conflict or confusion so simply close one before opening another.
 
-### View Connected Devices
-Used to view and manage multiple connected devices at the same time. Once opened it will shortly load a list of attached devices that are correctly functional.
-For each device the logging may be started or stopped, the device can be renamed (this is the identifier displayed on this screen) and the full connected view may be opened to download the files.
-This is most useful when running several machines at once so that the user does not have to go around and plug in to each device separately.
-This will not work with wireless connections as this would require a much more complex process which would slow down the performance significantly.
+### File View
+Once the files button is pressed on a specific device a new window will open which will automatically connect to and open the files for the device.
+At the top of the window you can see the name and port of the device. Below this it shows the current status of the SD card and the percentage usage of the storage.
+The button to the right allows the user to start or stop the device logging.
+- Starting requires the user to provide a new file name to save the data under after which the device will check it is setup correctly and if not it will prompt the user to try again.
+- Stopping simply asks the user for confirmation as once stopped the same file cannot be used again until it has been deleted.
+The section bellow shows all of the files in the SD card and their size
+- If the device is logging one will have its name displayed in blue to indicate that this is the current working file.
+- Clicking on a file will highlight it in green and light up the two buttons at the bottom of the window.
+    - Download will ask the user for a location to save the data on their computer then download all of the files data and save it there. This may take some time depending on the experiment duration. This can be done while the logger is running and any tips that are missed during this time will be recovered but may have a small margin for error in their event time.
+    - Delete will ask for confirmation and then remove the file from the SD card. This cannot be done while logging to prevent accidental deletion or corruption.
+- Closing this winodw can be done at any time as long as an action has not been completed with the logger yet. The connection will be terminated safely.
 
-### Experiment Settings
-Used to create, edit and export setup configurations for the Gas Flow Meter. Storing information about the different tubes and what they contain.
-Data can be entered manually and then exported or can be loaded in from a correctly formatted .csv file for editing and viewing.
+### Monitor view
+Once the monitor button is pressed on a specific device a new window will open which will automatically connect to and display the graphs for the device.
+All the data for the hours of the experiment so far will be loaded and any subsequent hours that occur with the display open will be added.
+Each of the channels from 1 to 15 will be shown as graphs with a common axis scale, showing just the number of tips that have been recorded per hour.
+This is designed as a diagnostic tool, to make sure events are being recorded and provide a quick check for issues. 
 
-### Analyse Data
-Used to combine a setup and event log file together to produce the hourly and daily results, volumes and totals.
-Setup and Event log files are loaded in using the buttons in the top left.
-The 'process data' button can then be pressed. The calculations are then performed, this may cause tkinter to freeze temporarily.
-Once complete the information will be displayed in the tables which an be navigated using the channel, hour and day buttons.
-Once processed data is present the export data buttons can be pressed to save it into a .csv file, the whole data log, hourly data, daily data or continuous data may be exported.
-If there is any gas analysis data within the event log file the gas composition data will also be able to be exported
-
-### Combine pH / Redox or Gas Data
-Used to produce data files which contain the pH and redox data or the gas data for each tip from an event log file and any number of continuous logs for pH/redox/gas.
-The event file is loaded at the top using the button.
-The data files are added one at a time using the 'add pH/redox file' and 'add gas file' buttons.
-Once a data file has been loaded the association needs to be set using the boxes that appear, so that the software knows which channels should take data from where.
-Each of the channels are numbered 1 to 15 and if multiple associations are found then the first one (highest in the interface) will be used.
-Gas and pH/redox may be processed at the same time, using the process button, and two files can be exported using the buttons in the upper right.
-If any of the files are not formatted as expected the software will inform the user and the file will not be added.
-
-### Create Graphs
-Used to produce a variety of graphs from a processed information file (created by the Perform Calculations section).
-First upload the data file.
-Then select the field that you wish to be the channel identifier (you do not have to but will often want to).
-Then add as many different lines as you wish, choosing their name, colour, x and y axis data, which channel to limit it to. If set to cumulative subsequent values will be totalled.
-The graph will then be displayed, if needed you can go back and make any changes you want and view it again.
-Using the toolbar on the graph it is possible to zoom and manipulate the graph as well as save it as an image.
-
-### Set Date/time
-Used to adjust the time and date settings on the ESP device.
-Once the ESP is connected to the computer, select the correct port from the drop down and press connect.
-Either set the desired time and date manually using the arrows or check the 'System Time' box which will disable the arrows and keep the time up to date with the computer time.
-The 'Get Time From Clock' button will read the current time from the ESP clock and enter it into the input fields.
-The 'Set Clock Time' button will attempt to write the currently input time to the ESP. A message will be displayed to indicate if this was successful.
+### Data Analysis
+Once this window opens it will show you a step by step process for converting the data produced by the logger into useful information.
+This can be done multiple times with the same data, allowing setup configuration to be adjusted whenever needed. As such it is recommended that the initial file from the logger be kept, even after this processing has been done.
+The steps are as follows:
+- Select setup file - either select a setup file, exactly the same as our other system, or create a new one. If creating one a window will open to enter or load information and allows the user to save this as a file which can then be opened for usage.
+- Select event file - select the file that has been downloaded from the logger
+- Wait for process completion - this will take longer if the experiment has been running for a long time
+- Preview data - provides basic overview of the results at the end of the experiment: total number of tips, total volume of gas at STP and net volume of gas (ml/gVS) for each channel.
+- Download files - Choose which of the resultant files you would like to save. Event log - every event and all information, Hour log - event log grouped by hour, Day log - event log grouped by day, Continuous log - contains no adjustments for inoculum, just gas amounts.
 
 ### Settings
-Used to decide which separators are used for CSV files. This applies to both imported and exported files. It is strongly recommended that you select a separator before you start working and do not change it afterwards.
-Both comma and semicolon sepeared modes are available by default but you can also enter your own pair of separators if you wish; they just have to be two different symbols.
+This section allows you to choose which file separators you want to use for your CSV files. Allowing two defaults and a custom option should you need it.
+It is recommended that you use the separators associated with the region of your computer as it ensures files will be compatible with other software easily.
+This only needs to be set once, when you first start the software for the first time and then can be left as your selection will be remembered, even if the software is closed.
+Remember to change this when moving to a new computer.
