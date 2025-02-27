@@ -11,7 +11,7 @@ There are several buttons associated with each device:
 - Start or stop logging, depending on the state of the logger.
 - Rename the device, to assign it a new, unique, name. This cannot be done while the device is logging.
 - Open the full file view window, allows the user to see the list of files and download or delete any they choose.
-- Open the monitor window, this allows the user to see how many tips have occured per hour on each channel
+- Open the monitor window, this allows the user to see how many tips have occurred per hour on each channel
 Below this section the analyse data button opens the dialogue window to process downloaded data and the settings gear opens the options menu.
 No two windows can be opened at the same time to prevent conflict or confusion so simply close one before opening another.
 
@@ -24,9 +24,9 @@ The button to the right allows the user to start or stop the device logging.
 The section bellow shows all of the files in the SD card and their size
 - If the device is logging one will have its name displayed in blue to indicate that this is the current working file.
 - Clicking on a file will highlight it in green and light up the two buttons at the bottom of the window.
-    - Download will ask the user for a location to save the data on their computer then download all of the files data and save it there. This may take some time depending on the experiment duration. This can be done while the logger is running and any tips that are missed during this time will be recovered but may have a small margin for error in their event time.
+    - Download will ask the user for a location to save the data on their computer then download all of the file's data and save it there. This may take some time depending on the experiment duration. This can be done while the logger is running and any tips that are missed during this time will be recovered but may have a small margin for error in their event time.
     - Delete will ask for confirmation and then remove the file from the SD card. This cannot be done while logging to prevent accidental deletion or corruption.
-- Closing this winodw can be done at any time as long as an action has not been completed with the logger yet. The connection will be terminated safely.
+- Closing this window can be done at any time as long as an action has not been completed with the logger yet. The connection will be terminated safely.
 
 ### Monitor view
 Once the monitor button is pressed on a specific device a new window will open which will automatically connect to and display the graphs for the device.
