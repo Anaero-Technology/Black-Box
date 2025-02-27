@@ -667,7 +667,7 @@ class MainWindow(tkinter.Frame):
         notification = notifypy.Notify()
         notification.title = title
         notification.message = message
-        notification.icon = self.pathTo("icon.png")
+        notification.icon = self.pathTo("images/icon.png")
         notification.send()
 
 
@@ -686,7 +686,7 @@ if __name__ == "__main__":
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
-    ico = Image.open(window.pathTo("icon.png"))
+    ico = Image.open(window.pathTo("images/con.png"))
     photo = ImageTk.PhotoImage(ico)
     root.wm_iconphoto(True, photo)
     #Start running the root

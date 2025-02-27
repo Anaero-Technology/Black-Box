@@ -110,7 +110,7 @@ class MainWindow(tkinter.Frame):
 
         self.analysisWindow = None
 
-        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("settingsIcon.png"))
+        self.settingsImage = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.settingsButton = tkinter.Button(self.buttonsFrame, image=self.settingsImage, command=self.settingsButtonPressed)
         self.settingsButton.grid(row=0, column=1)
 
@@ -148,7 +148,7 @@ class MainWindow(tkinter.Frame):
         #Port name for most recently opened port
         self.lastOpened = ""
 
-        self.graphIcon = tkinter.PhotoImage(file=self.pathTo("graphIcon.png"))
+        self.graphIcon = tkinter.PhotoImage(file=self.pathTo("images/graphIcon.png"))
 
         self.portChangesThread = None
         #Make a check for any changes
@@ -996,7 +996,7 @@ class MainWindow(tkinter.Frame):
         notification = notifypy.Notify()
         notification.title = title
         notification.message = message
-        notification.icon = self.pathTo("icon.png")
+        notification.icon = self.pathTo("images/icon.png")
         notification.send()
 
     def onFrameConfigure(self, event) -> None:
@@ -1332,11 +1332,11 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("GFM Python Tools V2.0")
+    root.title("GFM Python Tools V5.0")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
-    ico = Image.open(window.pathTo("icon.png"))
+    ico = Image.open(window.pathTo("images/icon.png"))
     photo = ImageTk.PhotoImage(ico)
     root.wm_iconphoto(True, photo)
     root.protocol("WM_DELETE_WINDOW", window.closeWindow)

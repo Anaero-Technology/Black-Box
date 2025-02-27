@@ -921,7 +921,7 @@ class MainWindow(tkinter.Frame):
         notification = notifypy.Notify()
         notification.title = title
         notification.message = message
-        notification.icon = self.pathTo("icon.png")
+        notification.icon = self.pathTo("images/icon.png")
         notification.send()
     
 
