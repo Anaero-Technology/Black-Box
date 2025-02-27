@@ -431,9 +431,9 @@ class MainWindow(tkinter.Frame):
         nameLabel = tkinter.Label(portObject, text="Name:\n" + portName)
         nameLabel.grid(row=0, column=1, sticky="NESW")
         #Start or stop button
-        toggleButton = tkinter.Button(portObject, text="Start", command=lambda x = portCode: self.startPressed(x))
+        toggleButton = tkinter.Button(portObject, text="Start\nLogging", command=lambda x = portCode: self.startPressed(x))
         if portState:
-            toggleButton.configure(text="Stop", command=lambda x = portCode: self.stopPressed(x))
+            toggleButton.configure(text="Stop\nLogging", command=lambda x = portCode: self.stopPressed(x))
         toggleButton.grid(row=0, column=2, sticky="NESW")
         #Change name button
         nameChangeButton = tkinter.Button(portObject, text="Rename", command=lambda x = portCode: self.renamePressed(x))
@@ -441,9 +441,9 @@ class MainWindow(tkinter.Frame):
             nameChangeButton.configure(state="disabled")
         nameChangeButton.grid(row=0, column=3, sticky="NESW")
         #Open window button
-        openButton = tkinter.Button(portObject, text="Full View", command=lambda x = portCode, y = portName: self.openPressed(x, y))
+        openButton = tkinter.Button(portObject, text="File View", command=lambda x = portCode, y = portName: self.openPressed(x, y))
         openButton.grid(row=0, column=4, sticky="NESW")
-        graphButton = tkinter.Button(portObject, text="Monitor", image=self.graphIcon, compound="top", command=lambda x = portCode, y=portName: self.graphPressed(x, y))
+        graphButton = tkinter.Button(portObject, text="Monitor View", image=self.graphIcon, compound="top", command=lambda x = portCode, y=portName: self.graphPressed(x, y))
         graphButton.grid(row=0, column=5, sticky="NESW")
         #If no index or an invalid index was given
         if index <= -1 or len(self.portObjects) <= index:

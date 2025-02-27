@@ -34,7 +34,7 @@ All the data for the hours of the experiment so far will be loaded and any subse
 Each of the channels from 1 to 15 will be shown as graphs with a common axis scale, showing just the number of tips that have been recorded per hour.
 This is designed as a diagnostic tool, to make sure events are being recorded and provide a quick check for issues. 
 
-### Data Analysis
+### Analyse Data
 Once this window opens it will show you a step by step process for converting the data produced by the logger into useful information.
 This can be done multiple times with the same data, allowing setup configuration to be adjusted whenever needed. As such it is recommended that the initial file from the logger be kept, even after this processing has been done.
 The steps are as follows:
