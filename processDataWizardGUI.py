@@ -356,7 +356,7 @@ class MainWindow(tkinter.Frame):
             self.setupCreateWindow.transient(self.parent)
             self.setupCreateWindow.geometry("600x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
             self.setupCreateWindow.minsize(550, 400)
-            self.setupCreateWindow.title("Setup GFM")
+            self.setupCreateWindow.title("Create Setup File")
             self.setupCreateWindow.grid_rowconfigure(0, weight=1)
             self.setupCreateWindow.grid_columnconfigure(0, weight=1)
             setupGUI.MainWindow(self.setupCreateWindow).grid(row=0, column=0, sticky="NESW")
@@ -682,7 +682,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("GFM Data Analysis")
+    root.title("Analyse Data")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")

@@ -863,7 +863,7 @@ class MainWindow(tkinter.Frame):
                             self.receiveWindow.grid_rowconfigure(0, weight=1)
                             self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
                             self.receiveWindow.minsize(400, 500)
-                            self.receiveWindow.title("Settings")
+                            self.receiveWindow.title("File View - {0}".format(port))
                             #Create object for interface
                             window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
                             window.grid(row=0, column=0, sticky="NESW")
@@ -897,7 +897,7 @@ class MainWindow(tkinter.Frame):
                             self.monitorWindow.transient(self.parent)
                             self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
                             self.monitorWindow.minsize(1000, 750)
-                            self.monitorWindow.title("GFM Tip Monitor")
+                            self.monitorWindow.title("Monitor View - {0}".format(port))
                             self.monitorWindow.grid_rowconfigure(0, weight=1)
                             self.monitorWindow.grid_columnconfigure(0, weight=1)
                             #Object for user interface
@@ -933,7 +933,7 @@ class MainWindow(tkinter.Frame):
                             self.analysisWindow.transient(self.parent)
                             self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
                             self.analysisWindow.minsize(850, 650)
-                            self.analysisWindow.title("Setup GFM")
+                            self.analysisWindow.title("Analyse Data")
                             self.analysisWindow.grid_rowconfigure(0, weight=1)
                             self.analysisWindow.grid_columnconfigure(0, weight=1)
                             #Object for user interface
