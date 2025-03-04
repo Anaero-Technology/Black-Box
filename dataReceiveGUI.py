@@ -820,7 +820,7 @@ class MainWindow(tkinter.Frame):
             #Create a button and add it to the list
             button = tkinter.Button(self.fileGridFrame, text=fileNames[nameId] + "   " + sizePart, relief="groove", command=lambda x=nameId: self.filePressed(x))
             #If this is the file currently being used
-            if fileNames[nameId] == self.currentFileName:
+            if fileNames[nameId] == self.currentFileName or "/" + fileNames[nameId] == self.currentFileName:
                 #Display it's name in blue
                 button.configure(fg = self.blueTextColour)
             button.grid(row=nameId, column=0, sticky="NESW")
