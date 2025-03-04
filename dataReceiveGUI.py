@@ -354,7 +354,6 @@ class MainWindow(tkinter.Frame):
                         if confirm:
                             #Send signal to delete file
                             message = "delete " + "/" + self.files[self.selectedFile] + "\n"
-                            print(message)
                             self.serialConnection.write(message.encode("utf-8"))
                             #Wait for confirmation of deletion
                             self.awaiting = True
