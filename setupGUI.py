@@ -3,6 +3,8 @@ from tkinter import filedialog, messagebox
 import readSetup
 import createSetup
 import readSeparators
+import notifypy
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the editor for the csv files'''
@@ -20,6 +22,13 @@ class MainWindow(tkinter.Frame):
 
         #Get separators from file
         self.column, self.decimal = readSeparators.read()
+
+        #Setup pathing for files stored within one executable or in directory
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
 
         #Configure all the rows and columns
         for rowNumber in range(0, self.numberRows):
@@ -129,10 +138,17 @@ class MainWindow(tkinter.Frame):
         self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)"]
     
 
-    def displayMessage(self, msg: str, Title: str) -> None:
-        '''Display a message box with a given title and message to the user'''
-        messagebox.showinfo(title=Title, message=msg)
+    def displayMessage(self, msg: str, title: str) -> None:
+        '''Send user a popup notification with the current title and message'''
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = msg
+        notification.icon = self.pathTo("icon.png")
+        notification.send()
 
+    def pathTo(self, path : str) -> str:
+        '''Convert local path to find file'''
+        return os.path.join(self.thisPath, path)
 
     def validateNumber(self, message: str) -> bool:
         '''Check if the string passed is a valid number'''

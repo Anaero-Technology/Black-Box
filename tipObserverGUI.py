@@ -1,18 +1,18 @@
 import tkinter
-from tkinter.font import Font
-from tkinter import messagebox
 import matplotlib.pyplot as plt
 from threading import Thread
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial
 from serial.tools import list_ports
+import notifypy
+import os, sys
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
-    def __init__(self, parent, *args, **kwargs) -> None:
+    def __init__(self, parent, controlObject, targetPort, deviceName, *args, **kwargs) -> None:
         #Setup parent configuration
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
+        self.controller = controlObject
         
         #Number of internal rows and columns
         self.numRows = 8
@@ -23,6 +23,13 @@ class MainWindow(tkinter.Frame):
             self.grid_rowconfigure(row, weight=1)
         for col in range(0, self.numColumns):
             self.grid_columnconfigure(col, weight=1)
+
+        #Get path for images
+        self.thisPath = os.path.abspath(".")
+        try:
+            self.thisPath = sys._MEIPASS
+        except:
+            pass
 
         #If a device is connected
         self.connected = False
@@ -40,20 +47,20 @@ class MainWindow(tkinter.Frame):
         self.receivedMessages = []
 
         #Setup port drop down (with debug values)
-        self.selectedPort = tkinter.StringVar()
-        self.selectedPort.set("Port 1")
-        self.portOption = tkinter.OptionMenu(self, self.selectedPort, "Port 1", "Port 2", "Port 3", "Port 4")
-        self.portOption.grid(row=0, column=0, columnspan=2, sticky="NESW")
-
-        #Add connect button
-        self.connectButton = tkinter.Button(self, text="Connect", command=self.connectPressed)
-        self.connectButton.grid(row=0, column=2, sticky="NESW")
+        self.selectedPort = targetPort
+        self.deviceName = deviceName
+        self.portInfoLabel = tkinter.Label(self, text="Connecting to device {0} on port {1}...".format(self.deviceName, self.selectedPort), font=("", 14))
+        self.portInfoLabel.grid(row=0, column=0, columnspan=3)
 
         #2D list of data for each channel, each value represents and hours total tips
         self.channelData = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 
         #Set up 3 by 5 grid of plots and store figure and axes objects
         self.figure, ((ax1, ax2, ax3, ax4, ax5), (ax6, ax7, ax8, ax9, ax10), (ax11, ax12, ax13, ax14, ax15)) = plt.subplots(3, 5)
+        self.figure.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor="none", which="both", top=False, bottom=False, left=False, right=False)
+        plt.xlabel("Hours", weight="bold", size="x-large")
+        plt.ylabel("Tips\n(most recent in brackets)", weight="bold", size="x-large")
         #Arrange axes into channel id indexed list
         self.axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, ax13, ax14, ax15]
         #For each of the channels
@@ -67,6 +74,7 @@ class MainWindow(tkinter.Frame):
             #Integer positions only
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].set_ylim(0, 10)
         #Create the canvas to hold the graphs, draw it and place the widget in the frame
         self.canvas = FigureCanvasTkAgg(figure=self.figure, master=self)
         self.canvas.draw()
@@ -78,13 +86,18 @@ class MainWindow(tkinter.Frame):
 
         #If receiving data from the device
         self.gettingData = False
+        #If the connection was shut by the user
+        self.shuttingDown = False
 
-        #Start scanning for available ports
-        self.scanLoop = None
-        self.performScan()
+        #Start connection after short delay
+        self.after(1000, self.attemptConnection)
 
         #Redraw the plots correctly
-        self.updatePlots()
+        #self.updatePlots()
+    
+    def pathTo(self, path):
+        '''Get local path to file'''
+        return os.path.join(self.thisPath, path)
 
     def updatePlots(self) -> None:
         '''Change the data in the plots to show the most recent data'''
@@ -118,33 +131,33 @@ class MainWindow(tkinter.Frame):
         #Update the display so changes appear on the screen
         self.canvas.draw()
 
-    def connectPressed(self) -> None:
+    def attemptConnection(self) -> None:
         '''Attempt to connect to selected port'''
         #If a connection does not already exist
         if not self.connected:
+            #Get list of available ports
+            portsList = self.getPortNames()
             #If the current port selected exists
-            if self.portLabels.index(self.selectedPort.get()) > 0:
+            if self.selectedPort in portsList:
                 #Set the port of the connection
-                self.connectedPort = self.selectedPort.get()
+                self.connectedPort = self.selectedPort
                 success = True
                 try:
                     #Attempt to connect
-                    #self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200, dsrdtr=True, rtscts=False)
                     self.serialConnection = serial.Serial(port=self.connectedPort, baudrate=115200)
                 except:
                     #If something went wrong
                     success = False
             
                 if success:
-                    #Switch buttons to enable disconnect and disable connect
-                    self.connectButton.configure(text="Disconnect", command=self.disconnectPressed)
                     self.connected = True
-                    self.portOption.configure(state="disabled")
                     #Do not allow action if waiting
                     self.awaiting = True
                     self.timesTried = 0
                     self.awaitingCommunication = True
-                    self.checkConnection()
+                    self.serialConnection.timeout = 0.5
+                    connectionTestThread = Thread(target = self.checkConnection, daemon=True)
+                    connectionTestThread.start()
                     #Start reading from the port
                     readThread = Thread(target=self.readSerial, daemon=True)
                     readThread.start()
@@ -156,14 +169,18 @@ class MainWindow(tkinter.Frame):
                 else:
                     #Connection failed - reset
                     self.connected = False
-                    #Allow for connect to be pressed and disable disconnect
-                    self.portOption.configure(state="normal")
                     #Not currently connected to a port
                     self.connectedPort = ""
                     #Display message to user
-                    messagebox.showinfo(title="Failed", message="Failed to connect to port, check the device is still connected and the port is available.")
-                    self.performScan()
-
+                    self.sendNotification("Failed", "Failed to connect to port, check the device is still connected and the port is available.")
+                    self.terminate()
+            else:
+                self.sendNotification("Failed", "Failed to connect to port, port could not be found ,check the device is still connected.")
+                self.terminate()
+        else:
+            self.sendNotification("Failed", "Connection failed, please try again.")
+            self.terminate()
+    
     def checkConnection(self) -> None:
         '''Check if a connection has been made repeatedly until timeout'''
         #If still waiting
@@ -176,11 +193,9 @@ class MainWindow(tkinter.Frame):
                 self.connected = False
                 self.awaiting = False
                 self.awaitingCommunication = False
-                self.connectButton.configure(text="Connect", command=self.connectPressed)
-                self.portOption.configure(state="normal")
                 #Display message to user to indicate that connection was lost (Occurs when connecting to a port that does is not connected to esp)
-                messagebox.showinfo(title="Connection Failed", message="Connection could not be established, please check this is the correct port and try again.")
-                self.performScan()
+                self.sendNotification("Connection Failed", "Connection could not be established, please check this is the correct port and try again.")
+                self.terminate()
             else:
                 #Increment timeout
                 self.timesTried = self.timesTried + 1
@@ -194,79 +209,28 @@ class MainWindow(tkinter.Frame):
             #Send the information request
             self.serialConnection.write("info\n".encode("utf-8"))
 
-    def performScan(self, target = None) -> None:
-        '''Perform a scan of available ports and update option list accordingly'''
-        if not self.connected:
-            #List to contain available ports
-            found = ["No Port Selected"]
-            descs = [""]
-            #Scan to find all available ports
-            portData = list_ports.comports()
-            #Iterate through ports
-            for data in portData:
-                #Add the device name of the port to the list (can be used to connect to it)
-                found.append(data.device)
-                descs.append("(" + data.description + ")")
-            
-            #If the old and new lists are different
-            different = False
-            #Test if the lists are different lengths
-            if len(found) != len(self.portLabels):
-                different = True
-            else:
-                #Iterate through
-                for item in found:
-                    #Check if they contain the same things (order unimportant)
-                    if item not in self.portLabels:
-                        different = True
-
-            #If there was a change
-            if different:
-                #Update labels
-                self.portLabels = found
-
-                #Delete the old menu options
-                menu = self.portOption["menu"]
-                menu.delete(0, tkinter.END)
-
-                i = 0
-                #Iterate through labels
-                for name in self.portLabels:
-                    #Add the labels to the list
-                    menu.add_command(label=name + " " + descs[i], command=lambda v=self.selectedPort, l=name: v.set(l))
-                    i = i + 1
-
-                targetFound = False
-
-                if target != None:
-                    if target in self.portLabels:
-                        self.selectedPort.set(target)
-                
-                if not targetFound:
-                    #If the selected item is still available
-                    if self.selectedPort.get() in self.portLabels:
-                        #Set the drop down value to what it was
-                        self.selectedPort.set(self.selectedPort.get())
-                    else:
-                        #Set selected option to none
-                        self.selectedPort.set(self.portLabels[0])
-            
-            #Scan again shortly
-            self.scanLoop = self.after(150, self.performScan)
-        else:
-            self.scanLoop = ""
+    def getPortNames(self) -> None:
+        '''Get a list of all the possible ports'''
+        foundPorts = []
+        #Scan to find all available ports
+        portData = list_ports.comports()
+        #Iterate through ports
+        for data in portData:
+            #Add the device name of the port to the list (can be used to connect to it)
+            foundPorts.append(data.device)
+        return foundPorts
 
     def readSerial(self) -> None:
         '''While connected repeatedly read information from serial connection'''
         #If there is a connection
-        if self.connected and self.serialConnection != None:
+        while self.connected and self.serialConnection != None:
             #Attempt
             try:
                 done = False
                 #Until out of data
                 while not done:
                     #Read the next character
-                    char = self.serialConnection.read()
+                    char = self.serialConnection.read(1)
                     #If there is a character
                     if len(char) > 0:
                         try:
@@ -285,25 +249,24 @@ class MainWindow(tkinter.Frame):
                         #Finished reading - end of stream reached
                         done = True
                 
-                #Repeat this read function after 10ms
-                self.after(10, self.readSerial)
             except:
-                #Close the connection and reset the buttons
-                self.serialConnection.close()
-                self.serialConnection = None
-                self.connected = False
-                if self.filesOpen:
-                    self.setdownFiles()
-                self.connectButton.configure(text="Connect", command=self.connectPressed)
-                self.portOption.configure(state="normal")
-                #Display message to user to indicate that connection was lost (Occurs when device unplugged)
-                messagebox.showinfo(title="Connection Lost", message="Connection to device was lost, please check connection and try again.")
-                self.performScan()
+                if not self.shuttingDown:
+                    #Close the connection
+                    try:
+                        self.serialConnection.close()
+                    except:
+                        pass
+                    self.serialConnection = None
+                    self.connected = False
+                    #Display message to user to indicate that connection was lost (Occurs when device unplugged)
+                    self.sendNotification("Connection Lost", "Connection to device was lost, please check connection and try again.")
+                    self.terminate()
+        
 
     def checkMessages(self):
         '''Repeatedly check for a new message and handle it'''
         #If there is a message
-        if len(self.receivedMessages) > 0:
+        if len(self.receivedMessages) > 0 and self.connected and self.serialConnection != None:
             #Get the message
             nextMessage = self.receivedMessages[0]
             #Handle based on what the message is
@@ -328,12 +291,12 @@ class MainWindow(tkinter.Frame):
                 #No longer waiting
                 self.awaitingCommunication = False
                 #Display connected message
-                messagebox.showinfo(title="Success", message="Connected to port successfully.")
-                #if messageParts[1] == "1":
+                self.sendNotification("Success", "Connected to port successfully.")
+                self.portInfoLabel.configure(text="Connected to device {0} on port {1}.".format(self.deviceName, self.selectedPort))
                 self.serialConnection.write("getHourly\n".encode("utf-8"))
-                #else:
+                if messageParts[1] != "1":
                     #Display not logging message
-                    #messagebox.showinfo(title="No Data", message="Device is not currently logging.")
+                    self.sendNotification("No Data", "Device is not currently logging.")
                 
                 
             
@@ -396,34 +359,31 @@ class MainWindow(tkinter.Frame):
                 self.gettingData = False
                 self.serialConnection.write("getHourly\n".encode("utf-8"))
 
-    def disconnectPressed(self) -> None:
-        '''Close connection to port'''
-        #If there is a connection and there is not data to be recieved
-        if self.connected and not self.awaiting:
-            #If there is a serial connection object
-            if self.serialConnection != None:
-                #Close the connection
-                self.serialConnection.close()
-                self.serialConnection = None
-            #Switch buttons so disconnect is disabled and connect is enabled
-            self.connected = False
-            self.connectButton.configure(text="Connect", command=self.connectPressed)
-            self.portOption.configure(state="normal")
-            #Display message to indicate that the connection has been closed
-            messagebox.showinfo(title="Connection Closed", message="The connection has been terminated successfully.")
-            self.parent.quit()
-            self.parent.destroy()
-
-    def closeWindow(self):
+    def terminate(self) -> None:
+        '''Closes the window forcefully'''
+        self.shuttingDown = True
+        #Close the serial connection
         try:
-            self.after_cancel(self.scanLoop)
+            self.serialConnection.close()
+            self.sendNotification("Connection Closed", "The connection has been terminated successfully.")
         except:
             pass
-        if self.connected and self.serialConnection != None:
-            self.disconnectPressed()
+        self.serialConnection = None
+        #If it has a parent, call it to close this object
+        if self.controller != None:
+            self.controller.quitMonitor()
         else:
-            self.parent.quit()
-            self.parent.destroy()
+            #Otherwise close itself
+            self.quit()
+            self.destroy()
+    
+    def sendNotification(self, title : str, message : str) -> None:
+        '''Send user a popup notification with the current title and message'''
+        notification = notifypy.Notify()
+        notification.title = title
+        notification.message = message
+        notification.icon = self.pathTo("images/icon.png")
+        notification.send()
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
@@ -437,11 +397,11 @@ if __name__ == "__main__":
     #Set minimum size
     root.minsize(1000, 750)
     #Set the title text of the window
-    root.title("GFM Tip Graphs")
+    root.title("GFM Tip Monitor")
     #Add the editor to the root windows
-    window = MainWindow(root)
+    window = MainWindow(root, None, "COM20", "Example Device")
     window.grid(row = 0, column=0, sticky="NESW")
     #If the window is attempted to be closed, call the close window function
-    root.protocol("WM_DELETE_WINDOW", window.closeWindow)
+    root.protocol("WM_DELETE_WINDOW", window.terminate)
     #Start running the root
     root.mainloop()

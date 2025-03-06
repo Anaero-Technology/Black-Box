@@ -57,8 +57,8 @@ class MainWindow(tkinter.Frame):
         self.column, self.decimal = readSeparators.read()
 
         #File images
-        self.presentImage = tkinter.PhotoImage(file=self.pathTo("filePresent.png"))
-        self.notPresentImage = tkinter.PhotoImage(file=self.pathTo("fileNotPresent.png"))
+        self.presentImage = tkinter.PhotoImage(file=self.pathTo("images/filePresent.png"))
+        self.notPresentImage = tkinter.PhotoImage(file=self.pathTo("images/fileNotPresent.png"))
 
         #Button to import event log file
         self.eventLogButton = tkinter.Button(self, image=self.notPresentImage, compound="top", text="Event Log File", command=self.askForEventFile)
@@ -739,9 +739,9 @@ class DataSource(tkinter.Frame):
             self.grid_columnconfigure(col, weight=1)
 
         #Images for buttons
-        self.presentImage = tkinter.PhotoImage(file="filePresent.png")
-        self.notPresentImage = tkinter.PhotoImage(file="fileNotPresent.png")
-        self.cancelImage = tkinter.PhotoImage(file="cancel.png")
+        self.presentImage = tkinter.PhotoImage(file="images/filePresent.png")
+        self.notPresentImage = tkinter.PhotoImage(file="images/fileNotPresent.png")
+        self.cancelImage = tkinter.PhotoImage(file="images/cancel.png")
 
         #Correct message dependant on type
         iconMessage = "Gas Data\n" + fileName
