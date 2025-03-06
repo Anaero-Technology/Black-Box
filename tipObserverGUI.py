@@ -1,6 +1,4 @@
 import tkinter
-from tkinter.font import Font
-from tkinter import messagebox
 import matplotlib.pyplot as plt
 from threading import Thread
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
