@@ -59,6 +59,10 @@ class MainWindow(tkinter.Frame):
 
         #Set up 3 by 5 grid of plots and store figure and axes objects
         self.figure, ((ax1, ax2, ax3, ax4, ax5), (ax6, ax7, ax8, ax9, ax10), (ax11, ax12, ax13, ax14, ax15)) = plt.subplots(3, 5)
+        self.figure.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor="none", which="both", top=False, bottom=False, left=False, right=False)
+        plt.xlabel("Hours", weight="bold", size="x-large")
+        plt.ylabel("Tips\n(most recent in brackets)", weight="bold", size="x-large")
         #Arrange axes into channel id indexed list
         self.axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, ax13, ax14, ax15]
         #For each of the channels
@@ -72,6 +76,7 @@ class MainWindow(tkinter.Frame):
             #Integer positions only
             self.axs[channelNumber].xaxis.get_major_locator().set_params(integer=True)
             self.axs[channelNumber].yaxis.get_major_locator().set_params(integer=True)
+            self.axs[channelNumber].set_ylim(0, 10)
         #Create the canvas to hold the graphs, draw it and place the widget in the frame
         self.canvas = FigureCanvasTkAgg(figure=self.figure, master=self)
         self.canvas.draw()
