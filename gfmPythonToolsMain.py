@@ -1332,7 +1332,7 @@ if __name__ == "__main__":
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     #Set the title text of the window
-    root.title("GFM Python Tools V5.0")
+    root.title("GFM Python Tools V5.0.2")
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
