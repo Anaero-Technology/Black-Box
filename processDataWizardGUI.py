@@ -2,7 +2,6 @@ import tkinter
 import tkinter.ttk as Ttk
 from tkinter.ttk import Style
 from tkinter import filedialog
-from tkinter import messagebox
 import readSetup
 import readSeparators
 import os, sys
@@ -587,12 +586,12 @@ class MainWindow(tkinter.Frame):
             else:
                 #Display the error if it occurred and update the bar to show it failed
                 self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
-                messagebox.showinfo(title="Error", message=error)
+                self.sendNotification("Error", error)
 
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222", )
-            messagebox.showinfo(title="Error", message="Please select a setup and event log file first.")
+            self.sendNotification("Error", "Please select a setup and event log file first.")
         
         #No longer processing data, allow user to go back again
         self.processing = False
@@ -644,10 +643,10 @@ class MainWindow(tkinter.Frame):
                     #If saved successfully
                     if success:
                         #Display message to indicate file has been saved
-                        messagebox.showinfo(title="Saved Successfully", message="The file has been successfully saved.")
+                        self.sendNotification("Saved Successfully", "The file has been successfully saved.")
                     else:
                         #Display message to indicate file was not saved
-                        messagebox.showinfo(title="Error", message="File could not be saved, please check location and file name.")
+                        self.sendNotification("Error", "File could not be saved, please check location and file name.")
         self.saving = False
 
     def backPressedDownload(self) -> None:
@@ -686,7 +685,7 @@ if __name__ == "__main__":
     #Add the editor to the root windows
     window = MainWindow(root)
     window.grid(row = 0, column=0, sticky="NESW")
-    ico = Image.open(window.pathTo("images/con.png"))
+    ico = Image.open(window.pathTo("images/icon.png"))
     photo = ImageTk.PhotoImage(ico)
     root.wm_iconphoto(True, photo)
     #Start running the root
