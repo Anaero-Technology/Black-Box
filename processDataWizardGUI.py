@@ -59,6 +59,9 @@ class MainWindow(tkinter.Frame):
         #Allowed file types and extensions
         self.fileTypes = [("CSV Files", "*.csv")]
 
+        self.usingDilution = False
+        self.manualDilution = False
+
         #Create first tab - the one to get the setup file
         self.tabSetupFile = tkinter.Label(self, text="Select Setup File", relief="raised")
         #Store colours for tab backgrounds
@@ -94,6 +97,9 @@ class MainWindow(tkinter.Frame):
 
         self.processingWindow = tkinter.Frame(self.viewWindow)
         self.processingWindow.grid(row=0, column=0, sticky="NESW")
+
+        self.gasWindow = tkinter.Frame(self.viewWindow)
+        self.gasWindow.grid(row=0, column=0, sticky="NESW")
 
         self.eventWindow = tkinter.Frame(self.viewWindow)
         self.eventWindow.grid(row=0, column=0, sticky="NESW")
@@ -149,6 +155,90 @@ class MainWindow(tkinter.Frame):
         self.eventNextButton = tkinter.Button(self.eventButtonsFrame, text="Next", font=("", 16), command=self.nextPressedEvent, state="disabled")
         self.eventBackButton.pack(side="left", anchor="s")
         self.eventNextButton.pack(side="right", anchor="s")
+
+        for row in range(0, 3):
+            self.gasWindow.grid_rowconfigure(row, weight=1)
+        self.gasWindow.grid_columnconfigure(0, weight=1)
+
+        self.gasFileFrame = tkinter.Frame(self.gasWindow)
+        self.gasFileFrame.grid(row=0, column=0, sticky="NESW")
+        self.gasDilutionFrame = tkinter.Frame(self.gasWindow)
+        self.gasDilutionFrame.grid(row=1, column=0, sticky="NESW")
+
+        self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event Files", font=("", 16, "bold"))
+        self.gasFileTitle.pack(side="top", anchor="center", fill="x", expand=True)
+        self.gasFileAddButton = tkinter.Button(self. gasFileFrame, text="+ Add File", font=("", 16), fg="green", relief="flat")
+        self.gasFileAddButton.pack(side="top", anchor="center", expand=True)
+
+        self.gasFilesView = tkinter.Frame(self.gasFileFrame)
+        self.gasFilesView.pack(side="top", expand=True, fill="x", anchor="center", padx=10, pady=2)
+
+        self.gasFilesCanvas = tkinter.Canvas(self.gasFilesView)
+        self.gasFilesScroll = tkinter.Scrollbar(self.gasFilesView)
+        self.gasFilesInternalFrame = tkinter.Frame(self.gasFilesCanvas)
+        self.currentRows = 3
+        self.gasFilesInternalFrame.grid_columnconfigure(0, weight=1)
+        for row in range(0, self.currentRows):
+            self.gasFilesInternalFrame.grid_rowconfigure(row, weight=1)
+
+        self.gasCanvasWindow = self.gasFilesCanvas.create_window(0, 0, window=self.gasFilesInternalFrame, anchor="nw")
+        self.gasFilesCanvas.update_idletasks()
+
+        #Bind the configures of the frame and canvas to update the windows
+        self.gasFilesInternalFrame.bind("<Configure>", self.onGasFrameConfigure)
+        self.gasFilesCanvas.bind("<Configure>", self.gasFrameWidth)
+        self.gasFrameWidth(None)
+
+        #Bind the mouse enter and leave so the scroll wheel can be used to scroll
+        self.gasFilesInternalFrame.bind("<Enter>", self.gasBindMouseWheel)
+        self.gasFilesInternalFrame.bind("<Leave>", self.gasUnbindMouseWheel)
+
+        #Configure the scrollbar for the canvas
+        self.gasFilesCanvas.configure(scrollregion=self.gasFilesCanvas.bbox("all"), yscrollcommand=self.gasFilesScroll.set)
+
+        #Pack the canvas and scrollbar
+        self.gasFilesScroll.pack(side="right", fill="y")
+        self.gasFilesCanvas.pack(side="left", expand=True, fill="both")
+
+        self.gasDilutionTitle = tkinter.Label(self.gasDilutionFrame, text="Dilution Adjustment", font=("", 16, "bold"))
+        self.gasDilutionTitle.pack(side="top", anchor="center", fill="x", expand=True)
+
+        self.dilutionTypeFrame = tkinter.Frame(self.gasDilutionFrame)
+        self.dilutionTypeFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
+
+        self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="lightgreen", font=("", 16), command=self.automaticDilutionPressed)
+        self.dilutionAutomaticButton.pack(side="left", expand=True, padx=(150, 0), pady=2)
+        self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=("", 16), command=self.manualDilutionPressed)
+        self.dilutionManualButton.pack(side="left", expand=True, padx=(0, 150), pady=2)
+        
+        self.dilutionInputFrame = tkinter.Frame(self.gasDilutionFrame)
+        self.dilutionInputFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
+        self.dilutionInputFrame.grid_rowconfigure(0, weight=1)
+        self.dilutionInputFrame.grid_columnconfigure(0, weight=1)
+
+        self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
+        self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
+
+        self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Be sure to set volumes for each reactor in the gas files above.", font=("", 16))
+        self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, fill="x", pady=2, padx=10)
+
+        self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
+        self.dilutionAutomaticFrame.grid(row=0, column=0, sticky="NESW")
+
+        self.hoseLengthFrame = tkinter.Frame(self.dilutionAutomaticFrame)
+        self.hoseLengthFrame.pack(side="top", anchor="center", expand=True)
+
+        self.hoseLengthLabel = tkinter.Label(self.hoseLengthFrame, text="Approximate hose length (m):", font=("", 16))
+        self.hoseLengthLabel.pack(side="left")
+        self.hoseLengthEntry = tkinter.Entry(self.hoseLengthFrame, width=6, font=("", 16), justify="center")
+        self.hoseLengthEntry.pack(side="left")
+
+        self.gasButtonsFrame = tkinter.Frame(self.gasWindow)
+        self.gasButtonsFrame.grid(row=2, column=0, sticky="NESW")
+        self.gasBackButton = tkinter.Button(self.gasButtonsFrame, text="Back", font=("", 16), command=self.backPressedGas)
+        self.gasNextButton = tkinter.Button(self.gasButtonsFrame, text="Next", font=("", 16), command=self.nextPressedGas)
+        self.gasBackButton.pack(side="left", anchor="s")
+        self.gasNextButton.pack(side="right", anchor="s")
 
         #Setup grid for processing
         rowWeights = [4, 1, 1, 1, 2, 4]
@@ -256,6 +346,8 @@ class MainWindow(tkinter.Frame):
         #Currently loaded setup and event data
         self.setupData = None
         self.eventData = None
+
+        self.gasWindow.tkraise()
     
     def pathTo(self, path : str) -> str:
         '''Convert local path to find file'''
@@ -467,6 +559,35 @@ class MainWindow(tkinter.Frame):
                 self.styles.configure("ProgressbarLabeled", text=self.progress[2].format(percent))
                 changing = False
     
+    def backPressedGas(self) -> None:
+        pass
+
+    def nextPressedGas(self) -> None:
+        pass
+
+    def automaticDilutionPressed(self) -> None:
+        if self.manualDilution:
+            self.manualDilution = False
+            self.dilutionAutomaticFrame.tkraise()
+            self.dilutionManualButton.configure(bg="red")
+            self.dilutionAutomaticButton.configure(bg="lightgreen")
+
+    def manualDilutionPressed(self) -> None:
+        if not self.manualDilution:
+            self.manualDilution = True
+            self.dilutionManualFrame.tkraise()
+            self.dilutionManualButton.configure(bg="lightgreen")
+            self.dilutionAutomaticButton.configure(bg="red")
+
+    def addGasFilePressed(self) -> None:
+        pass
+
+    def addGasFileObject(self) -> None:
+        newGasFile = tkinter.Frame(self.gasFilesInternalFrame, highlightthickness=2, highlightbackground="black")
+        for col in range(0, 3):
+            newGasFile.columnconfigure(col, weight=1)
+        newGasFile.grid
+    
     def startProcessing(self) -> None:
         '''Begin the threads that perform the calculations and update the progress'''
         #If not already started
@@ -660,6 +781,32 @@ class MainWindow(tkinter.Frame):
     def nextPressedPreview(self) -> None:
         '''Move to the download window from the preview window'''
         self.moveWindows(4)
+
+    def onGasFrameConfigure(self, _event) -> None:
+        '''Event called when gas canvas frame resized'''
+        #Update canvas bounding box
+        self.gasFilesCanvas.configure(scrollregion=self.gasFilesCanvas.bbox("all"))
+
+    def gasFrameWidth(self, _event) -> None:
+        '''Event called when gas canvas resized'''
+        canvasWidth = self.gasFilesCanvas.winfo_width()
+        #Update size of window on canvas
+        self.gasFilesCanvas.itemconfig(self.gasCanvasWindow, width=canvasWidth - 1)
+
+    def gasBindMouseWheel(self, _event) -> None:
+        '''Add mouse wheel binding to canvas'''
+        if self.gasFilesCanvas != None:
+            self.gasFilesCanvas.bind_all("<MouseWheel>", self.gasMouseWheelMove)
+
+    def gasUnbindMouseWheel(self, _event) -> None:
+        '''Remove mouse wheel binding from canvas'''
+        if self.gasFilesCanvas != None:
+            self.gasFilesCanvas.unbind_all("<MouseWheel>")
+
+    def gasMouseWheelMove(self, event) -> None:
+        '''Change y scroll position when mouse wheel moved'''
+        if self.gasFilesCanvas != None:
+            self.gasFilesCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def sendNotification(self, title : str, message : str) -> None:
         '''Send user a popup notification with the current title and message'''
