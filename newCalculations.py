@@ -1,5 +1,7 @@
 import readSeparators
+import dataCombination
 import sys
+import datetime
 
 def convertSeconds(seconds) -> tuple:
     '''Converts timestamp in seconds to number of days, hours minutes and seconds'''
@@ -18,7 +20,16 @@ def convertSeconds(seconds) -> tuple:
     seconds = seconds - (m * secondsInMinute)
     return d, h, m, seconds
 
-def performGeneralCalculations(setupData, eventData, progress):
+def convertDate(dateString, separator) -> int:
+    '''Converts timestamp in year month day hour minute second to seconds since the epoch'''
+    parts = dateString.split(separator)
+    try:
+        date = datetime.datetime(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5]))
+        return date.timestamp()
+    except:
+        return -1
+
+def performGeneralCalculations(setupData, eventData : list, gasData : list, progress):
     '''Convert from setup information and events to a fully processed event, day and hour logs with net volumes'''
     column, decimal = readSeparators.read()
     
@@ -63,6 +74,34 @@ def performGeneralCalculations(setupData, eventData, progress):
     except:
         #Formatting of setup file is incorrect - reort error and stop
         return "Setup file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
+    
+    methaneForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+    carbonForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+
+    try:
+        for gasObject in gasData:
+            association = gasObject["assoc"]
+            gasInfo = gasObject["data"]
+            thisGasChannels = []
+            for i in range(0, 15):
+                thisGasChannels.append({"times":[], "ch4":[], "co2":[]})
+            for row in gasInfo:
+                time = convertDate(gasInfo[0], "/")
+                gasChannel = gasInfo[1]
+                methane = gasInfo[2]
+                carbonDioxide = gasInfo[3]
+                if gasChannel > 0 and gasChannel < 16:
+                    thisGasChannels[gasChannel - 1]["times"].append(time)
+                    thisGasChannels[gasChannel - 1]["ch4"].append(methane)
+                    thisGasChannels[gasChannel - 1]["co2"].append(carbonDioxide)
+            
+            for index in range(0, 15):
+                if association[index] > 0 and association[index] < 16:
+                    methaneForChannels[index] = dataCombination.ContinuousRange(thisGasChannels[association[index] - 1]["times"], thisGasChannels[association[index] - 1]["ch4"])
+                    carbonForChannels[index] = dataCombination.ContinuousRange(thisGasChannels[association[index] - 1]["times"], thisGasChannels[association[index] - 1]["co2"])
+
+    except:
+        return "Gas file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
 
     #Dicionary to store overall running information for all channels
     overall = {"tips" : [0] * 15, "volumeSTP" : [0.0] * 15, "volumeNet" : [0.0] * 15, "inoculumVolume" : 0.0, "inoculumMass" : 0.0}
@@ -89,6 +128,7 @@ def performGeneralCalculations(setupData, eventData, progress):
             if setup["inUse"][channelId]:
                 #Get the time, temperature and pressure
                 eventTime = int(float(event[2]))
+                dateTime = convertDate(event[1], ":")
                 temperatureC = float(event[4])
                 temperatureK = temperatureC + 273
                 pressure = float(event[5])
@@ -157,8 +197,15 @@ def performGeneralCalculations(setupData, eventData, progress):
                 hours[-1]["volumeNet"][channelId] = totalNetVolume - lastHourNetVolume[channelId]
                 overall["volumeNet"][channelId] = totalNetVolume
 
+                ch4 = "-"
+                co2 = "-"
+
+                if methaneForChannels[channelId] != None:
+                    ch4 = str(methaneForChannels[channelId].getValue(dateTime))
+                    co2 = str(carbonForChannels[channelId].getValue(dateTime))
+
                 #Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA), Cumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP), Net Volume Per Gram (ml/g)
-                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]])
+                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]], ch4, co2)
                 eventCount[channelId] = eventCount[channelId] + 1
             #Move progress bar forward
             progress[0] = progress[0] + 1
