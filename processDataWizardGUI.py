@@ -12,6 +12,71 @@ import createSetup
 from PIL import Image, ImageTk
 import notifypy
 
+class DataSource(tkinter.Frame):
+    '''Class for a frame containing imported data options'''
+    def __init__ (self, parent, index : int, fileName : str, fileData : str, window : object, *args, **kwargs):
+        #Initialise parent class
+        tkinter.Frame.__init__(self, parent, *args, **kwargs)
+        #Store the parent window
+        self.window = window
+        self.numRows = 1
+        self.numColumns = 3
+
+        #Index in data list
+        self.dataPosition = index
+        self.fileName = fileName
+        self.fileData = fileData
+
+        #Grid setup
+        for row in range(0, self.numRows):
+            self.grid_rowconfigure(row, weight=1)
+        for col in range(0, self.numColumns):
+            self.grid_columnconfigure(col, weight=1)
+
+        self.configure(highlightthickness=2, highlightbackground="black")
+
+        #Images for buttons
+        self.presentImage = tkinter.PhotoImage(file="images/filePresent.png")
+        self.cancelImage = tkinter.PhotoImage(file="images/cancel.png")
+
+        self.assignedChannels = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.internalVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        self.mediumFont = ("", 14)
+
+        #Correct message dependant on type
+        iconMessage = "Gas Data: " + self.fileName
+
+        #Create indicator
+        self.fileIndicator = tkinter.Label(self, image=self.presentImage, compound="top", text=iconMessage, font=self.mediumFont)
+        self.fileIndicator.grid(row=0, column=0)
+
+        #Create input area
+        self.configureButton = tkinter.Button(self, text="Configure File", font=self.mediumFont, command=self.configurePressed)
+        self.configureButton.grid(row=0, column=1)
+
+        #Create delete button
+        self.cancelButton = tkinter.Button(self, image=self.cancelImage, command=self.deletePressed)
+        self.cancelButton.grid(row=0, column=2)
+    
+    def deletePressed(self) -> None:
+        '''Send remove signal to parent window'''
+        self.window.removeGasPressed(self)
+    
+    def configurePressed(self) -> None:
+        self.window.configureGasPressed(self)
+    
+    def getConfig(self) -> dict:
+        result = {"channels":[], "volumes":[]}
+        for channel in self.assignedChannels:
+            result["channels"].append(channel)
+        for volume in self.internalVolumes:
+            result["volumes"].append(volume)
+        return result
+    
+    def setConfig(self, channelData : list, volumeData : list) -> None:
+        self.assignedChannels = channelData
+        self.internalVolumes = volumeData
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs) -> None:
@@ -21,12 +86,14 @@ class MainWindow(tkinter.Frame):
 
         #Grid dimensions for main window
         self.numberRows = 16
-        self.numberColumns = 5
+        self.numberColumns = 6
 
         #Whether files are being loaded, processed or saved so the action cannot be repeated
         self.loading = False
         self.processing = False
         self.saving = False
+
+        self.fonts = {"medium":("", 16), "mediumBold":("", 16), "mediumSmall":("", 14)}
 
         #Create internal grid
         for row in range(0, self.numberRows):
@@ -60,7 +127,10 @@ class MainWindow(tkinter.Frame):
         self.fileTypes = [("CSV Files", "*.csv")]
 
         self.usingDilution = False
-        self.manualDilution = False
+        self.dilutionType = "none"
+        self.gasConfigOpen = False
+
+        self.crossImage = tkinter.PhotoImage(file=self.pathTo("images/cancel.png"))
 
         #Create first tab - the one to get the setup file
         self.tabSetupFile = tkinter.Label(self, text="Select Setup File", relief="raised")
@@ -71,19 +141,21 @@ class MainWindow(tkinter.Frame):
         self.tabSetupFile.configure(bg=self.selectedColour)
         #Create all the other tabs
         self.tabEventFile = tkinter.Label(self, text="Select Event File", relief="sunken", bg=self.offColour)
+        self.tabGasFiles = tkinter.Label(self, text="Select Gas Files", relief="sunken", bg=self.offColour)
         self.tabProcessing = tkinter.Label(self, text="Processing Data...", relief="sunken", bg=self.offColour)
         self.tabPreview = tkinter.Label(self, text="Preview Results", relief="sunken", bg=self.offColour)
         self.tabDownload = tkinter.Label(self, text="Save Results", relief="sunken", bg=self.offColour)
         #Add tabs to grid
         self.tabSetupFile.grid(row=0, column=0, sticky="NESW")
         self.tabEventFile.grid(row=0, column=1, sticky="NESW")
-        self.tabProcessing.grid(row=0, column=2, sticky="NESW")
-        self.tabPreview.grid(row=0, column=3, sticky="NESW")
-        self.tabDownload.grid(row=0, column=4, sticky="NESW")
+        self.tabGasFiles.grid(row=0, column=2, sticky="NESW")
+        self.tabProcessing.grid(row=0, column=3, sticky="NESW")
+        self.tabPreview.grid(row=0, column=4, sticky="NESW")
+        self.tabDownload.grid(row=0, column=5, sticky="NESW")
 
         #Frame used to hold each of the different pages so they are displayed in the same place
         self.viewWindow = tkinter.Frame(self)
-        self.viewWindow.grid(row=1, column=0, rowspan=15, columnspan=5, sticky="NESW")
+        self.viewWindow.grid(row=1, column=0, rowspan=15, columnspan=6, sticky="NESW")
 
         self.viewWindow.grid_rowconfigure(0, weight=1)
         self.viewWindow.grid_columnconfigure(0, weight=1)
@@ -114,13 +186,13 @@ class MainWindow(tkinter.Frame):
         self.setupWindow.grid_columnconfigure(0, weight=1)
 
         #Loading button
-        self.loadSetupFileButton = tkinter.Button(self.setupWindow, text="Load Setup File", command=self.loadSetupFile, font=("", 16))
+        self.loadSetupFileButton = tkinter.Button(self.setupWindow, text="Load Setup File", command=self.loadSetupFile, font=self.fonts["medium"])
         self.loadSetupFileButton.grid(row=1, column=0)
         #Information about the loaded file
         self.setupFileLabel = tkinter.Label(self.setupWindow, text="No Setup File Loaded", fg=self.red)
         self.setupFileLabel.grid(row=2, column=0)
         #Button to open window to make new setup file
-        self.createSetupFileButton = tkinter.Button(self.setupWindow, text="Create New Setup File", command=self.openSetupFileCreator, font=("", 16))
+        self.createSetupFileButton = tkinter.Button(self.setupWindow, text="Create New Setup File", command=self.openSetupFileCreator, font=self.fonts["medium"])
         self.createSetupFileButton.grid(row=4, column=0)
         #Extra information for the user
         self.createSetupExtraText = tkinter.Label(self.setupWindow, text="Once you have created and saved a setup file you can load it above.")
@@ -128,7 +200,7 @@ class MainWindow(tkinter.Frame):
         #Next button frame
         self.setupButtonsFrame = tkinter.Frame(self.setupWindow)
         self.setupButtonsFrame.grid(row=6, column=0, sticky="NESW")
-        self.setupNextButton = tkinter.Button(self.setupButtonsFrame, text="Next", font=("", 16), command=self.nextPressedSetup, state="disabled")
+        self.setupNextButton = tkinter.Button(self.setupButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedSetup, state="disabled")
         self.setupNextButton.pack(side="right", anchor="s")
         #Object to hold the reference to the setup creator window so it can be closed if needed
         self.setupCreateWindow = None
@@ -140,7 +212,7 @@ class MainWindow(tkinter.Frame):
         self.eventWindow.grid_columnconfigure(0, weight=1)
 
         #Load file button
-        self.loadEventFileButton = tkinter.Button(self.eventWindow, text="Load Event File", command=self.loadEventFile, font=("", 16))
+        self.loadEventFileButton = tkinter.Button(self.eventWindow, text="Load Event File", command=self.loadEventFile, font=self.fonts["medium"])
         self.loadEventFileButton.grid(row=1, column=0)
         #File information label
         self.eventFileLabel = tkinter.Label(self.eventWindow, text="No Event File Loaded", fg=self.red)
@@ -151,8 +223,8 @@ class MainWindow(tkinter.Frame):
         #Next and back buttons frame
         self.eventButtonsFrame = tkinter.Frame(self.eventWindow)
         self.eventButtonsFrame.grid(row=5, column=0, sticky="NESW")
-        self.eventBackButton = tkinter.Button(self.eventButtonsFrame, text="Back", font=("", 16), command=self.backPressedEvent)
-        self.eventNextButton = tkinter.Button(self.eventButtonsFrame, text="Next", font=("", 16), command=self.nextPressedEvent, state="disabled")
+        self.eventBackButton = tkinter.Button(self.eventButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedEvent)
+        self.eventNextButton = tkinter.Button(self.eventButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedEvent, state="disabled")
         self.eventBackButton.pack(side="left", anchor="s")
         self.eventNextButton.pack(side="right", anchor="s")
 
@@ -165,9 +237,9 @@ class MainWindow(tkinter.Frame):
         self.gasDilutionFrame = tkinter.Frame(self.gasWindow)
         self.gasDilutionFrame.grid(row=1, column=0, sticky="NESW")
 
-        self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event Files", font=("", 16, "bold"))
+        self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event Files", font=self.fonts["mediumBold"])
         self.gasFileTitle.pack(side="top", anchor="center", fill="x", expand=True)
-        self.gasFileAddButton = tkinter.Button(self. gasFileFrame, text="+ Add File", font=("", 16), fg="green", relief="flat")
+        self.gasFileAddButton = tkinter.Button(self. gasFileFrame, text="+ Add File", font=self.fonts["medium"], fg="green", relief="flat", command=self.addGasFilePressed)
         self.gasFileAddButton.pack(side="top", anchor="center", expand=True)
 
         self.gasFilesView = tkinter.Frame(self.gasFileFrame)
@@ -176,9 +248,12 @@ class MainWindow(tkinter.Frame):
         self.gasFilesCanvas = tkinter.Canvas(self.gasFilesView)
         self.gasFilesScroll = tkinter.Scrollbar(self.gasFilesView)
         self.gasFilesInternalFrame = tkinter.Frame(self.gasFilesCanvas)
-        self.currentRows = 3
+        self.currentGasRows = 3
+        self.gasFileObjects = []
+        self.currentGasObject = None
+
         self.gasFilesInternalFrame.grid_columnconfigure(0, weight=1)
-        for row in range(0, self.currentRows):
+        for row in range(0, self.currentGasRows):
             self.gasFilesInternalFrame.grid_rowconfigure(row, weight=1)
 
         self.gasCanvasWindow = self.gasFilesCanvas.create_window(0, 0, window=self.gasFilesInternalFrame, anchor="nw")
@@ -200,17 +275,19 @@ class MainWindow(tkinter.Frame):
         self.gasFilesScroll.pack(side="right", fill="y")
         self.gasFilesCanvas.pack(side="left", expand=True, fill="both")
 
-        self.gasDilutionTitle = tkinter.Label(self.gasDilutionFrame, text="Dilution Adjustment", font=("", 16, "bold"))
+        self.gasDilutionTitle = tkinter.Label(self.gasDilutionFrame, text="Dilution Adjustment", font=self.fonts["mediumBold"])
         self.gasDilutionTitle.pack(side="top", anchor="center", fill="x", expand=True)
 
         self.dilutionTypeFrame = tkinter.Frame(self.gasDilutionFrame)
         self.dilutionTypeFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
 
-        self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="lightgreen", font=("", 16), command=self.automaticDilutionPressed)
+        self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="red", font=self.fonts["medium"], command=self.automaticDilutionPressed)
         self.dilutionAutomaticButton.pack(side="left", expand=True, padx=(150, 0), pady=2)
-        self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=("", 16), command=self.manualDilutionPressed)
-        self.dilutionManualButton.pack(side="left", expand=True, padx=(0, 150), pady=2)
-        
+        self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=self.fonts["medium"], command=self.manualDilutionPressed)
+        self.dilutionManualButton.pack(side="left", expand=True, padx=(25, 25), pady=2)
+        self.noDilutionButton = tkinter.Button(self.dilutionTypeFrame, text="No Dilutuion", bg="lightgreen", font=self.fonts["medium"], command=self.noDilutionPressed)
+        self.noDilutionButton.pack(side="left", expand=True, padx=(0, 150), pady=2)
+
         self.dilutionInputFrame = tkinter.Frame(self.gasDilutionFrame)
         self.dilutionInputFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
         self.dilutionInputFrame.grid_rowconfigure(0, weight=1)
@@ -219,7 +296,7 @@ class MainWindow(tkinter.Frame):
         self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
 
-        self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Be sure to set volumes for each reactor in the gas files above.", font=("", 16))
+        self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Be sure to set volumes for each reactor in the gas files above.", font=self.fonts["medium"])
         self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, fill="x", pady=2, padx=10)
 
         self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
@@ -228,17 +305,72 @@ class MainWindow(tkinter.Frame):
         self.hoseLengthFrame = tkinter.Frame(self.dilutionAutomaticFrame)
         self.hoseLengthFrame.pack(side="top", anchor="center", expand=True)
 
-        self.hoseLengthLabel = tkinter.Label(self.hoseLengthFrame, text="Approximate hose length (m):", font=("", 16))
+        self.hoseLengthLabel = tkinter.Label(self.hoseLengthFrame, text="Approximate hose length (m):", font=self.fonts["medium"])
         self.hoseLengthLabel.pack(side="left")
-        self.hoseLengthEntry = tkinter.Entry(self.hoseLengthFrame, width=6, font=("", 16), justify="center")
+        self.hoseLengthEntry = tkinter.Entry(self.hoseLengthFrame, width=8, font=self.fonts["medium"], justify="center")
         self.hoseLengthEntry.pack(side="left")
+
+        self.noDilutionFrame = tkinter.Frame(self.dilutionInputFrame)
+        self.noDilutionFrame.grid(row=0, column=0, sticky="NESW")
+
+        self.noDilutionLabel = tkinter.Label(self.noDilutionFrame, text="Dilution will not be used, only original sensor values will be included.", font=self.fonts["medium"])
+        self.noDilutionLabel.pack(side="top", anchor="center", expand=True, fill="x", pady=2, padx=10)
 
         self.gasButtonsFrame = tkinter.Frame(self.gasWindow)
         self.gasButtonsFrame.grid(row=2, column=0, sticky="NESW")
-        self.gasBackButton = tkinter.Button(self.gasButtonsFrame, text="Back", font=("", 16), command=self.backPressedGas)
-        self.gasNextButton = tkinter.Button(self.gasButtonsFrame, text="Next", font=("", 16), command=self.nextPressedGas)
+        self.gasBackButton = tkinter.Button(self.gasButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedGas)
+        self.gasNextButton = tkinter.Button(self.gasButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedGas)
         self.gasBackButton.pack(side="left", anchor="s")
         self.gasNextButton.pack(side="right", anchor="s")
+
+        self.gasConfigureWindow = tkinter.Toplevel(self)
+        self.gasConfigureWindow.geometry("800x500")
+        self.gasConfigureWindow.minsize(800, 500)
+        self.gasConfigureWindow.title("Configure Gas File")
+        self.channelAssignTitle = tkinter.Label(self.gasConfigureWindow, text="Assign Reactor Channels", font=self.fonts["mediumSmall"])
+        self.channelAssignTitle.pack(side="top", fill="x")
+        self.channelAssignFrame = tkinter.Frame(self.gasConfigureWindow)
+        self.channelAssignFrame.pack(side="top", expand=True, fill="x")
+        self.internalVolumeTitle = tkinter.Label(self.gasConfigureWindow, text="Enter Internal Gas Volumes Manually (ml)", font=self.fonts["medium"])
+        self.internalVolumeTitle.pack(side="top", fill="x")
+        self.internalVolumeFrame = tkinter.Frame(self.gasConfigureWindow)
+        self.internalVolumeFrame.pack(side="top", expand=True, fill="x")
+
+        for row in range(0, 5):
+            self.channelAssignFrame.grid_rowconfigure(row, weight=1)
+            self.internalVolumeFrame.grid_rowconfigure(row, weight=1)
+        for col in range(0, 6):
+            self.channelAssignFrame.grid_columnconfigure(col, weight=1)
+            self.internalVolumeFrame.grid_columnconfigure(col, weight=1)
+
+        self.gasChannelLabels = []
+        self.gasChannelVariables = []
+        self.gasChannelSpins = []
+        self.gasVolumeLabels = []
+        self.gasVolumeEntries = []
+        for i in range(0, 15):
+            channelLabel = tkinter.Label(self.channelAssignFrame, text="Gas Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
+            channelVariable = tkinter.IntVar()
+            channelVariable.set(0)
+            channelSpin = tkinter.Spinbox(self.channelAssignFrame, from_=0, to=15, wrap="true", font=self.fonts["mediumSmall"], textvariable=channelVariable, width=3, justify="center")
+            self.gasChannelLabels.append(channelLabel)
+            self.gasChannelVariables.append(channelVariable)
+            self.gasChannelSpins.append(channelSpin)
+
+            volumeLabel = tkinter.Label(self.internalVolumeFrame, text="Vol Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
+            volumeEntry = tkinter.Entry(self.internalVolumeFrame, width=4, justify="center", font=self.fonts["mediumSmall"])
+            self.gasVolumeLabels.append(volumeLabel)
+            self.gasVolumeEntries.append(volumeEntry)
+
+            r = i // 3
+            c = (i - (r * 3)) * 2
+            channelLabel.grid(row=r, column=c)
+            channelSpin.grid(row=r, column=c + 1)
+            volumeLabel.grid(row=r, column=c)
+            volumeEntry.grid(row=r, column=c + 1)
+
+        self.gasConfigureWindow.protocol("WM_DELETE_WINDOW", self.closeGasConfigure)
+        self.gasConfigureWindow.withdraw()
 
         #Setup grid for processing
         rowWeights = [4, 1, 1, 1, 2, 4]
@@ -266,8 +398,8 @@ class MainWindow(tkinter.Frame):
         #Next and back button frame
         self.processingButtonsFrame = tkinter.Frame(self.processingWindow)
         self.processingButtonsFrame.grid(row=5, column=0, columnspan=12, sticky="NESW")
-        self.processingBackButton = tkinter.Button(self.processingButtonsFrame, text="Back", font=("", 16), command=self.backPressedProcessing, state="disabled")
-        self.processingNextButton = tkinter.Button(self.processingButtonsFrame, text="Next", font=("", 16), command=self.nextPressedProcessing, state="disabled")
+        self.processingBackButton = tkinter.Button(self.processingButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedProcessing, state="disabled")
+        self.processingNextButton = tkinter.Button(self.processingButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedProcessing, state="disabled")
         self.processingBackButton.pack(side="left", anchor="s")
         self.processingNextButton.pack(side="right", anchor="s")
 
@@ -303,8 +435,8 @@ class MainWindow(tkinter.Frame):
         #Next and back buttons
         self.previewButtonsFrame = tkinter.Frame(self.previewWindow)
         self.previewButtonsFrame.grid(row=17, column=0, columnspan=12, sticky="NESW")
-        self.previewBackButton = tkinter.Button(self.previewButtonsFrame, text="Back", font=("", 16), command=self.backPressedPreview)
-        self.previewNextButton = tkinter.Button(self.previewButtonsFrame, text="Next", font=("", 16), command=self.nextPressedPreview)
+        self.previewBackButton = tkinter.Button(self.previewButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedPreview)
+        self.previewNextButton = tkinter.Button(self.previewButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedPreview)
         self.previewBackButton.pack(side="left", anchor="s")
         self.previewNextButton.pack(side="right", anchor="s")
         
@@ -314,25 +446,25 @@ class MainWindow(tkinter.Frame):
             self.downloadWindow.grid_rowconfigure(row, weight=rowWeights[row])
         self.downloadWindow.grid_columnconfigure(0, weight=1)
         #Save event log button
-        self.eventLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Event Log", command=self.saveEventLog, font=("", 16))
+        self.eventLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Event Log", command=self.saveEventLog, font=self.fonts["medium"])
         self.eventLogSaveButton.grid(row=1, column=0)
         #Event log info label
         self.eventLogInfo = tkinter.Label(self.downloadWindow, text="Complete log of every event in order. Contains total volumes and net volumes per gram of volatile solids.\nColumns: Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA),\nCumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP),\n Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)")
         self.eventLogInfo.grid(row=2, column=0)
         #Save hour log button
-        self.hourLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Hour Log", command=self.saveHourLog, font=("", 16))
+        self.hourLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Hour Log", command=self.saveHourLog, font=self.fonts["medium"])
         self.hourLogSaveButton.grid(row=3, column=0)
         #Hour log info label
         self.hourLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log grouped by hour.\nColumns: Channel Number, Name, Timestamp, Days, Hours, Minutes, In Service,\nTips This Hour, Volume This Hour at STP (ml), Net Volume This Hour (ml/g), Cumulative Net Vol (ml/g),Cumulative Volume at STP (ml)")
         self.hourLogInfo.grid(row=4, column=0)
         #Save day log button
-        self.dayLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Day Log", command=self.saveDayLog, font=("", 16))
+        self.dayLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Day Log", command=self.saveDayLog, font=self.fonts["medium"])
         self.dayLogSaveButton.grid(row=5, column=0)
         #Day log info label
         self.dayLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log grouped by day.\nColumns: Channel Number, Name, Timestamp, Days, Hours, Minutes, In Service,\nTips This Day, Volume This Day at STP (ml), Net Volume This Day (ml/g), Cumulative Net Vol (ml/g), Cumulative Volume at STP (ml)")
         self.dayLogInfo.grid(row=6, column=0)
         #Save continuous log button
-        self.continuousLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Continuous Log", command=self.saveContinuousLog, font=("", 16))
+        self.continuousLogSaveButton = tkinter.Button(self.downloadWindow, text="Save Continuous Log", command=self.saveContinuousLog, font=self.fonts["medium"])
         self.continuousLogSaveButton.grid(row=7, column=0)
         #Continuous log info label
         self.eventLogInfo = tkinter.Label(self.downloadWindow, text="Version of the event log with no adjustments for inoculum applied.\nColumns: Channel Number, Name, Timestamp, Days, Hours, Minutes,\nVolume This Tip (STP), Total Volume (STP), Volume This Day (STP), Volume This Hour (STP)")
@@ -340,14 +472,12 @@ class MainWindow(tkinter.Frame):
         #Back button frame
         self.downloadButtonsFrame = tkinter.Frame(self.downloadWindow)
         self.downloadButtonsFrame.grid(row=9, column=0, columnspan=12, sticky="NESW")
-        self.downloadBackButton = tkinter.Button(self.downloadButtonsFrame, text="Back", font=("", 16), command=self.backPressedDownload)
+        self.downloadBackButton = tkinter.Button(self.downloadButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedDownload)
         self.downloadBackButton.pack(side="left", anchor="s")
 
         #Currently loaded setup and event data
         self.setupData = None
         self.eventData = None
-
-        self.gasWindow.tkraise()
     
     def pathTo(self, path : str) -> str:
         '''Convert local path to find file'''
@@ -361,10 +491,12 @@ class MainWindow(tkinter.Frame):
         if stage == 1:
             self.eventWindow.tkraise()
         if stage == 2:
-            self.processingWindow.tkraise()
+            self.gasWindow.tkraise()
         if stage == 3:
-            self.previewWindow.tkraise()
+            self.processingWindow.tkraise()
         if stage == 4:
+            self.previewWindow.tkraise()
+        if stage == 5:
             self.downloadWindow.tkraise()
         
         #Change the tab colours to reflect current one and which ones have not been reached yet
@@ -374,14 +506,18 @@ class MainWindow(tkinter.Frame):
         else:
             self.tabEventFile.configure(bg=self.offColour, relief="sunken")
         if stage > 1:
+            self.tabGasFiles.configure(bg=self.onColour, relief="raised")
+        else:
+            self.tabGasFiles.configure(bg=self.offColour, relief="sunken")
+        if stage > 2:
             self.tabProcessing.configure(bg=self.onColour, relief="raised")
         else:
             self.tabProcessing.configure(bg=self.offColour, relief="sunken")
-        if stage > 2:
+        if stage > 3:
             self.tabPreview.configure(bg=self.onColour, relief="raised")
         else:
             self.tabPreview.configure(bg=self.offColour, relief="sunken")
-        if stage > 3:
+        if stage > 4:
             self.tabDownload.configure(bg=self.onColour, relief="raised")
         else:
             self.tabDownload.configure(bg=self.offColour, relief="sunken")
@@ -391,10 +527,12 @@ class MainWindow(tkinter.Frame):
         elif stage == 1:
             self.tabEventFile.configure(bg=self.selectedColour)
         elif stage == 2:
-            self.tabProcessing.configure(bg=self.selectedColour)
+            self.tabGasFiles.configure(bg=self.selectedColour)
         elif stage == 3:
-            self.tabPreview.configure(bg=self.selectedColour)
+            self.tabProcessing.configure(bg=self.selectedColour)
         elif stage == 4:
+            self.tabPreview.configure(bg=self.selectedColour)
+        elif stage == 5:
             self.tabDownload.configure(bg=self.selectedColour)
 
     def loadSetupFile(self) -> None:
@@ -514,22 +652,41 @@ class MainWindow(tkinter.Frame):
         '''Move to the next screen from event'''
         #If valid data was loaded
         if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
-            #Setup progress bar, so it looks correct when window changes
-            self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
-            #Do not allow user to move
-            self.processingNextButton.configure(state="disabled")
-            self.processingBackButton.configure(state="disabled")
-            self.progressBar["value"] = 0
-            #Reset progress values
-            self.progress = [0, len(self.eventData), "Processing: {0}%"]
-            #Move to the processing window
+            #Move to the gas window
             self.moveWindows(2)
-            #Wait a moment to start the data processing, this allows the window to change before anything else needs to happen
-            self.after(250, self.startProcessing)
 
     def backPressedEvent(self) -> None:
         '''Move back to the setup screen from the event screen'''
         self.moveWindows(0)
+
+    def loadGasFile(self) -> dict:
+        loadedFile = {"name":"", "data":[]}
+        if not self.loading:
+            self.gasNextButton.configure(state="disabled")
+            #Get the path to the file from the user
+            filePath = filedialog.askopenfilename(title="Select gas log csv file", filetypes=self.fileTypes)
+            #Split the file into parts
+            pathParts = filePath.split("/")
+            #If there i sa file present
+            if filePath != "" and filePath != None and len(pathParts) > 0:
+                #Get the file's name from the end of the path
+                loadedFile["name"] = pathParts[-1]
+                #Attempt to read the file data
+                fileData = readSetup.getFile(filePath)
+                #If there was data present
+                if fileData != []:
+                    #Format the data as an array and store it
+                    loadedFile["data"] = readSetup.formatData(fileData)
+                else:
+                    #Display an error message
+                    self.sendNotification("Error loading file", "Check the file exists and contains data")
+            else:
+                loadedFile = {"name":"", "data":[]}
+                    
+        self.gasNextButton.configure(state="normal")
+        self.gasBackButton.configure(state="normal")
+        self.loading = False
+        return loadedFile
     
     def updateProgressBar(self) -> None:
         '''Update the progress bar's value and text'''
@@ -560,33 +717,122 @@ class MainWindow(tkinter.Frame):
                 changing = False
     
     def backPressedGas(self) -> None:
-        pass
+        if not self.gasConfigOpen and not self.loading:
+            self.moveWindows(1)
 
     def nextPressedGas(self) -> None:
-        pass
+        if not self.gasConfigOpen and not self.loading:
+            if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
+                #Setup progress bar, so it looks correct when window changes
+                self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
+                #Do not allow user to move
+                self.processingNextButton.configure(state="disabled")
+                self.processingBackButton.configure(state="disabled")
+                self.progressBar["value"] = 0
+                #Reset progress values
+                self.progress = [0, len(self.eventData), "Processing: {0}%"]
+                self.moveWindows(3)
+                #Wait a moment to start the data processing, this allows the window to change before anything else needs to happen
+                self.after(250, self.startProcessing)
 
     def automaticDilutionPressed(self) -> None:
-        if self.manualDilution:
-            self.manualDilution = False
-            self.dilutionAutomaticFrame.tkraise()
-            self.dilutionManualButton.configure(bg="red")
-            self.dilutionAutomaticButton.configure(bg="lightgreen")
+        if not self.gasConfigOpen and not self.loading:
+            if self.dilutionType != "automatic":
+                self.dilutionType = "automatic"
+                self.dilutionAutomaticFrame.tkraise()
+                self.dilutionManualButton.configure(bg="red")
+                self.dilutionAutomaticButton.configure(bg="lightgreen")
+                self.noDilutionButton.configure(bg="red")
 
     def manualDilutionPressed(self) -> None:
-        if not self.manualDilution:
-            self.manualDilution = True
-            self.dilutionManualFrame.tkraise()
-            self.dilutionManualButton.configure(bg="lightgreen")
-            self.dilutionAutomaticButton.configure(bg="red")
+        if not self.gasConfigOpen and not self.loading:
+            if self.dilutionType != "manual":
+                self.dilutionType = "manual"
+                self.dilutionManualFrame.tkraise()
+                self.dilutionManualButton.configure(bg="lightgreen")
+                self.dilutionAutomaticButton.configure(bg="red")
+                self.noDilutionButton.configure(bg="red")
+    
+    def noDilutionPressed(self) -> None:
+        if not self.gasConfigOpen and not self.loading:
+            if self.dilutionType != "none":
+                self.dilutionType = "none"
+                self.noDilutionFrame.tkraise()
+                self.dilutionManualButton.configure(bg="red")
+                self.dilutionAutomaticButton.configure(bg="red")
+                self.noDilutionButton.configure(bg="lightgreen")
 
     def addGasFilePressed(self) -> None:
-        pass
+        if not self.gasConfigOpen and not self.loading:
+            newData = self.loadGasFile()
+            if newData["name"] != "" and len(newData["data"]) > 0:
+                self.addGasFileObject(newData["name"], newData["data"])
 
-    def addGasFileObject(self) -> None:
-        newGasFile = tkinter.Frame(self.gasFilesInternalFrame, highlightthickness=2, highlightbackground="black")
-        for col in range(0, 3):
-            newGasFile.columnconfigure(col, weight=1)
-        newGasFile.grid
+    def addGasFileObject(self, fileName : str, data : list) -> None:
+        newGas = DataSource(self.gasFilesInternalFrame, len(self.gasFileObjects), fileName, data, self)
+        self.gasFileObjects.append(newGas)
+        if len(self.gasFileObjects) > self.currentGasRows:
+            self.currentGasRows = len(self.gasFileObjects)
+            for i in range(0, self.currentGasRows):
+                self.gasFilesInternalFrame.grid_rowconfigure(i, weight=1)
+        newGas.grid(row=len(self.gasFileObjects) - 1, column=0, padx=(0,1), sticky="EW")
+    
+    def closeGasConfigure(self):
+        self.saveGasConfig()
+        self.currentGasObject = None
+        self.gasConfigureWindow.withdraw()
+        self.gasConfigOpen = False
+    
+    def configureGasPressed(self, object : DataSource) -> None:
+        if not self.gasConfigOpen and not self.loading:
+            self.gasConfigOpen = True
+            if object in self.gasFileObjects:
+                self.loadGasConfig(object)
+                if self.dilutionType == "manual":
+                    self.internalVolumeTitle.pack(side="top", fill="x")
+                    self.internalVolumeFrame.pack(side="top", fill="x", expand=True)
+                else:
+                    self.internalVolumeTitle.pack_forget()
+                    self.internalVolumeFrame.pack_forget()
+                self.gasConfigureWindow.deiconify()
+
+    def loadGasConfig(self, object : DataSource) -> None:
+        self.currentGasObject = object
+        configInfo = self.currentGasObject.getConfig()
+        for i in range(0, 15):
+            self.gasChannelVariables[i].set(configInfo["channels"][i])
+            self.gasVolumeEntries[i].delete(0, tkinter.END)
+            if configInfo["volumes"][i] >= 0:
+                self.gasVolumeEntries[i].insert(0, str(configInfo["volumes"][i]))
+
+    def saveGasConfig(self) -> None:
+        if self.currentGasObject != None:
+            channels = []
+            volumes = []
+            for i in range(0, 15):
+                ch = self.gasChannelVariables[i].get()
+                if ch < 0 or ch > 15:
+                    ch = 0
+                channels.append(ch)
+                vStr = self.gasVolumeEntries[i].get()
+                vol = 0.0
+                try:
+                    vol = float(vStr)
+                    if vol < 0:
+                        vol = 0.0
+                except:
+                    pass
+                volumes.append(vol)
+            self.currentGasObject.setConfig(channels, volumes)
+    
+    def removeGasPressed(self, object : DataSource) -> None:
+        if object in self.gasFileObjects:
+            object.grid_remove()
+            del self.gasFileObjects[self.gasFileObjects.index(object)]
+            index = 0
+            for obj in self.gasFileObjects:
+                obj.grid(row=index, column=0, padx=(0,1), sticky="EW")
+                index = index + 1
     
     def startProcessing(self) -> None:
         '''Begin the threads that perform the calculations and update the progress'''
@@ -607,8 +853,12 @@ class MainWindow(tkinter.Frame):
         '''Perform a data processing pass'''
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
+            gasData = []
+            for object in self.gasFileObjects:
+                gasDict = {"data":object.fileData, "assoc":object.assignedChannels}
+                gasData.append(gasDict)
             #Call for the calculations and receive the results and any errors   
-            error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, self.progress)
+            error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, self.progress)
             #If there are no errors
             if error == None:
 
@@ -724,12 +974,12 @@ class MainWindow(tkinter.Frame):
         #Check not still processing and there is data
         if not self.processing:
             if self.eventLog != None and self.hourLog != None and self.dayLog != None and self.continuousLog != None and len(self.eventLog) > 0:
-                self.moveWindows(3)
+                self.moveWindows(4)
 
     def backPressedProcessing(self) -> None:
         '''Return to the event window from the processing window'''
         if not self.processing:
-            self.moveWindows(1)
+            self.moveWindows(2)
     
     def saveEventLog(self) -> None:
         '''Save the event log to a file'''
@@ -772,15 +1022,15 @@ class MainWindow(tkinter.Frame):
 
     def backPressedDownload(self) -> None:
         '''Return to the preview window from the download window'''
-        self.moveWindows(3)
+        self.moveWindows(4)
 
     def backPressedPreview(self) -> None:
         '''Return to the event window from the preview window (skips the processing window)'''
-        self.moveWindows(1)
+        self.moveWindows(3)
     
     def nextPressedPreview(self) -> None:
         '''Move to the download window from the preview window'''
-        self.moveWindows(4)
+        self.moveWindows(5)
 
     def onGasFrameConfigure(self, _event) -> None:
         '''Event called when gas canvas frame resized'''
