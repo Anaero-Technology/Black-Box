@@ -1,7 +1,7 @@
 import readSetup
 import createSetup
 
-class continuousRange():
+class ContinuousRange():
     '''Object to hold a list of values and times so an average midpoint can be retreived'''
     def __init__(self, times, values):
         #Combine the times and values to 2d array
@@ -111,7 +111,7 @@ def mergeDataPhRedox(fullData : list, readingData : list, assoc : dict, parent :
                 timeData = readingData[phAssoc[0]][0]
                 phData = readingData[phAssoc[0]][1][phAssoc[1]]
                 #Create range from time and data
-                phRange = continuousRange(timeData, phData)
+                phRange = ContinuousRange(timeData, phData)
 
         #If there is a valid redox association
         if redoxAssoc[0] > -1 and redoxAssoc[0] < len(readingData) and redoxAssoc[1] > -1 and redoxAssoc[1] < 4:
@@ -122,7 +122,7 @@ def mergeDataPhRedox(fullData : list, readingData : list, assoc : dict, parent :
                 timeData = readingData[redoxAssoc[0]][0]
                 redoxData = readingData[redoxAssoc[0]][2][redoxAssoc[1]]
                 #Create range from time and data
-                redoxRange = continuousRange(timeData, redoxData)
+                redoxRange = ContinuousRange(timeData, redoxData)
         
         #Store the ranges in the list (if present)
         if phRange != None:
@@ -185,8 +185,8 @@ def mergeDataGas(fullData : list, readingData : list, assoc : dict, parent : obj
                     ch4Values.append(gasGroup[3][row])
             
             #Create ranges for the co2 and ch4
-            co2Range = continuousRange(times, co2Values)
-            ch4Range = continuousRange(times, ch4Values)
+            co2Range = ContinuousRange(times, co2Values)
+            ch4Range = ContinuousRange(times, ch4Values)
             ranges.append([co2Range, ch4Range])
         else:
             ranges.append(None)
