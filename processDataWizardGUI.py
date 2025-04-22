@@ -11,6 +11,7 @@ import newCalculations
 import createSetup
 from PIL import Image, ImageTk
 import notifypy
+import math
 
 class DataSource(tkinter.Frame):
     '''Class for a frame containing imported data options'''
@@ -40,7 +41,6 @@ class DataSource(tkinter.Frame):
         self.cancelImage = tkinter.PhotoImage(file="images/cancel.png")
 
         self.assignedChannels = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        self.internalVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         self.mediumFont = ("", 14)
 
@@ -67,16 +67,13 @@ class DataSource(tkinter.Frame):
         self.window.configureGasPressed(self)
     
     def getConfig(self) -> dict:
-        result = {"channels":[], "volumes":[]}
+        result = []
         for channel in self.assignedChannels:
-            result["channels"].append(channel)
-        for volume in self.internalVolumes:
-            result["volumes"].append(volume)
+            result.append(channel)
         return result
     
-    def setConfig(self, channelData : list, volumeData : list) -> None:
+    def setConfig(self, channelData : list) -> None:
         self.assignedChannels = channelData
-        self.internalVolumes = volumeData
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs) -> None:
@@ -129,6 +126,9 @@ class MainWindow(tkinter.Frame):
         self.usingDilution = False
         self.dilutionType = "none"
         self.gasConfigOpen = False
+        self.volumeConfigOpen = False
+
+        self.givenInternalVolumes = [0.0] * 15
 
         self.crossImage = tkinter.PhotoImage(file=self.pathTo("images/cancel.png"))
 
@@ -296,8 +296,8 @@ class MainWindow(tkinter.Frame):
         self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
 
-        self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Be sure to set volumes for each reactor in the gas files above.", font=self.fonts["medium"])
-        self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, fill="x", pady=2, padx=10)
+        self.manualDilutionButton = tkinter.Button(self.dilutionManualFrame, text="Configure Internal Volumes", font=self.fonts["medium"], command=self.configureVolumePressed)
+        self.manualDilutionButton.pack(side="top", anchor="center", expand=True, pady=2, padx=10)
 
         self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionAutomaticFrame.grid(row=0, column=0, sticky="NESW")
@@ -323,6 +323,36 @@ class MainWindow(tkinter.Frame):
         self.gasBackButton.pack(side="left", anchor="s")
         self.gasNextButton.pack(side="right", anchor="s")
 
+        self.manualDilutionWindow = tkinter.Toplevel(self)
+        self.manualDilutionWindow.geometry("800x400")
+        self.manualDilutionWindow.minsize(800, 400)
+        self.manualDilutionWindow.title("Internal Volumes - Manual Entry")
+        self.internalVolumeTitle = tkinter.Label(self.manualDilutionWindow, text="Enter Internal Gas Volumes Manually (ml)", font=self.fonts["medium"])
+        self.internalVolumeTitle.pack(side="top", fill="x")
+        self.internalVolumeFrame = tkinter.Frame(self.manualDilutionWindow)
+        self.internalVolumeFrame.pack(side="top", expand=True, fill="x")
+
+        for row in range(0, 5):
+            self.internalVolumeFrame.grid_rowconfigure(row, weight=1)
+        for col in range(0, 6):
+            self.internalVolumeFrame.grid_columnconfigure(col, weight=1)
+
+        self.gasVolumeLabels = []
+        self.gasVolumeEntries = []
+
+        for i in range(0, 15):
+            volumeLabel = tkinter.Label(self.internalVolumeFrame, text="Vol Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
+            volumeEntry = tkinter.Entry(self.internalVolumeFrame, width=4, justify="center", font=self.fonts["mediumSmall"])
+            self.gasVolumeLabels.append(volumeLabel)
+            self.gasVolumeEntries.append(volumeEntry)
+            r = i // 3
+            c = (i - (r * 3)) * 2
+            volumeLabel.grid(row=r, column=c, pady=6)
+            volumeEntry.grid(row=r, column=c + 1, pady=6)
+        
+        self.manualDilutionWindow.protocol("WM_DELETE_WINDOW", self.closeVolumeConfigure)
+        self.manualDilutionWindow.withdraw()
+        
         self.gasConfigureWindow = tkinter.Toplevel(self)
         self.gasConfigureWindow.geometry("800x500")
         self.gasConfigureWindow.minsize(800, 500)
@@ -331,23 +361,15 @@ class MainWindow(tkinter.Frame):
         self.channelAssignTitle.pack(side="top", fill="x")
         self.channelAssignFrame = tkinter.Frame(self.gasConfigureWindow)
         self.channelAssignFrame.pack(side="top", expand=True, fill="x")
-        self.internalVolumeTitle = tkinter.Label(self.gasConfigureWindow, text="Enter Internal Gas Volumes Manually (ml)", font=self.fonts["medium"])
-        self.internalVolumeTitle.pack(side="top", fill="x")
-        self.internalVolumeFrame = tkinter.Frame(self.gasConfigureWindow)
-        self.internalVolumeFrame.pack(side="top", expand=True, fill="x")
-
+        
         for row in range(0, 5):
             self.channelAssignFrame.grid_rowconfigure(row, weight=1)
-            self.internalVolumeFrame.grid_rowconfigure(row, weight=1)
         for col in range(0, 6):
             self.channelAssignFrame.grid_columnconfigure(col, weight=1)
-            self.internalVolumeFrame.grid_columnconfigure(col, weight=1)
 
         self.gasChannelLabels = []
         self.gasChannelVariables = []
         self.gasChannelSpins = []
-        self.gasVolumeLabels = []
-        self.gasVolumeEntries = []
         for i in range(0, 15):
             channelLabel = tkinter.Label(self.channelAssignFrame, text="Gas Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
             channelVariable = tkinter.IntVar()
@@ -356,18 +378,10 @@ class MainWindow(tkinter.Frame):
             self.gasChannelLabels.append(channelLabel)
             self.gasChannelVariables.append(channelVariable)
             self.gasChannelSpins.append(channelSpin)
-
-            volumeLabel = tkinter.Label(self.internalVolumeFrame, text="Vol Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
-            volumeEntry = tkinter.Entry(self.internalVolumeFrame, width=4, justify="center", font=self.fonts["mediumSmall"])
-            self.gasVolumeLabels.append(volumeLabel)
-            self.gasVolumeEntries.append(volumeEntry)
-
             r = i // 3
             c = (i - (r * 3)) * 2
-            channelLabel.grid(row=r, column=c)
-            channelSpin.grid(row=r, column=c + 1)
-            volumeLabel.grid(row=r, column=c)
-            volumeEntry.grid(row=r, column=c + 1)
+            channelLabel.grid(row=r, column=c, pady=6)
+            channelSpin.grid(row=r, column=c + 1, pady=6)
 
         self.gasConfigureWindow.protocol("WM_DELETE_WINDOW", self.closeGasConfigure)
         self.gasConfigureWindow.withdraw()
@@ -782,9 +796,14 @@ class MainWindow(tkinter.Frame):
         self.currentGasObject = None
         self.gasConfigureWindow.withdraw()
         self.gasConfigOpen = False
+
+    def closeVolumeConfigure(self):
+        self.saveVolumeConfig()
+        self.manualDilutionWindow.withdraw()
+        self.volumeConfigOpen = False
     
     def configureGasPressed(self, object : DataSource) -> None:
-        if not self.gasConfigOpen and not self.loading:
+        if not self.gasConfigOpen and not self.volumeConfigOpen and not self.loading:
             self.gasConfigOpen = True
             if object in self.gasFileObjects:
                 self.loadGasConfig(object)
@@ -800,30 +819,17 @@ class MainWindow(tkinter.Frame):
         self.currentGasObject = object
         configInfo = self.currentGasObject.getConfig()
         for i in range(0, 15):
-            self.gasChannelVariables[i].set(configInfo["channels"][i])
-            self.gasVolumeEntries[i].delete(0, tkinter.END)
-            if configInfo["volumes"][i] >= 0:
-                self.gasVolumeEntries[i].insert(0, str(configInfo["volumes"][i]))
+            self.gasChannelVariables[i].set(configInfo[i])
 
     def saveGasConfig(self) -> None:
         if self.currentGasObject != None:
             channels = []
-            volumes = []
             for i in range(0, 15):
                 ch = self.gasChannelVariables[i].get()
                 if ch < 0 or ch > 15:
                     ch = 0
                 channels.append(ch)
-                vStr = self.gasVolumeEntries[i].get()
-                vol = 0.0
-                try:
-                    vol = float(vStr)
-                    if vol < 0:
-                        vol = 0.0
-                except:
-                    pass
-                volumes.append(vol)
-            self.currentGasObject.setConfig(channels, volumes)
+            self.currentGasObject.setConfig(channels)
     
     def removeGasPressed(self, object : DataSource) -> None:
         if object in self.gasFileObjects:
@@ -833,6 +839,22 @@ class MainWindow(tkinter.Frame):
             for obj in self.gasFileObjects:
                 obj.grid(row=index, column=0, padx=(0,1), sticky="EW")
                 index = index + 1
+
+    def configureVolumePressed(self) -> None:
+        if not self.gasConfigOpen and not self.volumeConfigOpen and not self.loading:
+            self.volumeConfigOpen = True
+            for index in range(0, 15):
+                self.gasVolumeEntries[index].delete(0, tkinter.END)
+                self.gasVolumeEntries.insert(0, self.givenInternalVolumes)
+            self.manualDilutionWindow.deiconify()
+    
+    def saveVolumeConfig(self) -> None:
+        for index in range(0, 15):
+            try:
+                value = float(self.gasVolumeEntries[index].get())
+                self.givenInternalVolumes[index] = value
+            except:
+                pass
     
     def startProcessing(self) -> None:
         '''Begin the threads that perform the calculations and update the progress'''
@@ -857,108 +879,132 @@ class MainWindow(tkinter.Frame):
             for object in self.gasFileObjects:
                 gasDict = {"data":object.fileData, "assoc":object.assignedChannels}
                 gasData.append(gasDict)
-            #Call for the calculations and receive the results and any errors   
-            error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, self.progress)
-            #If there are no errors
-            if error == None:
+            internals = [0.0] * 15
+            dilutionReady = True
 
-                #Lists of each of the data arrays for hours
-                hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-                #Iterate through the lists of hour data
-                for hour in range(1, len(hours)):
-                    #Get the data for this hour
-                    thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
-                    hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
-                
-                #Lists for each of the channels for day data
-                dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-                #Iterate through lists of day data
-                for day in range(1, len(days)):
-                    #Get the data for this day
-                    thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
-                    dayDataList[int(days[day][0]) - 1].append(thisDayData)
-                
-                #Store each of the logs
-                self.eventLog = events
-                self.hourLog = hours
-                self.dayLog = days
-                self.continuousLog = []
-
-                #Change progress mode to data preparation - the bar will change to reflect this
-                self.progress[0] = 0
-                self.progress[1] = 30 + len(events)
-                self.progress[2] = "Preparing Data: {0}%"
-
-                #Values stored to be displayed in the preview
-                maxTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                maxVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                finalNetVolume = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                channelNames = []
-                #Go through the setup data
-                for i in range(1, 16):
+            if len(gasData) > 0:
+                if self.dilutionType == "manual":
+                    for index in range(0, 15):
+                        internals[index] = self.givenInternalVolumes[index]
+                elif self.dilutionType == "automatic":
                     try:
-                        #Store channel name if possible
-                        channelNames.append(setup[0][i - 1])
+                        fixedVolume = 0.2
+                        reactorTotal = 0.964
+                        hoseVolume = math.pi * (0.002 ** 2) * float(self.hoseLengthEntry.get())
+                        for i in range(0, 15):
+                            volInoculum = self.setupData[i + 1][3] * 0.001
+                            volSample = self.setupData[i + 1][4] * 0.001
+                            reactorInternal = reactorTotal - (volInoculum + volSample)
+                            internals[i] = reactorInternal + fixedVolume + hoseVolume
                     except:
-                        #Default to numbered channel
-                        channelNames.append("Channel {0}".format(i))
-                    #Increment progress counter
-                    self.progress[0] = self.progress[0] + 1
+                        dilutionReady = False
+            if dilutionReady:
+                #Call for the calculations and receive the results and any errors   
+                error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, internals, self.progress)
+                #If there are no errors
+                if error == None:
 
-                #Iterate through events
-                for e in self.eventLog:
-                    record = []
-                    #Get setup data, time stamp and stp volumes
-                    for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
-                        #Add to the row
-                        record.append(e[i])
-                    #Add the row to the array
-                    self.continuousLog.append(record)
-                    #If possible get the channel number and store the tips, volume at stp and net volume from this entry
-                    try:
-                        channel = int(e[0]) - 1
-                        try:
-                            maxTips[channel] = int(e[9])
-                        except:
-                            pass
-                        try:
-                            maxVolumes[channel] = round(float(e[11]), 2)
-                        except:
-                            pass
-                        try:
-                            finalNetVolume[channel] = round(float(e[16]), 2)
-                        except:
-                            pass
-                    except:
-                        pass
+                    #Lists of each of the data arrays for hours
+                    hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+
+                    #Iterate through the lists of hour data
+                    for hour in range(1, len(hours)):
+                        #Get the data for this hour
+                        thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
+                        hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
                     
-                    #Increment progress on this step
-                    self.progress[0] = self.progress[0] + 1
+                    #Lists for each of the channels for day data
+                    dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
-                #Iterate through channels and add data to preview array
-                for i in range(0, 15):
-                    self.previewLabels[0][i].configure(text=channelNames[i])
-                    self.previewLabels[1][i].configure(text=maxTips[i])
-                    self.previewLabels[2][i].configure(text=maxVolumes[i])
-                    self.previewLabels[3][i].configure(text=finalNetVolume[i])
-                    self.progress[0] = self.progress[0] + 1
-                
-                #No longer processing, this is here to stop the bar overwriting the changes afterwards
-                self.processing = False
+                    #Iterate through lists of day data
+                    for day in range(1, len(days)):
+                        #Get the data for this day
+                        thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
+                        dayDataList[int(days[day][0]) - 1].append(thisDayData)
+                    
+                    #Store each of the logs
+                    self.eventLog = events
+                    self.hourLog = hours
+                    self.dayLog = days
+                    self.continuousLog = []
 
-                #Allow user to progress forward
-                self.processingNextButton.configure(state="normal")
-                #Set bar to complete
-                self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
-                self.progressBar["value"] = 100.0
-                
+                    #Change progress mode to data preparation - the bar will change to reflect this
+                    self.progress[0] = 0
+                    self.progress[1] = 30 + len(events)
+                    self.progress[2] = "Preparing Data: {0}%"
+
+                    #Values stored to be displayed in the preview
+                    maxTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    maxVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                    finalNetVolume = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                    channelNames = []
+                    #Go through the setup data
+                    for i in range(1, 16):
+                        try:
+                            #Store channel name if possible
+                            channelNames.append(setup[0][i - 1])
+                        except:
+                            #Default to numbered channel
+                            channelNames.append("Channel {0}".format(i))
+                        #Increment progress counter
+                        self.progress[0] = self.progress[0] + 1
+
+                    #Iterate through events
+                    for e in self.eventLog:
+                        record = []
+                        #Get setup data, time stamp and stp volumes
+                        for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
+                            #Add to the row
+                            record.append(e[i])
+                        #Add the row to the array
+                        self.continuousLog.append(record)
+                        #If possible get the channel number and store the tips, volume at stp and net volume from this entry
+                        try:
+                            channel = int(e[0]) - 1
+                            try:
+                                maxTips[channel] = int(e[9])
+                            except:
+                                pass
+                            try:
+                                maxVolumes[channel] = round(float(e[11]), 2)
+                            except:
+                                pass
+                            try:
+                                finalNetVolume[channel] = round(float(e[16]), 2)
+                            except:
+                                pass
+                        except:
+                            pass
+                        
+                        #Increment progress on this step
+                        self.progress[0] = self.progress[0] + 1
+
+                    #Iterate through channels and add data to preview array
+                    for i in range(0, 15):
+                        self.previewLabels[0][i].configure(text=channelNames[i])
+                        self.previewLabels[1][i].configure(text=maxTips[i])
+                        self.previewLabels[2][i].configure(text=maxVolumes[i])
+                        self.previewLabels[3][i].configure(text=finalNetVolume[i])
+                        self.progress[0] = self.progress[0] + 1
+                    
+                    #No longer processing, this is here to stop the bar overwriting the changes afterwards
+                    self.processing = False
+
+                    #Allow user to progress forward
+                    self.processingNextButton.configure(state="normal")
+                    #Set bar to complete
+                    self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
+                    self.progressBar["value"] = 100.0
+                    
+                else:
+                    #Display the error if it occurred and update the bar to show it failed
+                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                    self.sendNotification("Error", error)
+
             else:
                 #Display the error if it occurred and update the bar to show it failed
                 self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
-                self.sendNotification("Error", error)
-
+                self.sendNotification("Error", "Invalid dilution volume, please check all values were entered correctly.")
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222", )
