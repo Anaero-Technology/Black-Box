@@ -29,7 +29,7 @@ def convertDate(dateString, separator) -> int:
     except:
         return -1
 
-def performGeneralCalculations(setupData, eventData : list, gasData : list, progress):
+def performGeneralCalculations(setupData, eventData : list, gasData : list, internalVolumes : list, progress):
     '''Convert from setup information and events to a fully processed event, day and hour logs with net volumes'''
     column, decimal = readSeparators.read()
     
@@ -115,6 +115,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
     lastDayNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     eventCount = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    eventGasInfo = []
 
     progress[2] = "Processing: {0}%"
 
@@ -134,7 +135,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
                 pressure = float(event[5])
 
                 #Find the time as parts
-                day, hour, min, sec = convertSeconds(eventTime)
+                day, hour, mins, sec = convertSeconds(eventTime)
                 #Total hour count
                 totalHour = hour + (day * 24)
                 #Extend the day and hour arrays to store new values
@@ -201,12 +202,14 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
                 co2 = "-"
 
                 if methaneForChannels[channelId] != None:
-                    ch4 = str(methaneForChannels[channelId].getValue(dateTime))
-                    co2 = str(carbonForChannels[channelId].getValue(dateTime))
+                    ch4 = methaneForChannels[channelId].getValue(dateTime)
+                if carbonForChannels[channelId] != None:
+                    co2 = carbonForChannels[channelId].getValue(dateTime)
 
                 #Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA), Cumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP), Net Volume Per Gram (ml/g)
-                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId], ch4, co2])
+                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, mins, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]])
                 eventCount[channelId] = eventCount[channelId] + 1
+                eventGasInfo.append([channelId, hour, ch4, co2])
             #Move progress bar forward
             progress[0] = progress[0] + 1
 
@@ -215,7 +218,32 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
         print(e, exc_tb.tb_lineno)
         #Something is wrong with the way the event log file is formatted - report error and stop
         return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None
-
+    
+    dilutions = []
+    for hour in hours:
+        volumesProduced = hour["volumeSTP"]
+        dilutions.append([])
+        for channel in range(0, 15):
+            volumeProduced = volumesProduced[channel]
+            internalVolume = internalVolumes[channel]
+            dilution = 1.0
+            if volumeProduced == 0.0:
+                dilution = 0.0
+            elif internalVolume > 0 and volumeProduced < internalVolume:
+                dilution = internalVolume / volumeProduced
+            dilutions[-1].append(dilution)
+    
+    for eventId in range(0, min(len(eventGasInfo), len(eventArray))):
+        channel = eventGasInfo[eventId][0]
+        hour = eventGasInfo[eventId][1]
+        ch4 = eventGasInfo[eventId][2]
+        co2 = eventGasInfo[eventId][3]
+        if type(ch4) == float and type(co2) == float and channel > -1 and channel < 15 and hour < len(dilutions):
+            ch4 = ch4 * dilutions[hour][channel]
+            co2 = co2 * dilutions[hour][channel]
+        eventArray[eventId].append(str(ch4))
+        eventArray[eventId].append(str(co2))
+    
     progress[2] = "Creating Files: {0}%"
     progress[1] = len(hours) + len(days)
     progress[0] = 0
@@ -265,7 +293,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
             dayArray.append([channelId + 1, setup["names"][channelId], timestamp, d, 0, 0, setup["inUse"][channelId], day["tips"][channelId], round(day["volumeSTP"][channelId], 3), round(day["volumeNet"][channelId], 3), round(totalNetVolume[channelId], 3), round(totalVolume[channelId], 3)])
         progress[0] = progress[0] + 1
     #Add text headers
-    eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)"])
+    eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)", "CH4 %", "CO2 %"])
     hourArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     dayArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Day", "Volume This Day at STP (ml)", "Net Volume This Day (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     setupArray = [setup["names"], setup["inUse"], setup["inoculumOnly"], setup["inoculumMass"], setup["sampleMass"], setup["tumblerVolume"]]
