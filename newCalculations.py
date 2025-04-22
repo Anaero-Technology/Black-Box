@@ -85,11 +85,11 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
             thisGasChannels = []
             for i in range(0, 15):
                 thisGasChannels.append({"times":[], "ch4":[], "co2":[]})
-            for row in gasInfo:
-                time = convertDate(gasInfo[0], "/")
-                gasChannel = gasInfo[1]
-                methane = gasInfo[2]
-                carbonDioxide = gasInfo[3]
+            for dataRow in gasInfo:
+                time = convertDate(dataRow[0], "/")
+                gasChannel = int(dataRow[1])
+                methane = float(dataRow[4])
+                carbonDioxide = float(dataRow[5])
                 if gasChannel > 0 and gasChannel < 16:
                     thisGasChannels[gasChannel - 1]["times"].append(time)
                     thisGasChannels[gasChannel - 1]["ch4"].append(methane)
@@ -205,7 +205,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
                     co2 = str(carbonForChannels[channelId].getValue(dateTime))
 
                 #Channel Number, Name, Timestamp, Days, Hours, Minutes, Tumbler Volume (ml), Temperature (C), Pressure (hPA), Cumulative Total Tips, Volume This Tip (STP), Total Volume (STP), Tips This Day, Volume This Day (STP), Tips This Hour, Volume This Hour (STP), Net Volume Per Gram (ml/g)
-                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]], ch4, co2)
+                eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId], ch4, co2])
                 eventCount[channelId] = eventCount[channelId] + 1
             #Move progress bar forward
             progress[0] = progress[0] + 1
