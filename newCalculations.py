@@ -128,7 +128,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, prog
             if setup["inUse"][channelId]:
                 #Get the time, temperature and pressure
                 eventTime = int(float(event[2]))
-                dateTime = convertDate(event[1], ":")
+                dateTime = convertDate(event[1], ".")
                 temperatureC = float(event[4])
                 temperatureK = temperatureC + 273
                 pressure = float(event[5])
