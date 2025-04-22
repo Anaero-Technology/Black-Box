@@ -1,6 +1,3 @@
-import readSetup
-import createSetup
-
 class ContinuousRange():
     '''Object to hold a list of values and times so an average midpoint can be retreived'''
     def __init__(self, times, values):
