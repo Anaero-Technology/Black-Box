@@ -29,7 +29,7 @@ def convertDate(dateString, separator) -> int:
     except:
         return -1
 
-def performGeneralCalculations(setupData, eventData : list, gasData : list, internalVolumes : list, progress):
+def performGeneralCalculations(setupData : list, eventData : list, gasData : list, progress):
     '''Convert from setup information and events to a fully processed event, day and hour logs with net volumes'''
     column, decimal = readSeparators.read()
     
@@ -48,7 +48,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, inte
         return "Setup file not formatted correctly, ensure that all 15 rows are present as well as field names.", None, None, None, None
     
     #Setup information about each channel
-    setup = {"names" : [], "inUse" : [], "inoculumOnly" : [], "inoculumMass" : [], "sampleMass" : [], "tumblerVolume" : [], "inoculumCount" : 0, "gasConstants" : []}
+    setup = {"names" : [], "inUse" : [], "inoculumOnly" : [], "inoculumMass" : [], "sampleMass" : [], "tumblerVolume" : [], "inoculumCount" : 0, "gasConstants" : [], "chimeraChannel" : [], "wetWeight" : [], "internalVolume" : []}
 
     #Attempt to read setup file
     try:
@@ -225,7 +225,7 @@ def performGeneralCalculations(setupData, eventData : list, gasData : list, inte
         dilutions.append([])
         for channel in range(0, 15):
             volumeProduced = volumesProduced[channel]
-            internalVolume = internalVolumes[channel]
+            internalVolume = setup["internalVolume"][channel]
             dilution = 1.0
             if volumeProduced == 0.0:
                 dilution = 0.0
