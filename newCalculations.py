@@ -64,6 +64,10 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
             setup["inoculumMass"].append(float(setupData[row][3]))
             setup["sampleMass"].append(float(setupData[row][4]))
             setup["tumblerVolume"].append(float(setupData[row][5]))
+            if gasData != None and len(gasData) > 0:
+                setup["chimeraChannel"].append(int(setupData[row][6]) - 1)
+                setup["wetWeight"].append(float(setupData[row][7]))
+                setup["internalVolume"].append(float(setupData[row][8]))
         
         #Go through all the tubes
         for tubeId in range(0, len(setup["tumblerVolume"])):
@@ -78,30 +82,31 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
     methaneForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
     carbonForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
 
-    try:
-        for gasObject in gasData:
-            association = gasObject["assoc"]
-            gasInfo = gasObject["data"]
-            thisGasChannels = []
+    if gasData != None and len(gasData > 0):
+        try:
+            association = [-1] * 15
             for i in range(0, 15):
-                thisGasChannels.append({"times":[], "ch4":[], "co2":[]})
-            for dataRow in gasInfo:
+                association = setup["chimeraChannel"]
+            gasChannels = []
+            for i in range(0, 15):
+                gasChannels.append({"times":[], "ch4":[], "co2":[]})
+            for dataRow in gasData:
                 time = convertDate(dataRow[0], "/")
                 gasChannel = int(dataRow[1])
                 methane = float(dataRow[4])
                 carbonDioxide = float(dataRow[5])
                 if gasChannel > 0 and gasChannel < 16:
-                    thisGasChannels[gasChannel - 1]["times"].append(time)
-                    thisGasChannels[gasChannel - 1]["ch4"].append(methane)
-                    thisGasChannels[gasChannel - 1]["co2"].append(carbonDioxide)
+                    gasChannels[gasChannel - 1]["times"].append(time)
+                    gasChannels[gasChannel - 1]["ch4"].append(methane)
+                    gasChannels[gasChannel - 1]["co2"].append(carbonDioxide)
             
             for index in range(0, 15):
                 if association[index] > 0 and association[index] < 16:
-                    methaneForChannels[index] = dataCombination.ContinuousRange(thisGasChannels[association[index] - 1]["times"], thisGasChannels[association[index] - 1]["ch4"])
-                    carbonForChannels[index] = dataCombination.ContinuousRange(thisGasChannels[association[index] - 1]["times"], thisGasChannels[association[index] - 1]["co2"])
+                    methaneForChannels[index] = dataCombination.ContinuousRange(gasChannels[association[index] - 1]["times"], gasChannels[association[index] - 1]["ch4"])
+                    carbonForChannels[index] = dataCombination.ContinuousRange(gasChannels[association[index] - 1]["times"], gasChannels[association[index] - 1]["co2"])
 
-    except:
-        return "Gas file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
+        except:
+            return "Gas file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
 
     #Dicionary to store overall running information for all channels
     overall = {"tips" : [0] * 15, "volumeSTP" : [0.0] * 15, "volumeNet" : [0.0] * 15, "inoculumVolume" : 0.0, "inoculumMass" : 0.0}
