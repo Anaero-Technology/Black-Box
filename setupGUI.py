@@ -18,7 +18,7 @@ class MainWindow(tkinter.Frame):
         self.height = 610
         #Number of rows and columns present
         self.numberRows = 17
-        self.numberColumns = 7
+        self.numberColumns = 11
 
         #Get separators from file
         self.column, self.decimal = readSeparators.read()
@@ -45,13 +45,16 @@ class MainWindow(tkinter.Frame):
                 self.grid_columnconfigure(colNumber, weight = 2)
         
         #Column headers
-        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)"]
+        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)", "Chimera\nChannel", "Wet\nWeight (g)", "Volatile\nSolids (%)", "Internal Gas\nVolume (ml)"]
 
         #Holds all the label objects
         self.headerLabels = []
         #Create each of the header labels and add to grid and list
         for col in range(0, self.numberColumns):
-            label = tkinter.Label(self, text = self.headers[col], bg="#AAAAFF")
+            bgColour = "#AAAAFF"
+            if col > 6:
+                bgColour = "#BABABA"
+            label = tkinter.Label(self, text = self.headers[col], bg=bgColour)
             label.grid(row = 1, column = col, sticky = "NESW")
             self.headerLabels.append(label)
         
@@ -64,6 +67,7 @@ class MainWindow(tkinter.Frame):
         #Register callback functions for validating text entry
         self.numCheck = self.register(self.validateNumber)
         self.nameCheck = self.register(self.validateName)
+        self.intCheck = self.register(self.validateInteger)
 
         #Setup widgets for each row of the table
         for row in range(2, self.numberRows):
@@ -110,6 +114,26 @@ class MainWindow(tkinter.Frame):
             tubeRow.append(volumeTumbler)
             tubeVars.append(volumeVar)
 
+            chimeraChannelVar = tkinter.StringVar()
+            chimeraChannelEntry = tkinter.Entry(self, textvariable=chimeraChannelVar, width=4, justify="center", validatecommand=(self.intCheck, "%P"), validate="key")
+            tubeRow.append(chimeraChannelEntry)
+            tubeVars.append(chimeraChannelVar)
+
+            wetWeightVar = tkinter.StringVar() 
+            wetWeightEntry = tkinter.Entry(self, textvariable=wetWeightVar, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
+            tubeRow.append(wetWeightEntry)
+            tubeVars.append(wetWeightVar)
+
+            volatilePercentageVar = tkinter.StringVar()
+            volatilePercentageEntry = tkinter.Entry(self, textvariable=volatilePercentageVar, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
+            tubeRow.append(volatilePercentageEntry)
+            tubeVars.append(volatilePercentageVar)
+
+            manualVolumeVar = tkinter.StringVar()
+            manualVolumeEntry = tkinter.Entry(self, textvariable=manualVolumeVar, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
+            tubeRow.append(manualVolumeEntry)
+            tubeVars.append(manualVolumeVar)
+
             #Add widgets and variables rows to lists
             self.tubeInfo.append(tubeRow)
             self.tubeVariables.append(tubeVars)
@@ -135,7 +159,7 @@ class MainWindow(tkinter.Frame):
         self.fileTypes = [("CSV Files", "*.csv")]
 
         #File header text used when exporting file as csv
-        self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)"]
+        self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)", "Chimera Channel", "Wet Weight (g)", "Volatile Solids (%)", "Internal Volume (ml)"]
     
 
     def displayMessage(self, msg: str, title: str) -> None:
@@ -143,7 +167,7 @@ class MainWindow(tkinter.Frame):
         notification = notifypy.Notify()
         notification.title = title
         notification.message = msg
-        notification.icon = self.pathTo("icon.png")
+        notification.icon = self.pathTo("images/icon.png")
         notification.send()
 
     def pathTo(self, path : str) -> str:
@@ -180,6 +204,16 @@ class MainWindow(tkinter.Frame):
         
         #Return if the string is a valid number
         return valid
+    
+    def validateInteger(self, message : str) -> bool:
+        allowed = "0123456789"
+        valid = True
+        for char in message:
+            if char not in allowed:
+                valid = False
+        
+        return valid
+
 
     def validateName(self, message: str) -> bool:
         '''Test if a given string is a valid description - it must contain no commas'''
@@ -213,6 +247,12 @@ class MainWindow(tkinter.Frame):
             if len(fileData) > 0:
                 #Format the information as 2d array
                 dataArray = readSetup.formatData(fileData)
+                for row in range(1, 16):
+                    for col in range(0, len(self.tubeVariables[row - 1])):
+                        if col == 0 or col > 2:
+                            self.tubeVariables[row - 1][col].set("")
+                        elif col == 1 or col == 2:
+                            self.tubeVariables[row - 1][col].set(0)
                 #Attempt to store in table
                 try:
                     #Iterate through row indexes
@@ -255,6 +295,8 @@ class MainWindow(tkinter.Frame):
 
         #List to store where an issue in the table is first present
         errorAt = [-1, -1]
+
+        anyGasData = False
         
         #Iterate through indexes of rows
         for rowIndex in range(0, len(self.tubeVariables)):
@@ -270,10 +312,15 @@ class MainWindow(tkinter.Frame):
                         #Attempt to convert to float and back to string to check it is valid (account for separator)
                         value = float(value.replace(self.decimal, "."))
                         value = str(value).replace(".", self.decimal)
+                        if colIndex > 5:
+                            anyGasData = True
                     except:
-                        #Otherwise an error occurred - log it if another error is not already present
-                        if errorAt[0] == -1:
-                            errorAt = [rowIndex, colIndex]
+                        if colIndex > 5 and not anyGasData:
+                            pass
+                        else:
+                            #Otherwise an error occurred - log it if another error is not already present
+                            if errorAt[0] == -1:
+                                errorAt = [rowIndex, colIndex]
                 else:
                     #Convert the value to a string
                     value = str(value)
@@ -288,6 +335,10 @@ class MainWindow(tkinter.Frame):
             
             #Add the complete row to the array
             gatheredData.append(row)
+        
+        if not anyGasData:
+            for rowIndex in range(0, len(gatheredData)):
+                gatheredData[rowIndex] = gatheredData[rowIndex][:6]
 
         #If there is an error
         if errorAt[0] != -1 and errorAt[1] != -1:
@@ -314,7 +365,7 @@ if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
     #Set the shape of the window
-    root.geometry("600x610")
+    root.geometry("850x610")
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
