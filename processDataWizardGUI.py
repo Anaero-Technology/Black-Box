@@ -597,7 +597,7 @@ class MainWindow(tkinter.Frame):
             #If unable to do so, create a new setup window
             self.setupCreateWindow = tkinter.Toplevel(self.parent)
             self.setupCreateWindow.transient(self.parent)
-            self.setupCreateWindow.geometry("600x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
+            self.setupCreateWindow.geometry("850x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
             self.setupCreateWindow.minsize(550, 400)
             self.setupCreateWindow.title("Create Setup File")
             self.setupCreateWindow.grid_rowconfigure(0, weight=1)
@@ -892,7 +892,7 @@ class MainWindow(tkinter.Frame):
                         reactorTotal = 0.964
                         hoseVolume = math.pi * (0.002 ** 2) * float(self.hoseLengthEntry.get())
                         for i in range(0, 15):
-                            volInoculum = self.setupData[i + 1][3] * 0.001
+                            volInoculum = self.setupData[i + 1][3] * 0.001  #Need wet weights!
                             volSample = self.setupData[i + 1][4] * 0.001
                             reactorInternal = reactorTotal - (volInoculum + volSample)
                             internals[i] = reactorInternal + fixedVolume + hoseVolume
