@@ -13,67 +13,6 @@ from PIL import Image, ImageTk
 import notifypy
 import math
 
-class DataSource(tkinter.Frame):
-    '''Class for a frame containing imported data options'''
-    def __init__ (self, parent, index : int, fileName : str, fileData : str, window : object, *args, **kwargs):
-        #Initialise parent class
-        tkinter.Frame.__init__(self, parent, *args, **kwargs)
-        #Store the parent window
-        self.window = window
-        self.numRows = 1
-        self.numColumns = 3
-
-        #Index in data list
-        self.dataPosition = index
-        self.fileName = fileName
-        self.fileData = fileData
-
-        #Grid setup
-        for row in range(0, self.numRows):
-            self.grid_rowconfigure(row, weight=1)
-        for col in range(0, self.numColumns):
-            self.grid_columnconfigure(col, weight=1)
-
-        self.configure(highlightthickness=2, highlightbackground="black")
-
-        #Images for buttons
-        self.presentImage = tkinter.PhotoImage(file="images/filePresent.png")
-        self.cancelImage = tkinter.PhotoImage(file="images/cancel.png")
-
-        self.assignedChannels = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-        self.mediumFont = ("", 14)
-
-        #Correct message dependant on type
-        iconMessage = "Gas Data: " + self.fileName
-
-        #Create indicator
-        self.fileIndicator = tkinter.Label(self, image=self.presentImage, compound="top", text=iconMessage, font=self.mediumFont)
-        self.fileIndicator.grid(row=0, column=0)
-
-        #Create input area
-        self.configureButton = tkinter.Button(self, text="Configure File", font=self.mediumFont, command=self.configurePressed)
-        self.configureButton.grid(row=0, column=1)
-
-        #Create delete button
-        self.cancelButton = tkinter.Button(self, image=self.cancelImage, command=self.deletePressed)
-        self.cancelButton.grid(row=0, column=2)
-    
-    def deletePressed(self) -> None:
-        '''Send remove signal to parent window'''
-        self.window.removeGasPressed(self)
-    
-    def configurePressed(self) -> None:
-        self.window.configureGasPressed(self)
-    
-    def getConfig(self) -> dict:
-        result = []
-        for channel in self.assignedChannels:
-            result.append(channel)
-        return result
-    
-    def setConfig(self, channelData : list) -> None:
-        self.assignedChannels = channelData
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
     def __init__(self, parent, *args, **kwargs) -> None:
@@ -492,6 +431,7 @@ class MainWindow(tkinter.Frame):
         #Currently loaded setup and event data
         self.setupData = None
         self.eventData = None
+        self.gasData = None
     
     def pathTo(self, path : str) -> str:
         '''Convert local path to find file'''
@@ -673,8 +613,7 @@ class MainWindow(tkinter.Frame):
         '''Move back to the setup screen from the event screen'''
         self.moveWindows(0)
 
-    def loadGasFile(self) -> dict:
-        loadedFile = {"name":"", "data":[]}
+    def loadGasFile(self) -> list:
         if not self.loading:
             self.gasNextButton.configure(state="disabled")
             #Get the path to the file from the user
@@ -683,24 +622,23 @@ class MainWindow(tkinter.Frame):
             pathParts = filePath.split("/")
             #If there i sa file present
             if filePath != "" and filePath != None and len(pathParts) > 0:
-                #Get the file's name from the end of the path
-                loadedFile["name"] = pathParts[-1]
                 #Attempt to read the file data
                 fileData = readSetup.getFile(filePath)
                 #If there was data present
                 if fileData != []:
                     #Format the data as an array and store it
-                    loadedFile["data"] = readSetup.formatData(fileData)
+                    self.gasData = readSetup.formatData(fileData)
+                    #Add display output here
+                    self.gasNextButton.configure(state="normal")
                 else:
                     #Display an error message
                     self.sendNotification("Error loading file", "Check the file exists and contains data")
+                    self.gasData = None
             else:
-                loadedFile = {"name":"", "data":[]}
+                if self.gasData != None and len(self.gasData) > 0:
+                    self.gasNextButton.configure(state="normal")
                     
-        self.gasNextButton.configure(state="normal")
-        self.gasBackButton.configure(state="normal")
         self.loading = False
-        return loadedFile
     
     def updateProgressBar(self) -> None:
         '''Update the progress bar's value and text'''
@@ -781,15 +719,6 @@ class MainWindow(tkinter.Frame):
             newData = self.loadGasFile()
             if newData["name"] != "" and len(newData["data"]) > 0:
                 self.addGasFileObject(newData["name"], newData["data"])
-
-    def addGasFileObject(self, fileName : str, data : list) -> None:
-        newGas = DataSource(self.gasFilesInternalFrame, len(self.gasFileObjects), fileName, data, self)
-        self.gasFileObjects.append(newGas)
-        if len(self.gasFileObjects) > self.currentGasRows:
-            self.currentGasRows = len(self.gasFileObjects)
-            for i in range(0, self.currentGasRows):
-                self.gasFilesInternalFrame.grid_rowconfigure(i, weight=1)
-        newGas.grid(row=len(self.gasFileObjects) - 1, column=0, padx=(0,1), sticky="EW")
     
     def closeGasConfigure(self):
         self.saveGasConfig()
@@ -801,44 +730,6 @@ class MainWindow(tkinter.Frame):
         self.saveVolumeConfig()
         self.manualDilutionWindow.withdraw()
         self.volumeConfigOpen = False
-    
-    def configureGasPressed(self, object : DataSource) -> None:
-        if not self.gasConfigOpen and not self.volumeConfigOpen and not self.loading:
-            self.gasConfigOpen = True
-            if object in self.gasFileObjects:
-                self.loadGasConfig(object)
-                if self.dilutionType == "manual":
-                    self.internalVolumeTitle.pack(side="top", fill="x")
-                    self.internalVolumeFrame.pack(side="top", fill="x", expand=True)
-                else:
-                    self.internalVolumeTitle.pack_forget()
-                    self.internalVolumeFrame.pack_forget()
-                self.gasConfigureWindow.deiconify()
-
-    def loadGasConfig(self, object : DataSource) -> None:
-        self.currentGasObject = object
-        configInfo = self.currentGasObject.getConfig()
-        for i in range(0, 15):
-            self.gasChannelVariables[i].set(configInfo[i])
-
-    def saveGasConfig(self) -> None:
-        if self.currentGasObject != None:
-            channels = []
-            for i in range(0, 15):
-                ch = self.gasChannelVariables[i].get()
-                if ch < 0 or ch > 15:
-                    ch = 0
-                channels.append(ch)
-            self.currentGasObject.setConfig(channels)
-    
-    def removeGasPressed(self, object : DataSource) -> None:
-        if object in self.gasFileObjects:
-            object.grid_remove()
-            del self.gasFileObjects[self.gasFileObjects.index(object)]
-            index = 0
-            for obj in self.gasFileObjects:
-                obj.grid(row=index, column=0, padx=(0,1), sticky="EW")
-                index = index + 1
 
     def configureVolumePressed(self) -> None:
         if not self.gasConfigOpen and not self.volumeConfigOpen and not self.loading:
@@ -875,136 +766,155 @@ class MainWindow(tkinter.Frame):
         '''Perform a data processing pass'''
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
-            gasData = []
-            for object in self.gasFileObjects:
-                gasDict = {"data":object.fileData, "assoc":object.assignedChannels}
-                gasData.append(gasDict)
-            internals = [0.0] * 15
-            dilutionReady = True
+            gasReady = True
+            if self.gasData != None:
+                if len(self.setupData[0]) > 6:
+                    gasData = []
+                    for object in self.gasFileObjects:
+                        gasDict = {"data":object.fileData, "assoc":object.assignedChannels}
+                        gasData.append(gasDict)
 
-            if len(gasData) > 0:
-                if self.dilutionType == "manual":
-                    for index in range(0, 15):
-                        internals[index] = self.givenInternalVolumes[index]
-                elif self.dilutionType == "automatic":
-                    try:
-                        fixedVolume = 0.2
-                        reactorTotal = 0.964
-                        hoseVolume = math.pi * (0.002 ** 2) * float(self.hoseLengthEntry.get())
-                        for i in range(0, 15):
-                            volInoculum = self.setupData[i + 1][3] * 0.001  #Need wet weights!
-                            volSample = self.setupData[i + 1][4] * 0.001
-                            reactorInternal = reactorTotal - (volInoculum + volSample)
-                            internals[i] = reactorInternal + fixedVolume + hoseVolume
-                    except:
-                        dilutionReady = False
-            if dilutionReady:
-                #Call for the calculations and receive the results and any errors   
-                error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, internals, self.progress)
-                #If there are no errors
-                if error == None:
+                    dilutionReady = True
 
-                    #Lists of each of the data arrays for hours
-                    hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-                    #Iterate through the lists of hour data
-                    for hour in range(1, len(hours)):
-                        #Get the data for this hour
-                        thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
-                        hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
-                    
-                    #Lists for each of the channels for day data
-                    dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
-
-                    #Iterate through lists of day data
-                    for day in range(1, len(days)):
-                        #Get the data for this day
-                        thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
-                        dayDataList[int(days[day][0]) - 1].append(thisDayData)
-                    
-                    #Store each of the logs
-                    self.eventLog = events
-                    self.hourLog = hours
-                    self.dayLog = days
-                    self.continuousLog = []
-
-                    #Change progress mode to data preparation - the bar will change to reflect this
-                    self.progress[0] = 0
-                    self.progress[1] = 30 + len(events)
-                    self.progress[2] = "Preparing Data: {0}%"
-
-                    #Values stored to be displayed in the preview
-                    maxTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                    maxVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    finalNetVolume = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    channelNames = []
-                    #Go through the setup data
-                    for i in range(1, 16):
-                        try:
-                            #Store channel name if possible
-                            channelNames.append(setup[0][i - 1])
-                        except:
-                            #Default to numbered channel
-                            channelNames.append("Channel {0}".format(i))
-                        #Increment progress counter
-                        self.progress[0] = self.progress[0] + 1
-
-                    #Iterate through events
-                    for e in self.eventLog:
-                        record = []
-                        #Get setup data, time stamp and stp volumes
-                        for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
-                            #Add to the row
-                            record.append(e[i])
-                        #Add the row to the array
-                        self.continuousLog.append(record)
-                        #If possible get the channel number and store the tips, volume at stp and net volume from this entry
-                        try:
-                            channel = int(e[0]) - 1
+                    if len(gasData) > 0:
+                        if self.dilutionType == "manual":
                             try:
-                                maxTips[channel] = int(e[9])
+                                for index in range(1, 16):
+                                    test = self.setupData[index][9]
                             except:
-                                pass
-                            try:
-                                maxVolumes[channel] = round(float(e[11]), 2)
-                            except:
-                                pass
-                            try:
-                                finalNetVolume[channel] = round(float(e[16]), 2)
-                            except:
-                                pass
-                        except:
-                            pass
+                                dilutionReady = False
+                        elif self.dilutionType == "automatic":
+                            if len(self.setupData[0]) > 7:
+                                for index in range(1, 16):
+                                    for i in range(len(self.setupData[index]), 9):
+                                        self.setupData[index].append(0.0)
+                                try:
+                                    fixedVolume = 200
+                                    reactorTotal = 964
+                                    hoseVolume = 12.56 * self.hoseLengthEntry.get() #ml
+                                    for i in range(0, 15):
+                                        sampleVolume = self.setupData[index][7]
+                                        reactorInternal = reactorTotal - sampleVolume
+                                        self.setupData[i + 1][9] = reactorInternal + fixedVolume + hoseVolume
+                                except:
+                                    dilutionReady = False
+                            else:
+                                dilutionReady = False
+                else:
+                    gasReady = False
+            
+            if gasReady:
+                if dilutionReady:
+                    #Call for the calculations and receive the results and any errors   
+                    error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, self.progress)
+                    #If there are no errors
+                    if error == None:
+
+                        #Lists of each of the data arrays for hours
+                        hourDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+
+                        #Iterate through the lists of hour data
+                        for hour in range(1, len(hours)):
+                            #Get the data for this hour
+                            thisHourData = [str(int(hours[hour][4]) + (int(hours[hour][3]) * 24)), hours[hour][8], hours[hour][11], hours[hour][10]]
+                            hourDataList[int(hours[hour][0]) - 1].append(thisHourData)
                         
-                        #Increment progress on this step
-                        self.progress[0] = self.progress[0] + 1
+                        #Lists for each of the channels for day data
+                        dayDataList = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 
-                    #Iterate through channels and add data to preview array
-                    for i in range(0, 15):
-                        self.previewLabels[0][i].configure(text=channelNames[i])
-                        self.previewLabels[1][i].configure(text=maxTips[i])
-                        self.previewLabels[2][i].configure(text=maxVolumes[i])
-                        self.previewLabels[3][i].configure(text=finalNetVolume[i])
-                        self.progress[0] = self.progress[0] + 1
-                    
-                    #No longer processing, this is here to stop the bar overwriting the changes afterwards
-                    self.processing = False
+                        #Iterate through lists of day data
+                        for day in range(1, len(days)):
+                            #Get the data for this day
+                            thisDayData = [days[day][3], days[day][8], days[day][11], days[day][10]]
+                            dayDataList[int(days[day][0]) - 1].append(thisDayData)
+                        
+                        #Store each of the logs
+                        self.eventLog = events
+                        self.hourLog = hours
+                        self.dayLog = days
+                        self.continuousLog = []
 
-                    #Allow user to progress forward
-                    self.processingNextButton.configure(state="normal")
-                    #Set bar to complete
-                    self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
-                    self.progressBar["value"] = 100.0
-                    
+                        #Change progress mode to data preparation - the bar will change to reflect this
+                        self.progress[0] = 0
+                        self.progress[1] = 30 + len(events)
+                        self.progress[2] = "Preparing Data: {0}%"
+
+                        #Values stored to be displayed in the preview
+                        maxTips = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                        maxVolumes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                        finalNetVolume = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+                        channelNames = []
+                        #Go through the setup data
+                        for i in range(1, 16):
+                            try:
+                                #Store channel name if possible
+                                channelNames.append(setup[0][i - 1])
+                            except:
+                                #Default to numbered channel
+                                channelNames.append("Channel {0}".format(i))
+                            #Increment progress counter
+                            self.progress[0] = self.progress[0] + 1
+
+                        #Iterate through events
+                        for e in self.eventLog:
+                            record = []
+                            #Get setup data, time stamp and stp volumes
+                            for i in [0, 1, 2, 3, 4, 5, 10, 11, 13, 15]:
+                                #Add to the row
+                                record.append(e[i])
+                            #Add the row to the array
+                            self.continuousLog.append(record)
+                            #If possible get the channel number and store the tips, volume at stp and net volume from this entry
+                            try:
+                                channel = int(e[0]) - 1
+                                try:
+                                    maxTips[channel] = int(e[9])
+                                except:
+                                    pass
+                                try:
+                                    maxVolumes[channel] = round(float(e[11]), 2)
+                                except:
+                                    pass
+                                try:
+                                    finalNetVolume[channel] = round(float(e[16]), 2)
+                                except:
+                                    pass
+                            except:
+                                pass
+                            
+                            #Increment progress on this step
+                            self.progress[0] = self.progress[0] + 1
+
+                        #Iterate through channels and add data to preview array
+                        for i in range(0, 15):
+                            self.previewLabels[0][i].configure(text=channelNames[i])
+                            self.previewLabels[1][i].configure(text=maxTips[i])
+                            self.previewLabels[2][i].configure(text=maxVolumes[i])
+                            self.previewLabels[3][i].configure(text=finalNetVolume[i])
+                            self.progress[0] = self.progress[0] + 1
+                        
+                        #No longer processing, this is here to stop the bar overwriting the changes afterwards
+                        self.processing = False
+
+                        #Allow user to progress forward
+                        self.processingNextButton.configure(state="normal")
+                        #Set bar to complete
+                        self.styles.configure("ProgressbarLabeled", text="Processing: Complete", background="lightgreen")
+                        self.progressBar["value"] = 100.0
+                        
+                    else:
+                        #Display the error if it occurred and update the bar to show it failed
+                        self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                        self.sendNotification("Error", error)
+
                 else:
                     #Display the error if it occurred and update the bar to show it failed
                     self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
-                    self.sendNotification("Error", error)
-
+                    self.sendNotification("Error", "Invalid dilution volume, please check all values were entered correctly.")
             else:
                 #Display the error if it occurred and update the bar to show it failed
-                self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
-                self.sendNotification("Error", "Invalid dilution volume, please check all values were entered correctly.")
+                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                    self.sendNotification("Error", "Invalid gas configuration, please check all setup values were entered correctly.")
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
             self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222", )
