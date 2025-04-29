@@ -176,43 +176,14 @@ class MainWindow(tkinter.Frame):
         self.gasDilutionFrame = tkinter.Frame(self.gasWindow)
         self.gasDilutionFrame.grid(row=1, column=0, sticky="NESW")
 
-        self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event Files", font=self.fonts["mediumBold"])
+        self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event File", font=self.fonts["mediumBold"])
         self.gasFileTitle.pack(side="top", anchor="center", fill="x", expand=True)
-        self.gasFileAddButton = tkinter.Button(self. gasFileFrame, text="+ Add File", font=self.fonts["medium"], fg="green", relief="flat", command=self.addGasFilePressed)
-        self.gasFileAddButton.pack(side="top", anchor="center", expand=True)
 
-        self.gasFilesView = tkinter.Frame(self.gasFileFrame)
-        self.gasFilesView.pack(side="top", expand=True, fill="x", anchor="center", padx=10, pady=2)
-
-        self.gasFilesCanvas = tkinter.Canvas(self.gasFilesView)
-        self.gasFilesScroll = tkinter.Scrollbar(self.gasFilesView)
-        self.gasFilesInternalFrame = tkinter.Frame(self.gasFilesCanvas)
-        self.currentGasRows = 3
-        self.gasFileObjects = []
-        self.currentGasObject = None
-
-        self.gasFilesInternalFrame.grid_columnconfigure(0, weight=1)
-        for row in range(0, self.currentGasRows):
-            self.gasFilesInternalFrame.grid_rowconfigure(row, weight=1)
-
-        self.gasCanvasWindow = self.gasFilesCanvas.create_window(0, 0, window=self.gasFilesInternalFrame, anchor="nw")
-        self.gasFilesCanvas.update_idletasks()
-
-        #Bind the configures of the frame and canvas to update the windows
-        self.gasFilesInternalFrame.bind("<Configure>", self.onGasFrameConfigure)
-        self.gasFilesCanvas.bind("<Configure>", self.gasFrameWidth)
-        self.gasFrameWidth(None)
-
-        #Bind the mouse enter and leave so the scroll wheel can be used to scroll
-        self.gasFilesInternalFrame.bind("<Enter>", self.gasBindMouseWheel)
-        self.gasFilesInternalFrame.bind("<Leave>", self.gasUnbindMouseWheel)
-
-        #Configure the scrollbar for the canvas
-        self.gasFilesCanvas.configure(scrollregion=self.gasFilesCanvas.bbox("all"), yscrollcommand=self.gasFilesScroll.set)
-
-        #Pack the canvas and scrollbar
-        self.gasFilesScroll.pack(side="right", fill="y")
-        self.gasFilesCanvas.pack(side="left", expand=True, fill="both")
+        self.loadGasFileButton = tkinter.Button(self.gasFileFrame, text="Load Gas File", command=self.loadGasFile, font=self.fonts["medium"])
+        self.loadGasFileButton.pack(side="top", anchor="center", expand=True)
+        #File information label
+        self.gasFileLabel = tkinter.Label(self.gasFileFrame, text="No Gas File Loaded", fg=self.red)
+        self.gasFileLabel.pack(side="top", anchor="center", expand=True)
 
         self.gasDilutionTitle = tkinter.Label(self.gasDilutionFrame, text="Dilution Adjustment", font=self.fonts["mediumBold"])
         self.gasDilutionTitle.pack(side="top", anchor="center", fill="x", expand=True)
@@ -220,9 +191,9 @@ class MainWindow(tkinter.Frame):
         self.dilutionTypeFrame = tkinter.Frame(self.gasDilutionFrame)
         self.dilutionTypeFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
 
-        self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="red", font=self.fonts["medium"], command=self.automaticDilutionPressed)
+        self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="red", font=self.fonts["medium"], command=self.automaticDilutionPressed, state="disabled")
         self.dilutionAutomaticButton.pack(side="left", expand=True, padx=(150, 0), pady=2)
-        self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=self.fonts["medium"], command=self.manualDilutionPressed)
+        self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=self.fonts["medium"], command=self.manualDilutionPressed, state="disabled")
         self.dilutionManualButton.pack(side="left", expand=True, padx=(25, 25), pady=2)
         self.noDilutionButton = tkinter.Button(self.dilutionTypeFrame, text="No Dilutuion", bg="lightgreen", font=self.fonts["medium"], command=self.noDilutionPressed)
         self.noDilutionButton.pack(side="left", expand=True, padx=(0, 150), pady=2)
@@ -235,8 +206,8 @@ class MainWindow(tkinter.Frame):
         self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
 
-        self.manualDilutionButton = tkinter.Button(self.dilutionManualFrame, text="Configure Internal Volumes", font=self.fonts["medium"], command=self.configureVolumePressed)
-        self.manualDilutionButton.pack(side="top", anchor="center", expand=True, pady=2, padx=10)
+        self.manualDilutionLabel = tkinter.Button(self.dilutionManualFrame, text="Using manual internal volumes from setup file.", font=self.fonts["medium"])
+        self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, pady=2, padx=10)
 
         self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionAutomaticFrame.grid(row=0, column=0, sticky="NESW")
@@ -261,69 +232,6 @@ class MainWindow(tkinter.Frame):
         self.gasNextButton = tkinter.Button(self.gasButtonsFrame, text="Next", font=self.fonts["medium"], command=self.nextPressedGas)
         self.gasBackButton.pack(side="left", anchor="s")
         self.gasNextButton.pack(side="right", anchor="s")
-
-        self.manualDilutionWindow = tkinter.Toplevel(self)
-        self.manualDilutionWindow.geometry("800x400")
-        self.manualDilutionWindow.minsize(800, 400)
-        self.manualDilutionWindow.title("Internal Volumes - Manual Entry")
-        self.internalVolumeTitle = tkinter.Label(self.manualDilutionWindow, text="Enter Internal Gas Volumes Manually (ml)", font=self.fonts["medium"])
-        self.internalVolumeTitle.pack(side="top", fill="x")
-        self.internalVolumeFrame = tkinter.Frame(self.manualDilutionWindow)
-        self.internalVolumeFrame.pack(side="top", expand=True, fill="x")
-
-        for row in range(0, 5):
-            self.internalVolumeFrame.grid_rowconfigure(row, weight=1)
-        for col in range(0, 6):
-            self.internalVolumeFrame.grid_columnconfigure(col, weight=1)
-
-        self.gasVolumeLabels = []
-        self.gasVolumeEntries = []
-
-        for i in range(0, 15):
-            volumeLabel = tkinter.Label(self.internalVolumeFrame, text="Vol Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
-            volumeEntry = tkinter.Entry(self.internalVolumeFrame, width=4, justify="center", font=self.fonts["mediumSmall"])
-            self.gasVolumeLabels.append(volumeLabel)
-            self.gasVolumeEntries.append(volumeEntry)
-            r = i // 3
-            c = (i - (r * 3)) * 2
-            volumeLabel.grid(row=r, column=c, pady=6)
-            volumeEntry.grid(row=r, column=c + 1, pady=6)
-        
-        self.manualDilutionWindow.protocol("WM_DELETE_WINDOW", self.closeVolumeConfigure)
-        self.manualDilutionWindow.withdraw()
-        
-        self.gasConfigureWindow = tkinter.Toplevel(self)
-        self.gasConfigureWindow.geometry("800x500")
-        self.gasConfigureWindow.minsize(800, 500)
-        self.gasConfigureWindow.title("Configure Gas File")
-        self.channelAssignTitle = tkinter.Label(self.gasConfigureWindow, text="Assign Reactor Channels", font=self.fonts["mediumSmall"])
-        self.channelAssignTitle.pack(side="top", fill="x")
-        self.channelAssignFrame = tkinter.Frame(self.gasConfigureWindow)
-        self.channelAssignFrame.pack(side="top", expand=True, fill="x")
-        
-        for row in range(0, 5):
-            self.channelAssignFrame.grid_rowconfigure(row, weight=1)
-        for col in range(0, 6):
-            self.channelAssignFrame.grid_columnconfigure(col, weight=1)
-
-        self.gasChannelLabels = []
-        self.gasChannelVariables = []
-        self.gasChannelSpins = []
-        for i in range(0, 15):
-            channelLabel = tkinter.Label(self.channelAssignFrame, text="Gas Ch {0}:".format(i + 1), font=self.fonts["mediumSmall"])
-            channelVariable = tkinter.IntVar()
-            channelVariable.set(0)
-            channelSpin = tkinter.Spinbox(self.channelAssignFrame, from_=0, to=15, wrap="true", font=self.fonts["mediumSmall"], textvariable=channelVariable, width=3, justify="center")
-            self.gasChannelLabels.append(channelLabel)
-            self.gasChannelVariables.append(channelVariable)
-            self.gasChannelSpins.append(channelSpin)
-            r = i // 3
-            c = (i - (r * 3)) * 2
-            channelLabel.grid(row=r, column=c, pady=6)
-            channelSpin.grid(row=r, column=c + 1, pady=6)
-
-        self.gasConfigureWindow.protocol("WM_DELETE_WINDOW", self.closeGasConfigure)
-        self.gasConfigureWindow.withdraw()
 
         #Setup grid for processing
         rowWeights = [4, 1, 1, 1, 2, 4]
@@ -516,6 +424,14 @@ class MainWindow(tkinter.Frame):
                     #Set the text of the label
                     self.setupFileLabel.config(text=fileName + " loaded correctly.", fg=self.green)
                     self.setupNextButton.configure(state="normal")
+                    if len(self.setupData[0]) > 7:
+                        self.dilutionAutomaticButton.configure(state="normal")
+                    else:
+                        self.dilutionAutomaticButton.configure(state="disabled")
+                    if len(self.setupData[0]) > 9:
+                        self.dilutionManualButton.configure(state="normal")
+                    else:
+                        self.dilutionManualButton.configure(state="disabled")
                 else:
                     #Display error
                     self.setupLabel.config(text="File invalid or could not be read.", fg=self.red)
@@ -524,6 +440,8 @@ class MainWindow(tkinter.Frame):
                 #If cancelled and there was already valid data loaded, allow the user to progress
                 if self.setupData != None and len(self.setupData) > 0:
                     self.setupNextButton.configure(state="normal")
+            
+            self.noDilutionPressed()
             #Not loading a file any more
             self.loading = False
     
@@ -615,7 +533,6 @@ class MainWindow(tkinter.Frame):
 
     def loadGasFile(self) -> list:
         if not self.loading:
-            self.gasNextButton.configure(state="disabled")
             #Get the path to the file from the user
             filePath = filedialog.askopenfilename(title="Select gas log csv file", filetypes=self.fileTypes)
             #Split the file into parts
@@ -624,19 +541,16 @@ class MainWindow(tkinter.Frame):
             if filePath != "" and filePath != None and len(pathParts) > 0:
                 #Attempt to read the file data
                 fileData = readSetup.getFile(filePath)
+                fileName = fileName = pathParts[-1]
                 #If there was data present
                 if fileData != []:
                     #Format the data as an array and store it
                     self.gasData = readSetup.formatData(fileData)
-                    #Add display output here
-                    self.gasNextButton.configure(state="normal")
+                    self.gasFileLabel.config(text=fileName + " loaded correctly.", fg=self.green)
                 else:
                     #Display an error message
-                    self.sendNotification("Error loading file", "Check the file exists and contains data")
+                    self.gasFileLabel.config(text="Invalid file or could not be read.", fg=self.red)
                     self.gasData = None
-            else:
-                if self.gasData != None and len(self.gasData) > 0:
-                    self.gasNextButton.configure(state="normal")
                     
         self.loading = False
     
@@ -767,46 +681,39 @@ class MainWindow(tkinter.Frame):
         #If there is data to be processed
         if self.setupData != None and self.eventData != None:
             gasReady = True
-            if self.gasData != None:
+            dilutionReady = True
+            if self.gasData != None and len(self.gasData) > 0:
                 if len(self.setupData[0]) > 6:
-                    gasData = []
-                    for object in self.gasFileObjects:
-                        gasDict = {"data":object.fileData, "assoc":object.assignedChannels}
-                        gasData.append(gasDict)
-
-                    dilutionReady = True
-
-                    if len(gasData) > 0:
-                        if self.dilutionType == "manual":
+                    if self.dilutionType == "manual":
+                        try:
+                            for index in range(1, 16):
+                                test = self.setupData[index][9]
+                        except:
+                            dilutionReady = False
+                    elif self.dilutionType == "automatic":
+                        if len(self.setupData[0]) > 7:
+                            for index in range(1, 16):
+                                for i in range(len(self.setupData[index]), 9):
+                                    self.setupData[index].append(0.0)
                             try:
-                                for index in range(1, 16):
-                                    test = self.setupData[index][9]
+                                fixedVolume = 200
+                                reactorTotal = 964
+                                hoseVolume = 12.56 * self.hoseLengthEntry.get() #ml
+                                for i in range(0, 15):
+                                    sampleVolume = self.setupData[index][7]
+                                    reactorInternal = reactorTotal - sampleVolume
+                                    self.setupData[i + 1][9] = reactorInternal + fixedVolume + hoseVolume
                             except:
                                 dilutionReady = False
-                        elif self.dilutionType == "automatic":
-                            if len(self.setupData[0]) > 7:
-                                for index in range(1, 16):
-                                    for i in range(len(self.setupData[index]), 9):
-                                        self.setupData[index].append(0.0)
-                                try:
-                                    fixedVolume = 200
-                                    reactorTotal = 964
-                                    hoseVolume = 12.56 * self.hoseLengthEntry.get() #ml
-                                    for i in range(0, 15):
-                                        sampleVolume = self.setupData[index][7]
-                                        reactorInternal = reactorTotal - sampleVolume
-                                        self.setupData[i + 1][9] = reactorInternal + fixedVolume + hoseVolume
-                                except:
-                                    dilutionReady = False
-                            else:
-                                dilutionReady = False
+                        else:
+                            dilutionReady = False
                 else:
                     gasReady = False
             
             if gasReady:
                 if dilutionReady:
                     #Call for the calculations and receive the results and any errors   
-                    error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, gasData, self.progress)
+                    error, events, hours, days, setup = newCalculations.performGeneralCalculations(self.setupData, self.eventData, self.gasData, self.progress)
                     #If there are no errors
                     if error == None:
 
