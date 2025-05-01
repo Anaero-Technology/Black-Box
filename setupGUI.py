@@ -18,7 +18,7 @@ class MainWindow(tkinter.Frame):
         self.height = 610
         #Number of rows and columns present
         self.numberRows = 17
-        self.numberColumns = 11
+        self.numberColumns = 12
 
         #Get separators from file
         self.column, self.decimal = readSeparators.read()
@@ -45,7 +45,7 @@ class MainWindow(tkinter.Frame):
                 self.grid_columnconfigure(colNumber, weight = 2)
         
         #Column headers
-        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)", "Chimera\nChannel", "Wet\nWeight (g)", "Volatile\nSolids (%)", "Internal Gas\nVolume (ml)"]
+        self.headers = ["Channel", "Description", "In service", "Inoculum\nonly", "Inoculum\nmass VS (g)", "Sample\nmass VS (g)", "Tumbler\nvolume (ml)", "Chimera\nChannel", "Wet\nWeight (g)", "Volatile\nSolids (%)", "Internal Gas\nVolume 1 (ml)", "Internal Gas\n Volume 2 (ml)"]
 
         #Holds all the label objects
         self.headerLabels = []
@@ -129,10 +129,15 @@ class MainWindow(tkinter.Frame):
             tubeRow.append(volatilePercentageEntry)
             tubeVars.append(volatilePercentageVar)
 
-            manualVolumeVar = tkinter.StringVar()
-            manualVolumeEntry = tkinter.Entry(self, textvariable=manualVolumeVar, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
-            tubeRow.append(manualVolumeEntry)
-            tubeVars.append(manualVolumeVar)
+            manualVolume1Var = tkinter.StringVar()
+            manualVolume1Entry = tkinter.Entry(self, textvariable=manualVolume1Var, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
+            tubeRow.append(manualVolume1Entry)
+            tubeVars.append(manualVolume1Var)
+
+            manualVolume2Var = tkinter.StringVar()
+            manualVolume2Entry = tkinter.Entry(self, textvariable=manualVolume2Var, width=self.entryLength - 4, justify="center", validatecommand=(self.numCheck, "%P"), validate="key")
+            tubeRow.append(manualVolume2Entry)
+            tubeVars.append(manualVolume2Var)
 
             #Add widgets and variables rows to lists
             self.tubeInfo.append(tubeRow)
@@ -159,7 +164,7 @@ class MainWindow(tkinter.Frame):
         self.fileTypes = [("CSV Files", "*.csv")]
 
         #File header text used when exporting file as csv
-        self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)", "Chimera Channel", "Wet Weight (g)", "Volatile Solids (%)", "Internal Volume (ml)"]
+        self.fileHeaders = ["Sample description","In service","Inoculum only","Inoculum mass VS (g)","Sample mass VS (g)","Tumbler volume (ml)", "Chimera Channel", "Wet Weight (g)", "Volatile Solids (%)", "Internal Volume 1 (ml)", "Internal Volume 2 (ml)"]
     
 
     def displayMessage(self, msg: str, title: str) -> None:
@@ -310,8 +315,11 @@ class MainWindow(tkinter.Frame):
                 if colIndex > 2:
                     try:
                         #Attempt to convert to float and back to string to check it is valid (account for separator)
-                        value = float(value.replace(self.decimal, "."))
-                        value = str(value).replace(".", self.decimal)
+                        if colIndex != 6:
+                            value = float(value.replace(self.decimal, "."))
+                            value = str(value).replace(".", self.decimal)
+                        else:
+                            value = int(value.replace(self.decimal, "."))
                         if colIndex > 5:
                             anyGasData = True
                     except:
@@ -365,7 +373,7 @@ if __name__ == "__main__":
     #Create root window for tkinter
     root = tkinter.Tk()
     #Set the shape of the window
-    root.geometry("850x610")
+    root.geometry("900x610")
     #Allow for expanding sizes
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
