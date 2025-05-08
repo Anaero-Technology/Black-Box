@@ -4,7 +4,7 @@ import sys
 import datetime
 #import traceback
 
-def convertSeconds(seconds) -> tuple:
+def convertSeconds(seconds : int) -> tuple:
     '''Converts timestamp in seconds to number of days, hours minutes and seconds'''
     #Calculate number of seconds in a minute, hour and day
     secondsInMinute = 60
@@ -21,7 +21,7 @@ def convertSeconds(seconds) -> tuple:
     seconds = seconds - (m * secondsInMinute)
     return d, h, m, seconds
 
-def convertDate(dateString, separator) -> int:
+def convertDate(dateString : str, separator : str) -> int:
     '''Converts timestamp in year month day hour minute second to seconds since the epoch'''
     parts = dateString.split(separator)
     try:
@@ -30,7 +30,7 @@ def convertDate(dateString, separator) -> int:
     except:
         return -1
 
-def performGeneralCalculations(setupData : list, eventData : list, gasData : list, progress):
+def performGeneralCalculations(setupData : list, eventData : list, gasData : list, progress) -> list:
     '''Convert from setup information and events to a fully processed event, day and hour logs with net volumes'''
     column, decimal = readSeparators.read()
     
@@ -60,11 +60,14 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
             #Count the number of inoculum channels
             if int(setupData[row][2]) == 1:
                 setup["inoculumCount"] = setup["inoculumCount"] + 1
+            #Store information about each channel
             setup["inoculumOnly"].append(int(setupData[row][2]) == 1)
             setup["inoculumMass"].append(float(setupData[row][3]))
             setup["sampleMass"].append(float(setupData[row][4]))
             setup["tumblerVolume"].append(float(setupData[row][5]))
+            #If there is gas data
             if gasData != None and len(gasData) > 0:
+                #Store information about the gas
                 setup["chimeraChannel"].append(int(setupData[row][6]) - 1)
                 setup["wetWeight"].append(float(setupData[row][7]))
                 setup["internalVolume1"].append(float(setupData[row][9]))
@@ -81,39 +84,57 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
         #Formatting of setup file is incorrect - reort error and stop
         return "Setup file not formatted correctly, ensure that all fields are of the correct data types.", None, None, None, None
     
+    #Objects used for methane and carbon dioxide values
     methaneForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
     carbonForChannels = [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
 
+    #If a gas file is being used
     usingGas = False
     
+    #If there is gas data
     if gasData != None and len(gasData) > 0:
         usingGas = True
         try:
+            #Create empty association array
             association = [-1] * 15
+            #Iterate through setup file and read which chimera channel is associated with each
             for i in range(0, 15):
                 association = setup["chimeraChannel"]
             gasChannels = []
+            #Create empty array of dictionaries for each gas channel
             for i in range(0, 15):
                 gasChannels.append({"times":[], "ch4":[], "co2":[]})
+            #Iterate through gas data
             for dataRow in gasData:
+                #Get time of event as seconds
                 time = convertDate(dataRow[0], "/")
+                #Get information about the channel and gas
                 gasChannel = int(dataRow[1])
                 methane = float(dataRow[4])
                 carbonDioxide = float(dataRow[5])
+                #If the channel is valid
                 if gasChannel > 0 and gasChannel < 16:
+                    #Add to dictionaries of information
                     gasChannels[gasChannel - 1]["times"].append(time)
                     gasChannels[gasChannel - 1]["ch4"].append(methane)
                     gasChannels[gasChannel - 1]["co2"].append(carbonDioxide)
-            
+            #Iterate through channels
             for index in range(0, 15):
+                #If there is an association
                 if association[index] > 0 and association[index] < 16:
+                    #If there is data for the time and methane
                     if len(gasChannels[association[index] - 1]["times"]) > 0 and len(gasChannels[association[index] - 1]["ch4"]) > 0:
+                        #Create range object
                         methaneForChannels[index] = dataCombination.ContinuousRange(gasChannels[association[index] - 1]["times"], gasChannels[association[index] - 1]["ch4"])
                     else:
+                        #Create empty range object
                         methaneForChannels[index] = dataCombination.ContinuousRange([0], [0])
+                    #If there is data for the time and carbon dioxide
                     if len(gasChannels[association[index] - 1]["times"]) > 0 and len(gasChannels[association[index] - 1]["co2"]) > 0:
+                        #Create range object
                         carbonForChannels[index] = dataCombination.ContinuousRange(gasChannels[association[index] - 1]["times"], gasChannels[association[index] - 1]["co2"])
                     else:
+                        #Create empty range object
                         carbonForChannels[index] = dataCombination.ContinuousRange([0], [-1])
         except Exception:
             #traceback.print_exc()
@@ -127,10 +148,13 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
     #Array to hold final event log information (as it can be gathered immediately)
     eventArray = []
 
+    #Net volumes for the most recent hour and day - used to work out net evolved in the most recent hour and day
     lastHourNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     lastDayNetVolume = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+    #Number of tips on each channel
     eventCount = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #List to hold the gas values while being processed
     eventGasInfo = []
 
     progress[2] = "Processing: {0}%"
@@ -214,15 +238,22 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
                 hours[-1]["volumeNet"][channelId] = totalNetVolume - lastHourNetVolume[channelId]
                 overall["volumeNet"][channelId] = totalNetVolume
 
+                #Default gas values - when a channel is not assigned
                 ch4 = "-"
                 co2 = "-"
 
+                #If there is an associated range object for methane
                 if methaneForChannels[channelId] != None:
+                    #Get the value for the approprate time
                     ch4 = methaneForChannels[channelId].getValue(dateTime)
+                #If there is an associated range object for carbon dioxide
                 if carbonForChannels[channelId] != None:
+                    #Get the value for the appropriate time
                     co2 = carbonForChannels[channelId].getValue(dateTime)
-
+                
+                #If gas values are being used
                 if usingGas:
+                    #If there are valid gas values, add them to the hourly information
                     if type(ch4) == float:
                         hours[-1]["totalCH4"][channelId] = hours[-1]["totalCH4"][channelId] + ch4
                     if type(co2) == float:
@@ -240,51 +271,76 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
         #Something is wrong with the way the event log file is formatted - report error and stop
         return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None
 
+    #If gas is being used
     if usingGas:
+        #Dilutions array
         dilutions = []
+        #Initial concentrations for the methane and carbon dioxide within the [reactor, gas flow meter]
         methaneConcentrations = [[[0, 0]] * 15]
         carbonConcentrations = [[[0, 0]] * 15]
+        #Iterate the hours
         for hour in hours:
+            #Get the volumes of gas produced
             volumesProduced = hour["volumeSTP"]
+            #Add empty row to dilutions, for new information
             dilutions.append([])
+            #Add new row of concentrations, for next pass of values
             methaneConcentrations.append([[0, 0]] * 15)
             carbonConcentrations.append([[0, 0]] * 15)
+            #iterate channels
             for channel in range(0, 15):
+                #Dictionary to store information so it can be iterated
                 averageSensorReadings = [{"value" : 0.0, "type" : "ch4"}, {"value" : 0.0, "type" : "co2"}]
+                #If there were tips
                 if hour["tips"][channel] > 0:
+                    #Calculate average sensor values (decimal not percentage) total of values / number of values / 100
                     averageSensorReadings[0]["value"] = (hour["totalCH4"][channel] / hour["tips"][channel]) / 100.0
                     averageSensorReadings[1]["value"] = (hour["totalCO2"][channel] / hour["tips"][channel]) / 100.0
                 results = []
+                #For each type of gas
                 for sensorReading in averageSensorReadings:
                     previousStage1 = 0.0
                     previousStage2 = 0.0
+                    #Get the last value for the two stages, dependant on the gas
                     if sensorReading["type"] == "ch4":
                         previousStage1 = methaneConcentrations[-2][channel][0]
                         previousStage2 = methaneConcentrations[-2][channel][1]
                     elif sensorReading["type"] == "co2":
                         previousStage1 = carbonConcentrations[-2][channel][0]
                         previousStage2 = carbonConcentrations[-2][channel][1]
+                    #Get the total volume evolved
                     volumeProduced = volumesProduced[channel]
+                    #If there was some gas evolved
                     if volumeProduced > 0:
+                        #Get the intermal volumes
                         internalVolume1 = setup["internalVolume1"][channel]
                         internalVolume2 = setup["internalVolume2"][channel]
+                        #Default dilution
                         dilution = 1.0
+                        #Calculate gas constants for the equation
                         constant1 = internalVolume1 / volumeProduced
                         constant2 = ((internalVolume2 / volumeProduced) + 1) * ((internalVolume1 / volumeProduced) + 1)
                         constantBetween = ((internalVolume1 + volumeProduced) * internalVolume2) / (volumeProduced ** 2)
+                        #Convert from sensor reading to actual concentration
                         realGas = (constant2 * sensorReading["value"]) - (constantBetween * previousStage2) - (constant1 * previousStage1)
+                        #If there was a non zero sensor reading
                         if sensorReading["value"] > 0:
+                            #Update the dilution value
                             dilution = realGas / sensorReading["value"]
+                        #Reverse calculate the changes to the gas concentration in the reactor and gfm stages
                         firstStageConcentration = ((internalVolume1 * previousStage1) + (volumeProduced * realGas)) / (internalVolume1 + volumeProduced)
                         secondStageConcentration = ((internalVolume2 * previousStage2) + (volumeProduced * previousStage1)) / (internalVolume2 + volumeProduced)
+                        #Store as previous values to be used for next pass
                         if sensorReading["type"] == "ch4":
                             methaneConcentrations[-1][channel][0] = firstStageConcentration
                             methaneConcentrations[-1][channel][1] = secondStageConcentration
                         if sensorReading["type"] == "co2":
                             carbonConcentrations[-1][channel][0] = firstStageConcentration
                             carbonConcentrations[-1][channel][1] = secondStageConcentration
+                        #Add dilution value (default or calculated) so it can be used to adjust values
                         results.append(dilution)
                     else:
+                        #Default value if no gas was produced, repeat concentrations as well
                         results.append(1.0)
                         if sensorReading["type"] == "ch4":
                             methaneConcentrations[-1][channel][0] = previousStage1
@@ -292,19 +348,25 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
                         if sensorReading["type"] == "co2":
                             carbonConcentrations[-1][channel][0] = previousStage1
                             carbonConcentrations[-1][channel][1] = previousStage2
-                    
+                #Add this passes dilution values
                 dilutions[-1].append(results)
         
+        #Iterate through each event
         for eventId in range(0, min(len(eventGasInfo), len(eventArray))):
+            #Get the channel, hour and gas data
             channel = eventGasInfo[eventId][0]
             hour = eventGasInfo[eventId][1]
             ch4 = eventGasInfo[eventId][2]
             co2 = eventGasInfo[eventId][3]
+            #Add original values
             eventArray[eventId].append(str(ch4))
             eventArray[eventId].append(str(co2))
+            #If the values are valid and the channel exists in the dilution data
             if type(ch4) == float and type(co2) == float and channel > -1 and channel < 15 and hour < len(dilutions):
+                #Convert using dilution factor
                 ch4 = ch4 * dilutions[hour][channel][0]
                 co2 = co2 * dilutions[hour][channel][1]
+            #Add diluted values
             eventArray[eventId].append(str(ch4))
             eventArray[eventId].append(str(co2))
     
@@ -357,7 +419,10 @@ def performGeneralCalculations(setupData : list, eventData : list, gasData : lis
             dayArray.append([channelId + 1, setup["names"][channelId], timestamp, d, 0, 0, setup["inUse"][channelId], day["tips"][channelId], round(day["volumeSTP"][channelId], 3), round(day["volumeNet"][channelId], 3), round(totalNetVolume[channelId], 3), round(totalVolume[channelId], 3)])
         progress[0] = progress[0] + 1
     #Add text headers
-    eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)","Raw CH4 %", "Raw CO2 %", "CH4 %", "CO2 %"])
+    eventHeader = ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)"]
+    if usingGas:
+        eventHeader = eventHeader + ["Raw CH4 %", "Raw CO2 %", "Adjusted CH4 %", "Adjusted CO2 %"]
+    eventArray.insert(0, eventHeader)
     hourArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     dayArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Day", "Volume This Day at STP (ml)", "Net Volume This Day (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
     setupArray = [setup["names"], setup["inUse"], setup["inoculumOnly"], setup["inoculumMass"], setup["sampleMass"], setup["tumblerVolume"]]
