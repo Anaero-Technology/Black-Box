@@ -49,6 +49,7 @@ class MainWindow(tkinter.Frame):
 
         self.red = "#DD0000"
         self.green = "#00DD00"
+        self.black = "#000000"
 
         #Used to store data once it has been processed
         self.eventLog = None
@@ -64,8 +65,12 @@ class MainWindow(tkinter.Frame):
 
         self.usingDilution = False
         self.dilutionType = "none"
-        self.gasConfigOpen = False
         self.volumeConfigOpen = False
+        self.hoseLength = [-1.0, -1.0]
+
+        self.gfmInternal = 112.2
+        self.reactorTotal = 964.0
+        self.hoseVolumePerMeter = 12.56
 
         self.givenInternalVolumes = [0.0] * 15
 
@@ -206,19 +211,25 @@ class MainWindow(tkinter.Frame):
         self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
 
-        self.manualDilutionLabel = tkinter.Button(self.dilutionManualFrame, text="Using manual internal volumes from setup file.", font=self.fonts["medium"])
+        self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Using manual internal volumes from setup file.", font=self.fonts["medium"])
         self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, pady=2, padx=10)
 
         self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionAutomaticFrame.grid(row=0, column=0, sticky="NESW")
 
-        self.hoseLengthFrame = tkinter.Frame(self.dilutionAutomaticFrame)
-        self.hoseLengthFrame.pack(side="top", anchor="center", expand=True)
+        self.hoseLength1Frame = tkinter.Frame(self.dilutionAutomaticFrame)
+        self.hoseLength1Frame.pack(side="top", anchor="center", expand=True, pady=5)
+        self.hoseLength2Frame = tkinter.Frame(self.dilutionAutomaticFrame)
+        self.hoseLength2Frame.pack(side="top", anchor="center", expand=True, pady=5)
 
-        self.hoseLengthLabel = tkinter.Label(self.hoseLengthFrame, text="Approximate hose length (m):", font=self.fonts["medium"])
-        self.hoseLengthLabel.pack(side="left")
-        self.hoseLengthEntry = tkinter.Entry(self.hoseLengthFrame, width=8, font=self.fonts["medium"], justify="center")
-        self.hoseLengthEntry.pack(side="left")
+        self.hoseLength1Label = tkinter.Label(self.hoseLength1Frame, text="Hose length to flow meter (m):", font=self.fonts["medium"])
+        self.hoseLength1Label.pack(side="left")
+        self.hoseLength1Entry = tkinter.Entry(self.hoseLength1Frame, width=8, font=self.fonts["medium"], justify="center")
+        self.hoseLength1Entry.pack(side="left")
+        self.hoseLength2Label = tkinter.Label(self.hoseLength2Frame, text="Hose length to chimera (m):", font=self.fonts["medium"])
+        self.hoseLength2Label.pack(side="left")
+        self.hoseLength2Entry = tkinter.Entry(self.hoseLength2Frame, width=8, font=self.fonts["medium"], justify="center")
+        self.hoseLength2Entry.pack(side="left")
 
         self.noDilutionFrame = tkinter.Frame(self.dilutionInputFrame)
         self.noDilutionFrame.grid(row=0, column=0, sticky="NESW")
@@ -424,11 +435,17 @@ class MainWindow(tkinter.Frame):
                     #Set the text of the label
                     self.setupFileLabel.config(text=fileName + " loaded correctly.", fg=self.green)
                     self.setupNextButton.configure(state="normal")
+                    if len(self.setupData[0]) > 6:
+                        self.loadGasFileButton.configure(state="normal")
+                        self.gasFileLabel.configure(text="No Gas File Loaded", fg=self.black)
+                    else:
+                        self.loadGasFileButton.configure(state="disabled")
+                        self.gasFileLabel.configure(text="Gas file not available, must be configured in setup file.", fg=self.black)
                     if len(self.setupData[0]) > 7:
                         self.dilutionAutomaticButton.configure(state="normal")
                     else:
                         self.dilutionAutomaticButton.configure(state="disabled")
-                    if len(self.setupData[0]) > 9:
+                    if len(self.setupData[0]) > 10:
                         self.dilutionManualButton.configure(state="normal")
                     else:
                         self.dilutionManualButton.configure(state="disabled")
@@ -442,6 +459,7 @@ class MainWindow(tkinter.Frame):
                     self.setupNextButton.configure(state="normal")
             
             self.noDilutionPressed()
+            self.gasData = None
             #Not loading a file any more
             self.loading = False
     
@@ -455,8 +473,8 @@ class MainWindow(tkinter.Frame):
             #If unable to do so, create a new setup window
             self.setupCreateWindow = tkinter.Toplevel(self.parent)
             self.setupCreateWindow.transient(self.parent)
-            self.setupCreateWindow.geometry("850x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
-            self.setupCreateWindow.minsize(550, 400)
+            self.setupCreateWindow.geometry("900x610+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 305)))
+            self.setupCreateWindow.minsize(900, 610)
             self.setupCreateWindow.title("Create Setup File")
             self.setupCreateWindow.grid_rowconfigure(0, weight=1)
             self.setupCreateWindow.grid_columnconfigure(0, weight=1)
@@ -583,26 +601,34 @@ class MainWindow(tkinter.Frame):
                 changing = False
     
     def backPressedGas(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
+        if not self.loading:
             self.moveWindows(1)
 
     def nextPressedGas(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
-            if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
-                #Setup progress bar, so it looks correct when window changes
-                self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
-                #Do not allow user to move
-                self.processingNextButton.configure(state="disabled")
-                self.processingBackButton.configure(state="disabled")
-                self.progressBar["value"] = 0
-                #Reset progress values
-                self.progress = [0, len(self.eventData), "Processing: {0}%"]
-                self.moveWindows(3)
-                #Wait a moment to start the data processing, this allows the window to change before anything else needs to happen
-                self.after(250, self.startProcessing)
+        if not self.loading:
+            self.hoseLength = [-1.0, -1.0]
+            if self.dilutionType == "automatic":
+                try:
+                    self.hoseLength[0] = float(self.hoseLength1Entry.get())
+                    self.hoseLength[1] = float(self.hoseLength2Entry.get())
+                except:
+                    self.sendNotification("Invalid hose lengths", "Please enter hose lengths for automatic dilution calculations")
+            if self.gasData == None or (self.dilutionType == "none" or self.dilutionType == "manual" or (self.dilutionType == "automatic" and self.hoseLength[0] >= 0 and self.hoseLength[1] >= 0)):
+                if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
+                    #Setup progress bar, so it looks correct when window changes
+                    self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
+                    #Do not allow user to move
+                    self.processingNextButton.configure(state="disabled")
+                    self.processingBackButton.configure(state="disabled")
+                    self.progressBar["value"] = 0
+                    #Reset progress values
+                    self.progress = [0, len(self.eventData), "Processing: {0}%"]
+                    self.moveWindows(3)
+                    #Wait a moment to start the data processing, this allows the window to change before anything else needs to happen
+                    self.after(250, self.startProcessing)
 
     def automaticDilutionPressed(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
+        if not self.loading:
             if self.dilutionType != "automatic":
                 self.dilutionType = "automatic"
                 self.dilutionAutomaticFrame.tkraise()
@@ -611,7 +637,7 @@ class MainWindow(tkinter.Frame):
                 self.noDilutionButton.configure(bg="red")
 
     def manualDilutionPressed(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
+        if not self.loading:
             if self.dilutionType != "manual":
                 self.dilutionType = "manual"
                 self.dilutionManualFrame.tkraise()
@@ -620,46 +646,13 @@ class MainWindow(tkinter.Frame):
                 self.noDilutionButton.configure(bg="red")
     
     def noDilutionPressed(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
+        if not self.loading:
             if self.dilutionType != "none":
                 self.dilutionType = "none"
                 self.noDilutionFrame.tkraise()
                 self.dilutionManualButton.configure(bg="red")
                 self.dilutionAutomaticButton.configure(bg="red")
                 self.noDilutionButton.configure(bg="lightgreen")
-
-    def addGasFilePressed(self) -> None:
-        if not self.gasConfigOpen and not self.loading:
-            newData = self.loadGasFile()
-            if newData["name"] != "" and len(newData["data"]) > 0:
-                self.addGasFileObject(newData["name"], newData["data"])
-    
-    def closeGasConfigure(self):
-        self.saveGasConfig()
-        self.currentGasObject = None
-        self.gasConfigureWindow.withdraw()
-        self.gasConfigOpen = False
-
-    def closeVolumeConfigure(self):
-        self.saveVolumeConfig()
-        self.manualDilutionWindow.withdraw()
-        self.volumeConfigOpen = False
-
-    def configureVolumePressed(self) -> None:
-        if not self.gasConfigOpen and not self.volumeConfigOpen and not self.loading:
-            self.volumeConfigOpen = True
-            for index in range(0, 15):
-                self.gasVolumeEntries[index].delete(0, tkinter.END)
-                self.gasVolumeEntries.insert(0, self.givenInternalVolumes)
-            self.manualDilutionWindow.deiconify()
-    
-    def saveVolumeConfig(self) -> None:
-        for index in range(0, 15):
-            try:
-                value = float(self.gasVolumeEntries[index].get())
-                self.givenInternalVolumes[index] = value
-            except:
-                pass
     
     def startProcessing(self) -> None:
         '''Begin the threads that perform the calculations and update the progress'''
@@ -693,17 +686,18 @@ class MainWindow(tkinter.Frame):
                     elif self.dilutionType == "automatic":
                         if len(self.setupData[0]) > 7:
                             for index in range(1, 16):
-                                for i in range(len(self.setupData[index]), 9):
-                                    self.setupData[index].append(0.0)
+                                for i in range(len(self.setupData[index]), 10):
+                                    self.setupData[index].append("0.0".replace(".", self.decimal))
                             try:
-                                fixedVolume = 200
-                                reactorTotal = 964
-                                hoseVolume = 12.56 * self.hoseLengthEntry.get() #ml
+                                hoseVolume1 = self.hoseVolumePerMeter * self.hoseLength[0]
+                                hoseVolume2 = self.hoseVolumePerMeter * self.hoseLength[1]
                                 for i in range(0, 15):
-                                    sampleVolume = self.setupData[index][7]
-                                    reactorInternal = reactorTotal - sampleVolume
-                                    self.setupData[i + 1][9] = reactorInternal + fixedVolume + hoseVolume
-                            except:
+                                    sampleVolume = float(self.setupData[index][7])
+                                    reactorInternal = self.reactorTotal - sampleVolume
+                                    self.setupData[i + 1][9] = str(reactorInternal  + hoseVolume1).replace(".", self.decimal)
+                                    self.setupData[i + 1][10] = str(self.gfmInternal + hoseVolume2).replace(".", self.decimal)
+                            except Exception as e:
+                                print(e)
                                 dilutionReady = False
                         else:
                             dilutionReady = False
