@@ -11,7 +11,6 @@ import newCalculations
 import createSetup
 from PIL import Image, ImageTk
 import notifypy
-import math
 
 class MainWindow(tkinter.Frame):
     '''Class to contain all of the menus'''
@@ -71,6 +70,7 @@ class MainWindow(tkinter.Frame):
         self.gfmInternal = 112.2
         self.reactorTotal = 964.0
         self.hoseVolumePerMeter = 12.56
+        self.sampleDensity = 1.028
 
         self.givenInternalVolumes = [0.0] * 15
 
@@ -172,56 +172,60 @@ class MainWindow(tkinter.Frame):
         self.eventBackButton.pack(side="left", anchor="s")
         self.eventNextButton.pack(side="right", anchor="s")
 
+        #Setup internal grid for gas window        
         for row in range(0, 3):
             self.gasWindow.grid_rowconfigure(row, weight=1)
         self.gasWindow.grid_columnconfigure(0, weight=1)
 
+        #Frame to load the gas file into
         self.gasFileFrame = tkinter.Frame(self.gasWindow)
         self.gasFileFrame.grid(row=0, column=0, sticky="NESW")
+        #Frame to setup the dilution
         self.gasDilutionFrame = tkinter.Frame(self.gasWindow)
         self.gasDilutionFrame.grid(row=1, column=0, sticky="NESW")
 
+        #Label for gas file
         self.gasFileTitle = tkinter.Label(self.gasFileFrame, text="Gas Event File", font=self.fonts["mediumBold"])
         self.gasFileTitle.pack(side="top", anchor="center", fill="x", expand=True)
-
+        #Button to load the gas file
         self.loadGasFileButton = tkinter.Button(self.gasFileFrame, text="Load Gas File", command=self.loadGasFile, font=self.fonts["medium"])
         self.loadGasFileButton.pack(side="top", anchor="center", expand=True)
         #File information label
         self.gasFileLabel = tkinter.Label(self.gasFileFrame, text="No Gas File Loaded", fg=self.red)
         self.gasFileLabel.pack(side="top", anchor="center", expand=True)
-
+        #Label for dilution
         self.gasDilutionTitle = tkinter.Label(self.gasDilutionFrame, text="Dilution Adjustment", font=self.fonts["mediumBold"])
         self.gasDilutionTitle.pack(side="top", anchor="center", fill="x", expand=True)
-
+        #Frame to hold different types of dilution controls
         self.dilutionTypeFrame = tkinter.Frame(self.gasDilutionFrame)
         self.dilutionTypeFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
-
+        #Buttons for automatic, manual or no dilution
         self.dilutionAutomaticButton = tkinter.Button(self.dilutionTypeFrame, text="Automatic BMP", bg="red", font=self.fonts["medium"], command=self.automaticDilutionPressed, state="disabled")
         self.dilutionAutomaticButton.pack(side="left", expand=True, padx=(150, 0), pady=2)
         self.dilutionManualButton = tkinter.Button(self.dilutionTypeFrame, text="Manual", bg="red", font=self.fonts["medium"], command=self.manualDilutionPressed, state="disabled")
         self.dilutionManualButton.pack(side="left", expand=True, padx=(25, 25), pady=2)
         self.noDilutionButton = tkinter.Button(self.dilutionTypeFrame, text="No Dilutuion", bg="lightgreen", font=self.fonts["medium"], command=self.noDilutionPressed)
         self.noDilutionButton.pack(side="left", expand=True, padx=(0, 150), pady=2)
-
+        #Frame to hold different sections for each type of dilution
         self.dilutionInputFrame = tkinter.Frame(self.gasDilutionFrame)
         self.dilutionInputFrame.pack(side="top", anchor="center", fill="x", expand=True, padx=10, pady=2)
         self.dilutionInputFrame.grid_rowconfigure(0, weight=1)
         self.dilutionInputFrame.grid_columnconfigure(0, weight=1)
-
+        #Frame to hold manual dilution controls
         self.dilutionManualFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionManualFrame.grid(row=0, column=0, sticky="NESW")
-
+        #Label for manual information
         self.manualDilutionLabel = tkinter.Label(self.dilutionManualFrame, text="Using manual internal volumes from setup file.", font=self.fonts["medium"])
         self.manualDilutionLabel.pack(side="top", anchor="center", expand=True, pady=2, padx=10)
-
+        #Frame to hold automatic dilution controls
         self.dilutionAutomaticFrame = tkinter.Frame(self.dilutionInputFrame)
         self.dilutionAutomaticFrame.grid(row=0, column=0, sticky="NESW")
-
+        #Frames to hold the hose length inputs centered
         self.hoseLength1Frame = tkinter.Frame(self.dilutionAutomaticFrame)
         self.hoseLength1Frame.pack(side="top", anchor="center", expand=True, pady=5)
         self.hoseLength2Frame = tkinter.Frame(self.dilutionAutomaticFrame)
         self.hoseLength2Frame.pack(side="top", anchor="center", expand=True, pady=5)
-
+        #Labels and entries to let the user enter the two hose lengths        
         self.hoseLength1Label = tkinter.Label(self.hoseLength1Frame, text="Hose length to flow meter (m):", font=self.fonts["medium"])
         self.hoseLength1Label.pack(side="left")
         self.hoseLength1Entry = tkinter.Entry(self.hoseLength1Frame, width=8, font=self.fonts["medium"], justify="center")
@@ -230,13 +234,13 @@ class MainWindow(tkinter.Frame):
         self.hoseLength2Label.pack(side="left")
         self.hoseLength2Entry = tkinter.Entry(self.hoseLength2Frame, width=8, font=self.fonts["medium"], justify="center")
         self.hoseLength2Entry.pack(side="left")
-
+        #Frame for no dilution used
         self.noDilutionFrame = tkinter.Frame(self.dilutionInputFrame)
         self.noDilutionFrame.grid(row=0, column=0, sticky="NESW")
-
+        #Info label for user to indicate which values are being used
         self.noDilutionLabel = tkinter.Label(self.noDilutionFrame, text="Dilution will not be used, only original sensor values will be included.", font=self.fonts["medium"])
         self.noDilutionLabel.pack(side="top", anchor="center", expand=True, fill="x", pady=2, padx=10)
-
+        #Frame and buttons for next and back controls
         self.gasButtonsFrame = tkinter.Frame(self.gasWindow)
         self.gasButtonsFrame.grid(row=2, column=0, sticky="NESW")
         self.gasBackButton = tkinter.Button(self.gasButtonsFrame, text="Back", font=self.fonts["medium"], command=self.backPressedGas)
@@ -601,19 +605,30 @@ class MainWindow(tkinter.Frame):
                 changing = False
     
     def backPressedGas(self) -> None:
+        '''Move back to the event screen from the gas screen'''
         if not self.loading:
             self.moveWindows(1)
 
     def nextPressedGas(self) -> None:
+        '''Check the values in the gas info and progress to the processing screen'''
+        #If a file is not being loaded
         if not self.loading:
+            #Reset hose lengths
             self.hoseLength = [-1.0, -1.0]
+            #If using the automatic values
             if self.dilutionType == "automatic":
+                #Attempt to read the values entered as floats - report an error if it failed
                 try:
                     self.hoseLength[0] = float(self.hoseLength1Entry.get())
                     self.hoseLength[1] = float(self.hoseLength2Entry.get())
+                    #Report error if negative values are entered
+                    if self.hoseLength[0] < 0 or self.hoseLength[1] < 0:
+                        self.sendNotification("Invalid hose lengths", "Please enter positive hose lengths for automatic dilution calculations")
                 except:
                     self.sendNotification("Invalid hose lengths", "Please enter hose lengths for automatic dilution calculations")
+            #If there was no gas data or using no or manual dilution or in automatic mode and valid hose lengths have been entered
             if self.gasData == None or (self.dilutionType == "none" or self.dilutionType == "manual" or (self.dilutionType == "automatic" and self.hoseLength[0] >= 0 and self.hoseLength[1] >= 0)):
+                #If there is setup and event data
                 if self.setupData != None and len(self.setupData) > 0 and self.eventData != None and len(self.eventData) > 0:
                     #Setup progress bar, so it looks correct when window changes
                     self.styles.configure("ProgressbarLabeled", text="Processing: 0%", background="lightgreen")
@@ -628,8 +643,12 @@ class MainWindow(tkinter.Frame):
                     self.after(250, self.startProcessing)
 
     def automaticDilutionPressed(self) -> None:
+        '''Switch to automatic dilution mode'''
+        #If a file is not being loaded
         if not self.loading:
+            #If this is a change
             if self.dilutionType != "automatic":
+                #Change the type, colours of the buttons and raise the correct window
                 self.dilutionType = "automatic"
                 self.dilutionAutomaticFrame.tkraise()
                 self.dilutionManualButton.configure(bg="red")
@@ -637,8 +656,12 @@ class MainWindow(tkinter.Frame):
                 self.noDilutionButton.configure(bg="red")
 
     def manualDilutionPressed(self) -> None:
+        '''Switch to manual dilution mode'''
+        #If a file is not being loaded
         if not self.loading:
+            #If this is a change
             if self.dilutionType != "manual":
+                #Change the type, colours of the buttons and raise the correct window
                 self.dilutionType = "manual"
                 self.dilutionManualFrame.tkraise()
                 self.dilutionManualButton.configure(bg="lightgreen")
@@ -646,8 +669,12 @@ class MainWindow(tkinter.Frame):
                 self.noDilutionButton.configure(bg="red")
     
     def noDilutionPressed(self) -> None:
+        '''Switch to manual dilution mode'''
+        #If a file is nor being loaded
         if not self.loading:
+            #If this is a change
             if self.dilutionType != "none":
+                #Change the type, colours of the buttons and raise the correct window
                 self.dilutionType = "none"
                 self.noDilutionFrame.tkraise()
                 self.dilutionManualButton.configure(bg="red")
@@ -675,35 +702,53 @@ class MainWindow(tkinter.Frame):
         if self.setupData != None and self.eventData != None:
             gasReady = True
             dilutionReady = True
+            #If there is gas data
             if self.gasData != None and len(self.gasData) > 0:
+                #If there is enough information in the setup file to process gas
                 if len(self.setupData[0]) > 6:
+                    #If in manual dilution mode
                     if self.dilutionType == "manual":
+                        #Check that there are values for each of the manual volumes
                         try:
                             for index in range(1, 16):
-                                test = self.setupData[index][9]
+                                test = self.setupData[index][10]
                         except:
+                            #Not enough values entered into setup file
                             dilutionReady = False
+                    #If in automatic mode
                     elif self.dilutionType == "automatic":
+                        #If there are enough values to perform the automatic calculation
                         if len(self.setupData[0]) > 7:
+                            #Iterate through channels
                             for index in range(1, 16):
+                                #Add any extra values that are needed but not present
                                 for i in range(len(self.setupData[index]), 10):
                                     self.setupData[index].append("0.0".replace(".", self.decimal))
                             try:
+                                #Calculate the hose volumes from the entered lengths
                                 hoseVolume1 = self.hoseVolumePerMeter * self.hoseLength[0]
                                 hoseVolume2 = self.hoseVolumePerMeter * self.hoseLength[1]
+                                #Iterate reactor channels
                                 for i in range(0, 15):
-                                    sampleVolume = float(self.setupData[index][7])
+                                    #Calculate the volume of the sample from approximade density
+                                    sampleVolume = float(self.setupData[index][7]) / self.sampleDensity
+                                    #Find remaining reactor volume
                                     reactorInternal = self.reactorTotal - sampleVolume
+                                    #Add reactor and hose volume
                                     self.setupData[i + 1][9] = str(reactorInternal  + hoseVolume1).replace(".", self.decimal)
+                                    #Add gfm bucket and hose volume
                                     self.setupData[i + 1][10] = str(self.gfmInternal + hoseVolume2).replace(".", self.decimal)
-                            except Exception as e:
-                                print(e)
+                            except:
+                                #Invalid entry for volumes
                                 dilutionReady = False
                         else:
+                            #Not enough values in setup file
                             dilutionReady = False
                 else:
+                    #Not enough information in setup file
                     gasReady = False
             
+            #If gas is being used and nothing went wrong with the dilution calculations
             if gasReady:
                 if dilutionReady:
                     #Call for the calculations and receive the results and any errors   
