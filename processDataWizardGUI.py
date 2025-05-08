@@ -899,7 +899,7 @@ class MainWindow(tkinter.Frame):
         '''Save the continuous log to a file'''
         self.saveFile(self.continuousLog, "Save continuous log to csv file")
 
-    def saveFile(self, data, prompt) -> None:
+    def saveFile(self, data : list, prompt : str) -> None:
         '''Save the data given into a user selected file using the given prompt as a title'''
         #If not alrady trying to save a file
         if not self.saving:
