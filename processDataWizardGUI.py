@@ -850,20 +850,20 @@ class MainWindow(tkinter.Frame):
                         
                     else:
                         #Display the error if it occurred and update the bar to show it failed
-                        self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                        self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background=self.red)
                         self.sendNotification("Error", error)
 
                 else:
                     #Display the error if it occurred and update the bar to show it failed
-                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background=self.red)
                     self.sendNotification("Error", "Invalid dilution volume, please check all values were entered correctly.")
             else:
                 #Display the error if it occurred and update the bar to show it failed
-                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222")
+                    self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background=self.red)
                     self.sendNotification("Error", "Invalid gas configuration, please check all setup values were entered correctly.")
         else:
             #Display error that files need to be loaded (should not generally occur but in case)
-            self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background="#DD2222", )
+            self.styles.configure("ProgressbarLabeled", text="Processing: Failed", background=self.red)
             self.sendNotification("Error", "Please select a setup and event log file first.")
         
         #No longer processing data, allow user to go back again
