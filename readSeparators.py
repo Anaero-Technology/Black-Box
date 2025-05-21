@@ -6,10 +6,9 @@ def read() -> list:
     try:
         #Attempt to read
         #Find path to file
-        basePath = os.path.expanduser("~")
-        basePath = os.path.join(basePath, "AppData", "Local", "AnaeroGFM")
+        filePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "options.txt")
         #Open the file
-        separatorFile = open(sys.path.join(basePath, "options.txt"), "r")
+        separatorFile = open(filePath, "r")
         #Read all data from it
         data = separatorFile.read()
         data = data.split("\n")
@@ -59,7 +58,8 @@ def read() -> list:
         writeSeparators(0, ",", ".")
         return ",", "."
     
-    except:
+    except Exception as e:
+        print(e)
         #If something went wrong (no file or format error) - default to comma separated
         writeSeparators(0, ",", ".")
         return ",", "."
