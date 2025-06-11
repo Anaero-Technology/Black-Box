@@ -12,9 +12,10 @@ import processDataWizardGUI
 import tipObserverGUI
 import dataReceiveGUI
 import notifypy
+import tktimepicker
 
 class MainWindow(tkinter.Frame):
-    '''Class for the settings window toplevel'''
+    '''Class for the main window toplevel'''
     def __init__ (self, parent, rw = None, *args, **kwargs):
         #Initialise parent class
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
@@ -101,23 +102,28 @@ class MainWindow(tkinter.Frame):
 
         self.buttonsFrame = tkinter.Frame(self)
         self.buttonsFrame.grid(row=2, column=0, sticky="NESW")
-        self.buttonsFrame.grid_columnconfigure(0, weight=4)
-        self.buttonsFrame.grid_columnconfigure(1, weight=1)
+        self.buttonsFrame.grid_columnconfigure(0, weight=2)
+        self.buttonsFrame.grid_columnconfigure(1, weight=2)
+        self.buttonsFrame.grid_columnconfigure(2, weight=1)
         self.buttonsFrame.grid_rowconfigure(0, weight=0)
 
         self.analysisButton = tkinter.Button(self.buttonsFrame, text="Analyse Data", font=("", 16), command=self.analysisButtonPressed)
         self.analysisButton.grid(row=0, column=0)
 
+        self.autoButton = tkinter.Button(self.buttonsFrame, text="Auto Download", font=("", 16), command=self.openAutoWindow)
+        self.autoButton.grid(row=0, column=1)
+
         self.analysisWindow = None
 
         self.settingsImage = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.settingsButton = tkinter.Button(self.buttonsFrame, image=self.settingsImage, command=self.settingsButtonPressed)
-        self.settingsButton.grid(row=0, column=1)
+        self.settingsButton.grid(row=0, column=2)
 
         #Objects to hold windows
         self.settingsWindow = None
         self.monitorWindow = None
         self.receiveWindow = None
+        self.autoWindow = None
 
         #Connection timeouts
         self.timeout = 4000000000
@@ -999,6 +1005,19 @@ class MainWindow(tkinter.Frame):
         notification.icon = self.pathTo("images/icon.png")
         notification.send()
 
+    def openAutoWindow(self) -> None:
+        #Add checks for existing and destroying
+        self.autoWindow = tkinter.Toplevel(self.parent)
+        self.autoWindow.transient(self.parent)
+        self.autoWindow.grid_columnconfigure(0, weight=1)
+        self.autoWindow.grid_rowconfigure(0, weight=1)
+        self.autoWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
+        self.autoWindow.minsize(600, 500)
+        self.autoWindow.title("Automatic Download")
+        #Object for user interface
+        AutoWindow(self.autoWindow).grid(row=0, column=0, sticky="NESW")
+        self.autoWindow.focus()
+
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
         #Update canvas bounding box
@@ -1318,6 +1337,140 @@ class SettingsWindow(tkinter.Frame):
 
         #The separator is valid and the entry value can be updated
         return True
+    
+class AutoWindow(tkinter.Frame):
+    '''Class for the auto download window toplevel'''
+    def __init__ (self, parent, *args, **kwargs):
+        #Initialise parent class
+        tkinter.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=5)
+
+        self.downloadTime = {"hour":-1, "minute":-1}
+
+        self.green = "#55DD55"
+        self.largeFont = ("", 14)
+        self.normalFont = ("", 10)
+
+        self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
+
+        self.timeFrame = tkinter.Frame(self)
+        self.timeFrame.grid(row=0, column=0, sticky="NESW")
+
+        self.addFrame = tkinter.Frame(self)
+        self.addFrame.grid(row=1, column=0, sticky="NESW")
+
+        self.listFrame = tkinter.Frame(self)
+        self.listFrame.grid(row=2, column=0, sticky="NESw")
+
+        self.timePicker = tkinter.Toplevel()
+        self.timePicker.geometry("250x150+{0}+{1}".format(int(self.screenCentre[0] - 125), int(self.screenCentre[1] - 75)))
+        self.timePicker.minsize(250, 150)
+        self.timePicker.title("Choose Time")
+        self.timingChoice = tktimepicker.SpinTimePickerModern(self.timePicker)
+        self.timingChoice.addAll(tktimepicker.constants.HOURS24)
+        self.timingChoice.configureAll(bg="#404040", height=1, fg="#ffffff", font=("", 16), hoverbg="#404040", hovercolor="#d73333", clickedbg="#2e2d2d", clickedcolor="#d73333")
+        self.timingChoice.configure_separator(bg="#404040", fg="#ffffff")
+        self.timingChoice.pack(expand="true", fill="both")
+        self.timingChoice.setMins(0)
+        self.timingChoice.set24Hrs(9)
+        self.timingChoiceConfirm = tkinter.Button(self.timePicker, text="Confirm", font=self.largeFont, command=self.acceptTime)
+        self.timingChoiceConfirm.pack(expand="true")
+        self.timePicker.protocol("WM_DELETE_WINDOW", self.closeTimePicker)
+        self.timePicker.withdraw()
+
+        self.timingLabel = tkinter.Label(self.timeFrame, text="Download Time: --:--", font=self.largeFont)
+        self.timingChange = tkinter.Button(self.timeFrame, text="Change", font=self.largeFont, command=self.changeTimePressed)
+        self.timingCancel = tkinter.Button(self.timeFrame, text="Remove", font=self.largeFont, command="")
+        self.timingLabel.pack(expand=True, side="left", anchor="center", padx=2)
+        self.timingChange.pack(expand=True, side="left", anchor="center", padx=2)
+        self.timingCancel.pack(expand=True, side="left", anchor="center", padx=2)
+        
+        self.addButton = tkinter.Button(self.addFrame, text="+ Add Device", command="", relief="flat", fg=self.green, font=self.largeFont)
+        self.addButton.pack(expand="true", anchor="center")
+
+        self.deviceListCanvas = tkinter.Canvas(self.listFrame)
+
+        self.updateTime()
+    
+    def changeTimePressed(self) -> None:
+        self.timePicker.deiconify()
+        self.timePicker.focus()
+
+    def closeTimePicker(self) -> None:
+        self.timePicker.withdraw()
+    
+    def acceptTime(self) -> None:
+        newTime = self.timingChoice.time()
+        self.downloadTime["hour"] = newTime[0]
+        self.downloadTime["minute"] = newTime[1]
+        self.setFileTime()
+        self.updateTime()
+        self.closeTimePicker()
+
+    def getFileTime(self) -> None:
+        try:
+            timePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "downloadtime.txt")
+            timeFile = open(timePath, "r")
+            timeData = timeFile.read()
+            timeFile.close()
+            timeParts = timeData.split(":")
+            if len(timeParts) > 1:
+                hours = int(timeParts[0])
+                minutes = int(timeParts[1])
+                if hours > -1 and hours < 24 and minutes > -1 and hours < 60:
+                    self.downloadTime["hour"] = hours
+                    self.downloadTime["minute"] = minutes
+            else:
+                self.downloadTime["hour"] = -1
+                self.downloadTime["minute"] = -1
+
+        except:
+            self.downloadTime["hour"] = -1
+            self.downloadTime["minute"] = -1
+    
+    def setFileTime(self) -> None:
+        timePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(timePath).mkdir(parents=True, exist_ok=True)
+        timeFile = open(os.path.join(timePath, "downloadtime.txt"), "w")
+        timeFile.write("{0}:{1}".format(self.downloadTime["hour"], self.downloadTime["minute"]))
+        timeFile.close()
+    
+    def updateTime(self) -> None:
+        self.getFileTime()
+        hour = str(self.downloadTime["hour"])
+        minute = str(self.downloadTime["minute"])
+        if self.downloadTime["hour"] < 0 or self.downloadTime["hour"] > 23 or self.downloadTime["minute"] < 0 or self.downloadTime["minute"] > 59:
+            hour = "--"
+            minute = "--"
+        self.timingLabel.configure(text="Download Time: {0}:{1}".format(hour, minute))
+    
+    def removeTime(self) -> None:
+        self.downloadTime["hour"] = -1
+        self.downloadTime["minute"] = -1
+        self.setFileTime()
+        self.updateTime()
+
+    def addDevice(self) -> None:
+        pass
+
+    def saveDevices(self) -> None:
+        pass
+
+    def loadDevices(self) -> None:
+        pass
+
+    def changeDevicePort(self) -> None:
+        pass
+
+    def changeDeviceFolder(self) -> None:
+        pass
+
+    def removeDevice(self) -> None:
+        pass
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
