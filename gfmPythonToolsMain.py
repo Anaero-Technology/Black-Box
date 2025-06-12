@@ -1,5 +1,5 @@
 import tkinter
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, filedialog
 import serial
 from serial.tools import list_ports
 from threading import Thread
@@ -156,13 +156,25 @@ class MainWindow(tkinter.Frame):
 
         self.graphIcon = tkinter.PhotoImage(file=self.pathTo("images/graphIcon.png"))
 
+        self.downloadTime = [-1, -1]
+        self.lastDownloadDate = [1970, 1, 1]
+        self.autoDownloading = False
+        self.downloadSequence = []
+
         self.portChangesThread = None
         #Make a check for any changes
         self.checkForPortChanges()
 
+        self.getAutoTime()
+
         #Create and start a thread to scan the ports regularly
         self.portScanThread = Thread(target=self.repeatedScan, daemon=True)
         self.portScanThread.start()
+
+        self.autoThreadRunning = True
+
+        self.downloadThread = Thread(target=self.checkAutoThread, daemon=True)
+        self.downloadThread.start()
 
     
     def pathTo(self, path : str) -> str:
@@ -1046,6 +1058,58 @@ class MainWindow(tkinter.Frame):
         self.receiveWindow = None
         self.checkLastPort()
 
+    def getDownloadSequence(self) -> None:
+        pass
+
+    def getAutoTime(self) -> None:
+        try:
+            timePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "downloadtime.txt")
+            timeFile = open(timePath, "r")
+            timeData = timeFile.read()
+            timeFile.close()
+            timeParts = timeData.split(":")
+            if len(timeParts) > 1:
+                hours = int(timeParts[0])
+                minutes = int(timeParts[1])
+                if hours > -1 and hours < 24 and minutes > -1 and hours < 60:
+                    self.downloadTime = [hours, minutes]
+            else:
+                self.downloadTime = [-1, -1]
+
+        except:
+            self.downloadTime = [-1, -1]
+    
+    def checkAutoTime(self) -> bool:
+        if self.downloadTime[0] > -1 and self.downloadTime[0] < 24 and self.downloadTime[1] > -1 and self.downloadTime[1] < 60:
+            currentTime = datetime.datetime.now()
+            if self.lastDownloadDate[0] != currentTime.year and self.lastDownloadDate[1] != currentTime.month and self.lastDownloadDate[2] != currentTime.day:
+                if currentTime.hour > self.downloadTime[0] or (currentTime.hour == self.downloadTime[0] and currentTime.minute >= self.downloadTime[1]):
+                    return True
+        return False
+    
+    def tryAutoDownload(self) -> None:
+        if self.checkAutoTime():
+            self.getDownloadSequence()
+            if len(self.downloadSequence) > 0:
+                self.autoDownloading = True
+                self.autoProcessing = False
+            currentTime = datetime.datetime.now()
+            self.lastDownloadDate = [currentTime.year, currentTime.month, currentTime.day]
+    
+    def checkAutoThread(self) -> None:
+        while self.autoThreadRunning:
+            if not self.autoDownloading:
+                self.tryAutoDownload()
+            else:
+                for item in self.downloadSequence:
+                    #Download the item and store in folder
+                    pass
+                for item in self.downloadSequence:
+                    #Process with setup file and store result
+                    pass
+                self.autoDownloading = False
+            time.sleep(2)
+
     def displayMessage(self, title : str, message : str) -> None:
         '''Send user a popup notification with the current title and message'''
         #messagebox.showinfo(title=title, message=message)
@@ -1515,6 +1579,7 @@ class AutoWindow(tkinter.Frame):
         timeFile = open(os.path.join(timePath, "downloadtime.txt"), "w")
         timeFile.write("{0}:{1}".format(self.downloadTime["hour"], self.downloadTime["minute"]))
         timeFile.close()
+        self.parent.getAutoTime()
     
     def updateTime(self) -> None:
         self.getFileTime()
@@ -1547,6 +1612,10 @@ class AutoWindow(tkinter.Frame):
         portValue.trace_add("write", lambda _a, _b, _c:self.changedDevicePort)
         folderButton = tkinter.Button(frame, text="Choose Folder", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceFolder(x))
         setupButton = tkinter.Button(frame, text="Select Setup", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceSetup(x))
+        if folderPath != "":
+            folderButton.configure(text=folderPath.split("/")[-1])
+        if setupPath != "":
+            setupButton.configure(text=setupPath.split("/")[-1])
         removeButton = tkinter.Button(frame, text="Remove", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.removeDevice(x))
         portChoice.pack(side="left", expand=True)
         folderButton.pack(side="left", expand=True)
@@ -1571,10 +1640,8 @@ class AutoWindow(tkinter.Frame):
         deviceFile = open(os.path.join(devicePath, "autodownload.txt"), "w")
         deviceFile.write(data)
         deviceFile.close()
-        print("Saved:", data)
         
     def loadDevices(self) -> None:
-        print("Loading Devices")
         try:
             devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "autodownload.txt")
             deviceFile = open(devicePath, "r")
@@ -1582,7 +1649,6 @@ class AutoWindow(tkinter.Frame):
             deviceFile.close()
             deviceLines = deviceData.split("\n")
             for line in deviceLines:
-                print(line)
                 try:
                     parts = line.split(",")
                     portName = parts[0]
@@ -1598,10 +1664,30 @@ class AutoWindow(tkinter.Frame):
         self.saveDevices()
 
     def changeDeviceFolder(self, index : int) -> None:
-        pass
+        if index > -1 and index < len(self.deviceObjects):
+            oldFolder = self.deviceObjects[index]["folder"]
+            if not os.path.isdir(oldFolder):
+                oldFolder = ""
+            folder = filedialog.askdirectory(initialdir=oldFolder)
+            if folder != None and folder != "":
+                self.deviceObjects[index]["folder"] = folder
+                self.deviceObjects[index]["folderbutton"].configure(text=folder.split("/")[-1])
+                self.saveDevices()
 
     def changeDeviceSetup(self, index : int) -> None:
-        pass
+        if index > -1 and index < len(self.deviceObjects):
+            oldFolder = ""
+            try:
+                oldFolder = "/".join(self.deviceObjects[index]["setupPath"].split("/")[:-2])
+                if not os.path.isdir(oldFolder):
+                    oldFolder = ""
+            except:
+                pass
+            setupFile = filedialog.askopenfilename(title="Select Setup File", initialdir=oldFolder, filetypes=(("csv files", "*.csv"),))
+            if setupFile != None and setupFile != "":
+                self.deviceObjects[index]["setup"] = setupFile
+                self.deviceObjects[index]["setupbutton"].configure(text=setupFile.split("/")[-1])
+                self.saveDevices()
 
     def removeDevice(self, index : int) -> None:
         if index < len(self.deviceObjects):
