@@ -110,7 +110,7 @@ class MainWindow(tkinter.Frame):
         self.analysisButton = tkinter.Button(self.buttonsFrame, text="Analyse Data", font=("", 16), command=self.analysisButtonPressed)
         self.analysisButton.grid(row=0, column=0)
 
-        self.autoButton = tkinter.Button(self.buttonsFrame, text="Auto Download", font=("", 16), command=self.openAutoWindow)
+        self.autoButton = tkinter.Button(self.buttonsFrame, text="Auto Download", font=("", 16), command=self.autoButtonPressed)
         self.autoButton.grid(row=0, column=1)
 
         self.analysisWindow = None
@@ -859,23 +859,27 @@ class MainWindow(tkinter.Frame):
                         self.settingsWindow.focus()
                     except:
                         try:
-                            self.receiveWindow.lift()
-                            self.receiveWindow.focus()
+                            self.autoWindow.lift()
+                            self.autoWindow.focus()
                         except:
-                            #Create a new toplevel and configure it as data receive
-                            self.receiveWindow = tkinter.Toplevel(self.parent)
-                            self.receiveWindow.transient(self.parent)
-                            self.receiveWindow.grid_columnconfigure(0, weight=1)
-                            self.receiveWindow.grid_rowconfigure(0, weight=1)
-                            self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                            self.receiveWindow.minsize(400, 500)
-                            self.receiveWindow.title("File View - {0}".format(port))
-                            #Create object for interface
-                            window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
-                            window.grid(row=0, column=0, sticky="NESW")
-                            self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                            self.receiveWindow.focus()
-                            self.lastOpened = port
+                            try:
+                                self.receiveWindow.lift()
+                                self.receiveWindow.focus()
+                            except:
+                                #Create a new toplevel and configure it as data receive
+                                self.receiveWindow = tkinter.Toplevel(self.parent)
+                                self.receiveWindow.transient(self.parent)
+                                self.receiveWindow.grid_columnconfigure(0, weight=1)
+                                self.receiveWindow.grid_rowconfigure(0, weight=1)
+                                self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                                self.receiveWindow.minsize(400, 500)
+                                self.receiveWindow.title("File View - {0}".format(port))
+                                #Create object for interface
+                                window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
+                                window.grid(row=0, column=0, sticky="NESW")
+                                self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                                self.receiveWindow.focus()
+                                self.lastOpened = port
 
     def graphPressed(self, port : str, portName : str) -> None:
         '''If graph button is pressed on a port'''
@@ -895,23 +899,27 @@ class MainWindow(tkinter.Frame):
                         self.receiveWindow.focus()
                     except:
                         try:
-                            self.monitorWindow.lift()
-                            self.monitorWindow.focus()
+                            self.autoWindow.lift()
+                            self.autoWindow.focus()
                         except:
-                            #Create a new toplevel and configure it as data receive
-                            self.monitorWindow = tkinter.Toplevel(self.parent)
-                            self.monitorWindow.transient(self.parent)
-                            self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
-                            self.monitorWindow.minsize(1000, 750)
-                            self.monitorWindow.title("Monitor View - {0}".format(port))
-                            self.monitorWindow.grid_rowconfigure(0, weight=1)
-                            self.monitorWindow.grid_columnconfigure(0, weight=1)
-                            #Object for user interface
-                            window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
-                            window.grid(row=0, column=0, sticky="NESW")
-                            self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                            self.monitorWindow.focus()
-                            self.lastOpened = port
+                            try:
+                                self.monitorWindow.lift()
+                                self.monitorWindow.focus()
+                            except:
+                                #Create a new toplevel and configure it as data receive
+                                self.monitorWindow = tkinter.Toplevel(self.parent)
+                                self.monitorWindow.transient(self.parent)
+                                self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
+                                self.monitorWindow.minsize(1000, 750)
+                                self.monitorWindow.title("Monitor View - {0}".format(port))
+                                self.monitorWindow.grid_rowconfigure(0, weight=1)
+                                self.monitorWindow.grid_columnconfigure(0, weight=1)
+                                #Object for user interface
+                                window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
+                                window.grid(row=0, column=0, sticky="NESW")
+                                self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                                self.monitorWindow.focus()
+                                self.lastOpened = port
 
     def analysisButtonPressed(self) -> None:
         '''If analysis button is pressed'''
@@ -931,20 +939,24 @@ class MainWindow(tkinter.Frame):
                         self.receiveWindow.focus()
                     except:
                         try:
-                            self.analysisWindow.lift()
-                            self.analysisWindow.focus()
+                            self.autoWindow.lift()
+                            self.autoWindow.focus()
                         except:
-                            #Create a new toplevel and configure it as data receive
-                            self.analysisWindow = tkinter.Toplevel(self.parent)
-                            self.analysisWindow.transient(self.parent)
-                            self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
-                            self.analysisWindow.minsize(850, 650)
-                            self.analysisWindow.title("Analyse Data")
-                            self.analysisWindow.grid_rowconfigure(0, weight=1)
-                            self.analysisWindow.grid_columnconfigure(0, weight=1)
-                            #Object for user interface
-                            processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
-                            self.analysisWindow.focus()
+                            try:
+                                self.analysisWindow.lift()
+                                self.analysisWindow.focus()
+                            except:
+                                #Create a new toplevel and configure it as data receive
+                                self.analysisWindow = tkinter.Toplevel(self.parent)
+                                self.analysisWindow.transient(self.parent)
+                                self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+                                self.analysisWindow.minsize(850, 650)
+                                self.analysisWindow.title("Analyse Data")
+                                self.analysisWindow.grid_rowconfigure(0, weight=1)
+                                self.analysisWindow.grid_columnconfigure(0, weight=1)
+                                #Object for user interface
+                                processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
+                                self.analysisWindow.focus()
 
     def settingsButtonPressed(self) -> None:
         '''If settings button is pressed'''
@@ -964,20 +976,58 @@ class MainWindow(tkinter.Frame):
                         self.receiveWindow.focus()
                     except:
                         try:
+                            self.autoWindow.lift()
+                            self.autoWindow.focus()
+                        except:
+                            try:
+                                self.settingsWindow.lift()
+                                self.settingsWindow.focus()
+                            except:
+                                #Create a new toplevel and configure it as data receive
+                                self.settingsWindow = tkinter.Toplevel(self.parent)
+                                self.settingsWindow.transient(self.parent)
+                                self.settingsWindow.grid_columnconfigure(0, weight=1)
+                                self.settingsWindow.grid_rowconfigure(0, weight=1)
+                                self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                                self.settingsWindow.minsize(600, 300)
+                                self.settingsWindow.title("Settings")
+                                #Object for user interface
+                                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                                self.settingsWindow.focus()
+
+    def autoButtonPressed(self) -> None:
+        if not self.communicating:
+            #Check if another window is open then lift and focus it
+            try:
+                self.analysisWindow.lift()
+                self.analysisWindow.focus()
+            except:
+                try:
+                    self.monitorWindow.lift()
+                    self.monitorWindow.focus()
+                except:
+                    try:
+                        self.receiveWindow.lift()
+                        self.receiveWindow.focus()
+                    except:
+                        try:
                             self.settingsWindow.lift()
                             self.settingsWindow.focus()
                         except:
-                            #Create a new toplevel and configure it as data receive
-                            self.settingsWindow = tkinter.Toplevel(self.parent)
-                            self.settingsWindow.transient(self.parent)
-                            self.settingsWindow.grid_columnconfigure(0, weight=1)
-                            self.settingsWindow.grid_rowconfigure(0, weight=1)
-                            self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                            self.settingsWindow.minsize(600, 300)
-                            self.settingsWindow.title("Settings")
-                            #Object for user interface
-                            SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
-                            self.settingsWindow.focus()
+                            try:
+                                self.autoWindow.lift()
+                                self.autoWindow.focus()
+                            except:
+                                self.autoWindow = tkinter.Toplevel(self.parent)
+                                self.autoWindow.transient(self.parent)
+                                self.autoWindow.grid_columnconfigure(0, weight=1)
+                                self.autoWindow.grid_rowconfigure(0, weight=1)
+                                self.autoWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
+                                self.autoWindow.minsize(600, 500)
+                                self.autoWindow.title("Automatic Download")
+                                #Object for user interface
+                                AutoWindow(self.autoWindow).grid(row=0, column=0, sticky="NESW")
+                                self.autoWindow.focus()
 
     def checkLastPort(self) -> None:
         if self.lastOpened != "":
@@ -1004,19 +1054,6 @@ class MainWindow(tkinter.Frame):
         notification.message = message
         notification.icon = self.pathTo("images/icon.png")
         notification.send()
-
-    def openAutoWindow(self) -> None:
-        #Add checks for existing and destroying
-        self.autoWindow = tkinter.Toplevel(self.parent)
-        self.autoWindow.transient(self.parent)
-        self.autoWindow.grid_columnconfigure(0, weight=1)
-        self.autoWindow.grid_rowconfigure(0, weight=1)
-        self.autoWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
-        self.autoWindow.minsize(600, 500)
-        self.autoWindow.title("Automatic Download")
-        #Object for user interface
-        AutoWindow(self.autoWindow).grid(row=0, column=0, sticky="NESW")
-        self.autoWindow.focus()
 
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
@@ -1062,6 +1099,10 @@ class MainWindow(tkinter.Frame):
             pass
         try:
             self.settingsWindow.destroy()
+        except:
+            pass
+        try:
+            self.autoWindow.destroy()
         except:
             pass
         #Cancel the repeated action if necessary
@@ -1353,6 +1394,7 @@ class AutoWindow(tkinter.Frame):
 
         self.green = "#55DD55"
         self.largeFont = ("", 14)
+        self.mediumFont = ("", 12)
         self.normalFont = ("", 10)
 
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
@@ -1384,19 +1426,54 @@ class AutoWindow(tkinter.Frame):
 
         self.timingLabel = tkinter.Label(self.timeFrame, text="Download Time: --:--", font=self.largeFont)
         self.timingChange = tkinter.Button(self.timeFrame, text="Change", font=self.largeFont, command=self.changeTimePressed)
-        self.timingCancel = tkinter.Button(self.timeFrame, text="Remove", font=self.largeFont, command="")
+        self.timingCancel = tkinter.Button(self.timeFrame, text="Remove", font=self.largeFont, command=self.removeTime)
         self.timingLabel.pack(expand=True, side="left", anchor="center", padx=2)
         self.timingChange.pack(expand=True, side="left", anchor="center", padx=2)
         self.timingCancel.pack(expand=True, side="left", anchor="center", padx=2)
         
-        self.addButton = tkinter.Button(self.addFrame, text="+ Add Device", command="", relief="flat", fg=self.green, font=self.largeFont)
+        self.addButton = tkinter.Button(self.addFrame, text="+ Add Device", command=lambda:self.addDevice("", "", "", save=True), relief="flat", fg=self.green, font=self.largeFont)
         self.addButton.pack(expand="true", anchor="center")
 
         self.deviceListCanvas = tkinter.Canvas(self.listFrame)
+        self.deviceListScroll = tkinter.Scrollbar(self.listFrame, orient="vertical")
+        self.deviceListGridFrame = tkinter.Frame(self.deviceListCanvas)
+        self.rowsDone = 5
+        #Configure the scrollable frame's grid
+        self.deviceListGridFrame.grid_columnconfigure(0, weight=1)
+        for row in range(0, self.rowsDone):
+            self.deviceListGridFrame.grid_rowconfigure(row, minsize=45)
+        #Create a window in the canvas using the frame
+        self.deviceListCanvasWindow = self.deviceListCanvas.create_window(0, 0, window=self.deviceListGridFrame, anchor="nw")
+        #Update the canvas so it is correctly sized
+        self.deviceListCanvas.update_idletasks()
+        #Bind the configures of the frame and canvas to update the windows
+        self.deviceListGridFrame.bind("<Configure>", self.onFrameConfigure)
+        self.deviceListCanvas.bind("<Configure>", self.frameWidth)
+        self.frameWidth(None)
+
+        #Bind the mouse enter and leave so the scroll wheel can be used to scroll
+        self.deviceListGridFrame.bind("<Enter>", self.bindMouseWheel)
+        self.deviceListGridFrame.bind("<Leave>", self.unbindMouseWheel)
+
+        #Configure the scrollbar for the canvas
+        self.deviceListCanvas.configure(scrollregion=self.deviceListCanvas.bbox("all"), yscrollcommand=self.deviceListScroll.set)
+
+        #Pack the canvas and scrollbar
+        self.deviceListScroll.pack(side="right", fill="y")
+        self.deviceListCanvas.pack(side="left", expand=True, fill="both")
+
+        self.deviceObjects = []
 
         self.updateTime()
+        self.loadDevices()
     
     def changeTimePressed(self) -> None:
+        if self.downloadTime["hour"] != -1 and self.downloadTime["minute"] != -1:
+            self.timingChoice.setMins(self.downloadTime["minute"])
+            self.timingChoice.set24Hrs(self.downloadTime["hour"])
+        else:
+            self.timingChoice.setMins(0)
+            self.timingChoice.set24Hrs(9)
         self.timePicker.deiconify()
         self.timePicker.focus()
 
@@ -1454,23 +1531,116 @@ class AutoWindow(tkinter.Frame):
         self.setFileTime()
         self.updateTime()
 
-    def addDevice(self) -> None:
-        pass
+    def addDevice(self, portName : str, folderPath : str, setupPath : str, save=False) -> None:
+        frame = tkinter.Frame(self.deviceListGridFrame, highlightthickness=2, highlightbackground="black")
+        portValue = tkinter.StringVar()
+        portNames = [port.device for port in list_ports.comports(include_links=True)]
+        if portName != "" and portName != "None":
+            portValue.set(portName)
+            if portName not in portNames:
+                portNames.append(portName)
+        else:
+            portValue.set("None")
+        portNames = ["None"] + portNames
+        portChoice = tkinter.OptionMenu(frame, portValue, *portNames)
+        portChoice.configure(font=self.mediumFont)
+        portValue.trace_add("write", lambda _a, _b, _c:self.changedDevicePort)
+        folderButton = tkinter.Button(frame, text="Choose Folder", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceFolder(x))
+        setupButton = tkinter.Button(frame, text="Select Setup", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceSetup(x))
+        removeButton = tkinter.Button(frame, text="Remove", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.removeDevice(x))
+        portChoice.pack(side="left", expand=True)
+        folderButton.pack(side="left", expand=True)
+        setupButton.pack(side="left", expand=True)
+        removeButton.pack(side="left", expand=True)
+        device = {"frame":frame, "port":portValue, "portchoice":portChoice, "folder":folderPath, "setup":setupPath, "folderbutton":folderButton, "setupbutton":setupButton, "removebutton":removeButton, "index":len(self.deviceObjects)}
+        if len(self.deviceObjects) > self.rowsDone:
+            self.deviceListGridFrame.grid_rowconfigure(self.rowsDone, minsize=45)
+            self.rowsDone = self.rowsDone + 1
+        frame.grid(row=len(self.deviceObjects), column=0, sticky="EW")
+        self.deviceObjects.append(device)
+        if save:
+            self.saveDevices()
+
 
     def saveDevices(self) -> None:
-        pass
-
+        data = ""
+        for device in self.deviceObjects:
+            data = data + "{0},{1},{2}\n".format(device["port"].get(), device["folder"], device["setup"])
+        devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(devicePath).mkdir(parents=True, exist_ok=True)
+        deviceFile = open(os.path.join(devicePath, "autodownload.txt"), "w")
+        deviceFile.write(data)
+        deviceFile.close()
+        print("Saved:", data)
+        
     def loadDevices(self) -> None:
+        print("Loading Devices")
+        try:
+            devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "autodownload.txt")
+            deviceFile = open(devicePath, "r")
+            deviceData = deviceFile.read()
+            deviceFile.close()
+            deviceLines = deviceData.split("\n")
+            for line in deviceLines:
+                print(line)
+                try:
+                    parts = line.split(",")
+                    portName = parts[0]
+                    folder = parts[1]
+                    setupFile = parts[2]
+                    self.addDevice(portName, folder, setupFile, save=False)
+                except:
+                    pass
+        except:
+            pass
+
+    def changedDevicePort(self) -> None:
+        self.saveDevices()
+
+    def changeDeviceFolder(self, index : int) -> None:
         pass
 
-    def changeDevicePort(self) -> None:
+    def changeDeviceSetup(self, index : int) -> None:
         pass
 
-    def changeDeviceFolder(self) -> None:
-        pass
+    def removeDevice(self, index : int) -> None:
+        if index < len(self.deviceObjects):
+            for otherIndex in range(index + 1, len(self.deviceObjects)):
+                self.deviceObjects[otherIndex]["index"] = self.deviceObjects[otherIndex]["index"] - 1
+                self.deviceObjects[otherIndex]["removebutton"].configure(command=lambda x=self.deviceObjects[otherIndex]["index"]:self.removeDevice(x))
+                #self.deviceObjects[otherIndex]["port"].trace_remove("write")
+                #self.deviceObjects[otherIndex]["port"].trace_add("write", command=lambda x=self.deviceObjects[otherIndex]["index"]:self.changeDevicePort(x))
+        self.deviceObjects[index]["frame"].grid_remove()
+        del self.deviceObjects[index]
+        for device in self.deviceObjects:
+            device["frame"].grid(row=device["index"], column=0, sticky="EW")
 
-    def removeDevice(self) -> None:
-        pass
+    def onFrameConfigure(self, event) -> None:
+        '''Event called when canvas frame resized'''
+        #Update canvas bounding box
+        self.deviceListCanvas.configure(scrollregion=self.deviceListCanvas.bbox("all"))
+
+    def frameWidth(self, event) -> None:
+        '''Event called when canvas resized'''
+        #canvasWidth = event.width
+        canvasWidth = self.deviceListCanvas.winfo_width()
+        #Update size of window on canvas
+        self.deviceListCanvas.itemconfig(self.deviceListCanvasWindow, width=canvasWidth - 1)
+    
+    def bindMouseWheel(self, event) -> None:
+        '''Add mouse wheel binding to canvas'''
+        if self.deviceListCanvas != None:
+            self.deviceListCanvas.bind_all("<MouseWheel>", self.mouseWheelMove)
+
+    def unbindMouseWheel(self, event) -> None:
+        '''Remove mouse wheel binding from canvas'''
+        if self.deviceListCanvas != None:
+            self.deviceListCanvas.unbind_all("<MouseWheel>")
+
+    def mouseWheelMove(self, event) -> None:
+        '''Change y scroll position when mouse wheel moved'''
+        if self.deviceListCanvas != None:
+            self.deviceListCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
