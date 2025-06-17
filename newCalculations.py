@@ -77,7 +77,8 @@ def performGeneralCalculations(setupData, eventData, progress):
 
     eventCount = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-    progress[2] = "Processing: {0}%"
+    if progress != None:
+        progress[2] = "Processing: {0}%"
 
     try:
         #Iterate through every event in the log
@@ -161,7 +162,8 @@ def performGeneralCalculations(setupData, eventData, progress):
                 eventArray.append([channelId + 1, setup["names"][channelId], eventTime, day, hour, min, setup["tumblerVolume"][channelId], temperatureC, pressure, overall["tips"][channelId], eventVolume, overall["volumeSTP"][channelId], days[-1]["tips"][channelId], days[-1]["volumeSTP"][channelId], hours[-1]["tips"][channelId], hours[-1]["volumeSTP"][channelId], overall["volumeNet"][channelId]])
                 eventCount[channelId] = eventCount[channelId] + 1
             #Move progress bar forward
-            progress[0] = progress[0] + 1
+            if progress != None:
+                progress[0] = progress[0] + 1
 
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -169,9 +171,10 @@ def performGeneralCalculations(setupData, eventData, progress):
         #Something is wrong with the way the event log file is formatted - report error and stop
         return "Event file not formatted correctly, ensure that all fields are present and of the correct data type.", None, None, None, None
 
-    progress[2] = "Creating Files: {0}%"
-    progress[1] = len(hours) + len(days)
-    progress[0] = 0
+    if progress != None:
+        progress[2] = "Creating Files: {0}%"
+        progress[1] = len(hours) + len(days)
+        progress[0] = 0
     #Array to store hour data output
     hourArray = []
     #Stored totals for each channel

@@ -13,6 +13,12 @@ import tipObserverGUI
 import dataReceiveGUI
 import notifypy
 import tktimepicker
+import readSetup
+import newCalculations
+import readSeparators
+import createSetup
+
+import traceback
 
 class MainWindow(tkinter.Frame):
     '''Class for the main window toplevel'''
@@ -158,6 +164,7 @@ class MainWindow(tkinter.Frame):
 
         self.downloadTime = [-1, -1]
         self.lastDownloadDate = [1970, 1, 1]
+        self.datePart = "1970_1_1"
         self.autoDownloading = False
         self.downloadSequence = []
 
@@ -166,6 +173,7 @@ class MainWindow(tkinter.Frame):
         self.checkForPortChanges()
 
         self.getAutoTime()
+        self.loadAutoDownloadDate()
 
         #Create and start a thread to scan the ports regularly
         self.portScanThread = Thread(target=self.repeatedScan, daemon=True)
@@ -1038,7 +1046,7 @@ class MainWindow(tkinter.Frame):
                                 self.autoWindow.minsize(600, 500)
                                 self.autoWindow.title("Automatic Download")
                                 #Object for user interface
-                                AutoWindow(self.autoWindow).grid(row=0, column=0, sticky="NESW")
+                                AutoWindow(self.autoWindow, self).grid(row=0, column=0, sticky="NESW")
                                 self.autoWindow.focus()
 
     def checkLastPort(self) -> None:
@@ -1059,7 +1067,32 @@ class MainWindow(tkinter.Frame):
         self.checkLastPort()
 
     def getDownloadSequence(self) -> None:
-        pass
+        print("Getting auto sequence")
+        self.downloadSequence = []
+        try:
+            devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "autodownload.txt")
+            deviceFile = open(devicePath, "r")
+            deviceData = deviceFile.read()
+            deviceFile.close()
+            deviceLines = deviceData.split("\n")
+            for line in deviceLines:
+                print(line)
+                try:
+                    parts = line.split(",")
+                    portName = parts[0]
+                    folder = parts[1]
+                    setupFile = parts[2]
+                    print(portName, folder, setupFile)
+                    self.downloadSequence.append(FileDownloader(portName, folder, setupFile, self.datePart))
+                except:
+                    pass
+        except Exception:
+            print(traceback.format_exc())
+        
+        index = 0
+        for device in self.downloadSequence:
+            print("{0}:".format(index), device.pathToSave)
+            index = index + 1
 
     def getAutoTime(self) -> None:
         try:
@@ -1079,36 +1112,60 @@ class MainWindow(tkinter.Frame):
         except:
             self.downloadTime = [-1, -1]
     
+    def storeAutoDownloadDate(self) -> None:
+        datePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(datePath).mkdir(parents=True, exist_ok=True)
+        dateFile = open(os.path.join(datePath, "downloaddate.txt"), "w")
+        dateFile.write("{0},{1},{2}".format(*self.lastDownloadDate))
+        dateFile.close()
+
+    def loadAutoDownloadDate(self) -> None:
+        try:
+            datePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "downloaddate.txt")
+            dateFile = open(datePath, "r")
+            dateData = dateFile.read()
+            dateFile.close()
+            dateParts = dateData.split(",")
+            self.lastDownloadDate = [int(dateParts[0]), int(dateParts[1]), int(dateParts[2])]
+        except:
+            self.lastDownloadDate = [1970, 1, 1]
+    
     def checkAutoTime(self) -> bool:
+        print("Next:", self.downloadTime, "Last:", self.lastDownloadDate)
+        currentTime = datetime.datetime.now()
+        self.datePart = "{0}_{1}_{2}".format(currentTime.year, currentTime.month, currentTime.day)
         if self.downloadTime[0] > -1 and self.downloadTime[0] < 24 and self.downloadTime[1] > -1 and self.downloadTime[1] < 60:
-            currentTime = datetime.datetime.now()
-            if self.lastDownloadDate[0] != currentTime.year and self.lastDownloadDate[1] != currentTime.month and self.lastDownloadDate[2] != currentTime.day:
+            print(currentTime)
+            if self.lastDownloadDate[0] != currentTime.year or self.lastDownloadDate[1] != currentTime.month or self.lastDownloadDate[2] != currentTime.day:
                 if currentTime.hour > self.downloadTime[0] or (currentTime.hour == self.downloadTime[0] and currentTime.minute >= self.downloadTime[1]):
                     return True
         return False
     
     def tryAutoDownload(self) -> None:
         if self.checkAutoTime():
+            print("Auto download needed")
             self.getDownloadSequence()
             if len(self.downloadSequence) > 0:
                 self.autoDownloading = True
-                self.autoProcessing = False
             currentTime = datetime.datetime.now()
             self.lastDownloadDate = [currentTime.year, currentTime.month, currentTime.day]
+            self.storeAutoDownloadDate()
     
     def checkAutoThread(self) -> None:
         while self.autoThreadRunning:
+            print("Auto Downloading: {0}".format(self.autoDownloading))
             if not self.autoDownloading:
                 self.tryAutoDownload()
             else:
+                allFinished = True
                 for item in self.downloadSequence:
-                    #Download the item and store in folder
-                    pass
-                for item in self.downloadSequence:
-                    #Process with setup file and store result
-                    pass
-                self.autoDownloading = False
-            time.sleep(2)
+                    if item.working and not item.finished:
+                        allFinished = False
+                if allFinished:
+                    self.autoDownloading = False
+                    print("Automatic downloads completed")
+            time.sleep(5)
+        print("Auto download check terminated")
 
     def displayMessage(self, title : str, message : str) -> None:
         '''Send user a popup notification with the current title and message'''
@@ -1445,10 +1502,11 @@ class SettingsWindow(tkinter.Frame):
     
 class AutoWindow(tkinter.Frame):
     '''Class for the auto download window toplevel'''
-    def __init__ (self, parent, *args, **kwargs):
+    def __init__ (self, parent, control, *args, **kwargs):
         #Initialise parent class
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self.controller = control
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -1579,7 +1637,7 @@ class AutoWindow(tkinter.Frame):
         timeFile = open(os.path.join(timePath, "downloadtime.txt"), "w")
         timeFile.write("{0}:{1}".format(self.downloadTime["hour"], self.downloadTime["minute"]))
         timeFile.close()
-        self.parent.getAutoTime()
+        self.controller.getAutoTime()
     
     def updateTime(self) -> None:
         self.getFileTime()
@@ -1727,6 +1785,142 @@ class AutoWindow(tkinter.Frame):
         '''Change y scroll position when mouse wheel moved'''
         if self.deviceListCanvas != None:
             self.deviceListCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+class FileDownloader():
+    def __init__(self, portName, saveFolderPath, setupFilePath, dateString):
+        self.working = False
+        try:
+            self.serialConnection = serial.Serial(port=portName, baudrate=115200)
+            self.working = True
+            print("Port opened successfully {0}".format(portName))
+        except:
+            self.serialConnection = None
+            print("Port failed to open {0}".format(portName))
+        self.pathToSave = saveFolderPath
+        self.setupPath = setupFilePath
+        self.rawFileData = ""
+        self.currentLine = 0
+        self.processedFileData = ""
+        self.setupFileData = ""
+        self.currentFileName = ""
+        self.logging = False
+        self.downloadComplete = False
+        self.downloading = False
+        self.haveInfo = False
+        self.date = dateString
+        self.finished = False
+
+        self.column, self.decimal = readSeparators.read()
+
+        self.messageBuffer = ""
+        self.messages = []
+
+        self.readSetupFile()
+
+        self.readThread = Thread(target=self.readSerial, daemon=True)
+        self.readThread.start()
+
+        self.messageHandleThread = Thread(target=self.handleMessage, daemon=True)
+        self.messageHandleThread.start()
+
+        self.sendInfoMessage()
+
+    def readSetupFile(self) -> None:
+        try:
+            setupFile = open(self.setupPath)
+            setupData = setupFile.read()
+            setupFile.close()
+            finalSetupData = readSetup.formatData(setupData)
+            self.setupFileData = finalSetupData
+        except:
+            self.setupFileData = ""
+    
+    def sendInfoMessage(self):
+        if self.serialConnection != None:
+            self.serialConnection.write("info\n".encode("utf-8"))
+
+    def readSerial(self) -> None:
+        while self.serialConnection != None:
+            try:
+                char = self.serialConnection.read()
+                if len(char) > 0:
+                    c = char.decode("utf-8")
+                    if c == "\n":
+                        if len(self.messageBuffer) > 0:
+                            self.messages.append(self.messageBuffer)
+                            self.messageBuffer = ""
+                    elif c not in ['\r', '\0']:
+                        self.messageBuffer = self.messageBuffer + c
+            except:
+                pass
+
+    def handleMessage(self) -> None:
+        if len(self.messages) > 0:
+            messageParts = self.messages[0].split(" ")
+            if len(messageParts) > 0:
+                try:
+                    if messageParts[0] == "info" and len(messageParts) > 2:
+                        self.logging = messageParts[1] == "1"
+                        self.currentFileName = messageParts[2]
+                        if not self.downloadComplete:
+                            self.downloadFile()
+                    if messageParts[0] == "download":
+                        if messageParts[1] == "start":
+                            self.rawFileData = ""
+                            self.downloadComplete = False
+                            self.currentLine = 0
+                        elif messageParts[1] == "stop":
+                            self.downloadComplete = True
+                            self.downloading = False
+                            self.processFile()
+                        elif messageParts[1] == "failed":
+                            self.downloading = False
+                            self.downloadFile()
+                        else:
+                            for index in range(1, len(messageParts)):
+                                messageParts[index] = messageParts[index].replace(".", self.decimal).replace(":", self.decimal).replace("\r", "")
+                            self.rawFileData = self.rawFileData + self.column.join(messageParts[1:]) + "\n"
+                            self.serialConnection.write("next\n".encode("utf-8"))
+                except:
+                    pass
+                        
+    def downloadFile(self) -> None:
+        if self.serialConnection != None and not self.downloading and self.logging and self.currentFileName != "":
+            self.serialConnection.write("download {}\n".format(self.currentFileName).encode("utf-8"))
+            self.downloading = True
+
+    def processFile(self) -> None:
+        error, event, hour, day, setup = newCalculations.performGeneralCalculations(self.setupFileData, readSetup.formatData(self.rawFileData), None)
+        if error == None:
+            self.processedFileData = createSetup.convertArrayToString(day)
+        else:
+            self.processedFileData = ""
+        
+        self.saveFiles()
+    
+    def saveFiles(self) -> None:
+        try:
+            if self.rawFileData != "" and self.downloadComplete:
+                pathlib.Path(os.path.join(self.pathToSave, "raw_files")).mkdir(parents=True, exist_ok=True)
+                rawFile = open(os.path.join(self.pathToSave, "raw_files", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv") ), "w")
+                rawFile.write(self.rawFileData)
+        except:
+            pass
+        try:
+            if self.processedFileData != "" and self.downloadComplete:
+                pathlib.Path(os.path.join(self.pathToSave, "daily_data")).mkdir(parents=True, exist_ok=True)
+                dayFile = open(os.path.join(self.pathToSave, "daily_data", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv") ), "w")
+                dayFile.write(self.processedFileData)
+        except:
+            pass
+
+        self.finished = True
+        self.close()
+
+    def close(self) -> None:
+        self.serialConnection.close()
+        self.serialConnection = None
+            
 
 #Only run if this is the main module being run
 if __name__ == "__main__":
