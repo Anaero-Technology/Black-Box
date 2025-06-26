@@ -199,7 +199,8 @@ def performGeneralCalculations(setupData, eventData, progress):
             totalNetVolume[channelId] = totalNetVolume[channelId] + hour["volumeNet"][channelId]
             #Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)
             hourArray.append([channelId + 1, setup["names"][channelId], timestamp, d, h, 0, setup["inUse"][channelId], hour["tips"][channelId], round(hour["volumeSTP"][channelId], 3), round(hour["volumeNet"][channelId], 3), round(totalNetVolume[channelId], 3), round(totalVolume[channelId], 3)])
-        progress[0] = progress[0] + 1
+        if progress != None:
+            progress[0] = progress[0] + 1
     #Array to store day data output
     dayArray = []
     #Stored totals for each channel
@@ -219,7 +220,8 @@ def performGeneralCalculations(setupData, eventData, progress):
             totalNetVolume[channelId] = totalNetVolume[channelId] + day["volumeNet"][channelId]
             #Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Day", "Volume This Day at STP (ml)", "Net Volume This Day (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)
             dayArray.append([channelId + 1, setup["names"][channelId], timestamp, d, 0, 0, setup["inUse"][channelId], day["tips"][channelId], round(day["volumeSTP"][channelId], 3), round(day["volumeNet"][channelId], 3), round(totalNetVolume[channelId], 3), round(totalVolume[channelId], 3)])
-        progress[0] = progress[0] + 1
+        if progress != None:
+            progress[0] = progress[0] + 1
     #Add text headers
     eventArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "Tumbler Volume (ml)", "Temperature (C)", "Pressure (hPA)", "Cumulative Total Tips", "Volume This Tip (STP)", "Total Volume (STP)", "Tips This Day", "Volume This Day (STP)", "Tips This Hour", "Volume This Hour (STP)", "Cumulative Net Volume Per Gram (ml/g) or (ml/gVS)"])
     hourArray.insert(0, ["Channel Number", "Name", "Timestamp", "Days", "Hours", "Minutes", "In Service", "Tips This Hour", "Volume This Hour at STP (ml)", "Net Volume This Hour (ml/g)", "Cumulative Net Vol (ml/g)", "Cumulative Volume at STP (ml)"])
