@@ -58,6 +58,7 @@ class MainWindow(tkinter.Frame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=10)
         self.grid_rowconfigure(2, weight=3)
+        self.grid_rowconfigure(3, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         #Grid in both frames
@@ -109,21 +110,32 @@ class MainWindow(tkinter.Frame):
         self.buttonsFrame = tkinter.Frame(self)
         self.buttonsFrame.grid(row=2, column=0, sticky="NESW")
         self.buttonsFrame.grid_columnconfigure(0, weight=2)
-        self.buttonsFrame.grid_columnconfigure(1, weight=2)
-        self.buttonsFrame.grid_columnconfigure(2, weight=1)
+        self.buttonsFrame.grid_columnconfigure(1, weight=1)
         self.buttonsFrame.grid_rowconfigure(0, weight=0)
 
         self.analysisButton = tkinter.Button(self.buttonsFrame, text="Analyse Data", font=("", 16), command=self.analysisButtonPressed)
         self.analysisButton.grid(row=0, column=0)
 
-        self.autoButton = tkinter.Button(self.buttonsFrame, text="Auto Download", font=("", 16), command=self.autoButtonPressed)
-        self.autoButton.grid(row=0, column=1)
-
         self.analysisWindow = None
 
         self.settingsImage = tkinter.PhotoImage(file=self.pathTo("images/settingsIcon.png"))
         self.settingsButton = tkinter.Button(self.buttonsFrame, image=self.settingsImage, command=self.settingsButtonPressed)
-        self.settingsButton.grid(row=0, column=2)
+        self.settingsButton.grid(row=0, column=1)
+        
+        self.autoOkColour = "#444477"
+        self.autoButtonColour = "#9999CC"
+        self.autoActiveColour = "#4444DD"
+        self.autoErrorColour = "#EE4444"
+
+        self.autoStatusBar = tkinter.Frame(self, bg=self.autoOkColour)
+        self.autoStatusBar.grid(row=3, column=0, sticky="NESW")
+
+        self.autoStatusLabel = tkinter.Label(self.autoStatusBar, text="Auto Download OK, Last Download: --:-- --/--/--, Next Download in - hours", font=("", 12), bg=self.autoOkColour)
+        self.autoCancelButton = tkinter.Button(self.autoStatusBar, text="Cancel", command="", state="disabled", bg=self.autoButtonColour)
+        self.autoSetupButton = tkinter.Button(self.autoStatusBar, text="Configure", command=self.autoButtonPressed, bg=self.autoButtonColour)
+        self.autoStatusLabel.pack(side="left", fill="y", expand=True, padx=5)
+        self.autoCancelButton.pack(side="left", padx=5)
+        self.autoSetupButton.pack(side="left", padx=5)
 
         #Objects to hold windows
         self.settingsWindow = None
@@ -164,9 +176,12 @@ class MainWindow(tkinter.Frame):
 
         self.downloadTime = [-1, -1]
         self.lastDownloadDate = [1970, 1, 1]
+        self.lastDownloadTime = [0, 0]
         self.datePart = "1970_1_1"
         self.autoDownloading = False
         self.downloadSequence = []
+        self.lastDownloadError = False
+        self.lastDownloadCancel = False
 
         self.portChangesThread = None
         #Make a check for any changes
@@ -317,7 +332,7 @@ class MainWindow(tkinter.Frame):
         #Only allow other access if connection type window is not open
         self.connectedWindowOpen = monitorOpen or receiveOpen
         #If not currently transferring data of any kind
-        if not self.communicating and not self.connectedWindowOpen:
+        if not self.communicating and not self.connectedWindowOpen and not self.autoDownloading:
             #Started updating the port information
             self.updatingPorts = True
 
@@ -577,7 +592,7 @@ class MainWindow(tkinter.Frame):
     def startPressed(self, portCode : str) -> None:
         '''Start button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating and not self.connectedWindowOpen:
+        if not self.communicating and not self.connectedWindowOpen and not self.autoDownloading:
             self.communicating = True
             startTime = time.time_ns()
             #Wait unti no longer updating or scanning (for timeout)
@@ -698,7 +713,7 @@ class MainWindow(tkinter.Frame):
     def stopPressed(self, portCode : str) -> None:
         '''Stop button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating and not self.connectedWindowOpen:
+        if not self.communicating and not self.connectedWindowOpen and not self.autoDownloading:
             self.communicating = True
             startTime = time.time_ns()
             #Wait for end of updates and scanning or for timeout
@@ -780,7 +795,7 @@ class MainWindow(tkinter.Frame):
     def renamePressed(self, portCode : str) -> None:
         '''Rename button pressed on port'''
         #Prevent multiple button presses
-        if not self.communicating and not self.connectedWindowOpen:
+        if not self.communicating and not self.connectedWindowOpen and not self.autoDownloading:
             self.communicating = True
             extraString = ""
             #If the port is valid
@@ -861,193 +876,132 @@ class MainWindow(tkinter.Frame):
             #No longer communicating
             self.communicating = False
 
+    def focusOtherWindows(self) -> bool:
+        try:
+            self.analysisWindow.lift()
+            self.analysisWindow.focus()
+            return True
+        except:
+            pass
+        try:
+            self.monitorWindow.lift()
+            self.monitorWindow.focus()
+            return True
+        except:
+            pass
+        try:
+            self.settingsWindow.lift()
+            self.settingsWindow.focus()
+            return True
+        except:
+            pass
+        try:
+            self.autoWindow.lift()
+            self.autoWindow.focus()
+            return True
+        except:
+            pass
+        try:
+            self.receiveWindow.lift()
+            self.receiveWindow.focus()
+            return True
+        except:
+            pass
+        
+        return False
+
     def openPressed(self, port : str, portName : str) -> None:
         '''If open button is pressed on a port'''
         #If not currently mid action
-        if not self.communicating:
+        if not self.communicating and not self.autoDownloading:
             #Check if another window is open then lift and focus it
-            try:
-                self.analysisWindow.lift()
-                self.analysisWindow.focus()
-            except:
-                try:
-                    self.monitorWindow.lift()
-                    self.monitorWindow.focus()
-                except:
-                    try:
-                        self.settingsWindow.lift()
-                        self.settingsWindow.focus()
-                    except:
-                        try:
-                            self.autoWindow.lift()
-                            self.autoWindow.focus()
-                        except:
-                            try:
-                                self.receiveWindow.lift()
-                                self.receiveWindow.focus()
-                            except:
-                                #Create a new toplevel and configure it as data receive
-                                self.receiveWindow = tkinter.Toplevel(self.parent)
-                                self.receiveWindow.transient(self.parent)
-                                self.receiveWindow.grid_columnconfigure(0, weight=1)
-                                self.receiveWindow.grid_rowconfigure(0, weight=1)
-                                self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                                self.receiveWindow.minsize(400, 500)
-                                self.receiveWindow.title("File View - {0}".format(port))
-                                #Create object for interface
-                                window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
-                                window.grid(row=0, column=0, sticky="NESW")
-                                self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                                self.receiveWindow.focus()
-                                self.lastOpened = port
+            if not self.focusOtherWindows():
+                #Create a new toplevel and configure it as data receive
+                self.receiveWindow = tkinter.Toplevel(self.parent)
+                self.receiveWindow.transient(self.parent)
+                self.receiveWindow.grid_columnconfigure(0, weight=1)
+                self.receiveWindow.grid_rowconfigure(0, weight=1)
+                self.receiveWindow.geometry("400x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                self.receiveWindow.minsize(400, 500)
+                self.receiveWindow.title("File View - {0}".format(port))
+                #Create object for interface
+                window = dataReceiveGUI.MainWindow(self.receiveWindow, self, port, portName)
+                window.grid(row=0, column=0, sticky="NESW")
+                self.receiveWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                self.receiveWindow.focus()
+                self.lastOpened = port
 
     def graphPressed(self, port : str, portName : str) -> None:
         '''If graph button is pressed on a port'''
         #If not currently in the middle of another action
-        if not self.communicating:
+        if not self.communicating and not self.autoDownloading:
             #Check if another window is open then lift and focus it
-            try:
-                self.settingsWindow.lift()
-                self.settingsWindow.focus()
-            except:
-                try:
-                    self.analysisWindow.lift()
-                    self.analysisWindow.focus()
-                except:
-                    try:
-                        self.receiveWindow.lift()
-                        self.receiveWindow.focus()
-                    except:
-                        try:
-                            self.autoWindow.lift()
-                            self.autoWindow.focus()
-                        except:
-                            try:
-                                self.monitorWindow.lift()
-                                self.monitorWindow.focus()
-                            except:
-                                #Create a new toplevel and configure it as data receive
-                                self.monitorWindow = tkinter.Toplevel(self.parent)
-                                self.monitorWindow.transient(self.parent)
-                                self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
-                                self.monitorWindow.minsize(1000, 750)
-                                self.monitorWindow.title("Monitor View - {0}".format(port))
-                                self.monitorWindow.grid_rowconfigure(0, weight=1)
-                                self.monitorWindow.grid_columnconfigure(0, weight=1)
-                                #Object for user interface
-                                window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
-                                window.grid(row=0, column=0, sticky="NESW")
-                                self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
-                                self.monitorWindow.focus()
-                                self.lastOpened = port
+            if not self.focusOtherWindows():
+                #Create a new toplevel and configure it as data receive
+                self.monitorWindow = tkinter.Toplevel(self.parent)
+                self.monitorWindow.transient(self.parent)
+                self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
+                self.monitorWindow.minsize(1000, 750)
+                self.monitorWindow.title("Monitor View - {0}".format(port))
+                self.monitorWindow.grid_rowconfigure(0, weight=1)
+                self.monitorWindow.grid_columnconfigure(0, weight=1)
+                #Object for user interface
+                window = tipObserverGUI.MainWindow(self.monitorWindow, self, port, portName)
+                window.grid(row=0, column=0, sticky="NESW")
+                self.monitorWindow.protocol("WM_DELETE_WINDOW", window.terminate)
+                self.monitorWindow.focus()
+                self.lastOpened = port
 
     def analysisButtonPressed(self) -> None:
         '''If analysis button is pressed'''
         #If not currently in the middle of another action
-        if not self.communicating:
+        if not self.communicating and not self.autoDownloading:
             #Check if another window is open then lift and focus it
-            try:
-                self.settingsWindow.lift()
-                self.settingsWindow.focus()
-            except:
-                try:
-                    self.monitorWindow.lift()
-                    self.monitorWindow.focus()
-                except:
-                    try:
-                        self.receiveWindow.lift()
-                        self.receiveWindow.focus()
-                    except:
-                        try:
-                            self.autoWindow.lift()
-                            self.autoWindow.focus()
-                        except:
-                            try:
-                                self.analysisWindow.lift()
-                                self.analysisWindow.focus()
-                            except:
-                                #Create a new toplevel and configure it as data receive
-                                self.analysisWindow = tkinter.Toplevel(self.parent)
-                                self.analysisWindow.transient(self.parent)
-                                self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
-                                self.analysisWindow.minsize(850, 650)
-                                self.analysisWindow.title("Analyse Data")
-                                self.analysisWindow.grid_rowconfigure(0, weight=1)
-                                self.analysisWindow.grid_columnconfigure(0, weight=1)
-                                #Object for user interface
-                                processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
-                                self.analysisWindow.focus()
+            if not self.focusOtherWindows():
+                #Create a new toplevel and configure it as data receive
+                self.analysisWindow = tkinter.Toplevel(self.parent)
+                self.analysisWindow.transient(self.parent)
+                self.analysisWindow.geometry("850x650+{0}+{1}".format(int(self.screenCentre[0] - 425), int(self.screenCentre[1] - 325)))
+                self.analysisWindow.minsize(850, 650)
+                self.analysisWindow.title("Analyse Data")
+                self.analysisWindow.grid_rowconfigure(0, weight=1)
+                self.analysisWindow.grid_columnconfigure(0, weight=1)
+                #Object for user interface
+                processDataWizardGUI.MainWindow(self.analysisWindow).grid(row=0, column=0, sticky="NESW")
+                self.analysisWindow.focus()
 
     def settingsButtonPressed(self) -> None:
         '''If settings button is pressed'''
         #If not currently in the middle of another action
-        if not self.communicating:
+        if not self.communicating and not self.autoDownloading:
             #Check if another window is open then lift and focus it
-            try:
-                self.analysisWindow.lift()
-                self.analysisWindow.focus()
-            except:
-                try:
-                    self.monitorWindow.lift()
-                    self.monitorWindow.focus()
-                except:
-                    try:
-                        self.receiveWindow.lift()
-                        self.receiveWindow.focus()
-                    except:
-                        try:
-                            self.autoWindow.lift()
-                            self.autoWindow.focus()
-                        except:
-                            try:
-                                self.settingsWindow.lift()
-                                self.settingsWindow.focus()
-                            except:
-                                #Create a new toplevel and configure it as data receive
-                                self.settingsWindow = tkinter.Toplevel(self.parent)
-                                self.settingsWindow.transient(self.parent)
-                                self.settingsWindow.grid_columnconfigure(0, weight=1)
-                                self.settingsWindow.grid_rowconfigure(0, weight=1)
-                                self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
-                                self.settingsWindow.minsize(600, 300)
-                                self.settingsWindow.title("Settings")
-                                #Object for user interface
-                                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
-                                self.settingsWindow.focus()
+            if not self.focusOtherWindows():
+                #Create a new toplevel and configure it as data receive
+                self.settingsWindow = tkinter.Toplevel(self.parent)
+                self.settingsWindow.transient(self.parent)
+                self.settingsWindow.grid_columnconfigure(0, weight=1)
+                self.settingsWindow.grid_rowconfigure(0, weight=1)
+                self.settingsWindow.geometry("600x300+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 150)))
+                self.settingsWindow.minsize(600, 300)
+                self.settingsWindow.title("Settings")
+                #Object for user interface
+                SettingsWindow(self.settingsWindow).grid(row=0, column=0, sticky="NESW")
+                self.settingsWindow.focus()
 
     def autoButtonPressed(self) -> None:
-        if not self.communicating:
+        if not self.communicating and not self.autoDownloading:
             #Check if another window is open then lift and focus it
-            try:
-                self.analysisWindow.lift()
-                self.analysisWindow.focus()
-            except:
-                try:
-                    self.monitorWindow.lift()
-                    self.monitorWindow.focus()
-                except:
-                    try:
-                        self.receiveWindow.lift()
-                        self.receiveWindow.focus()
-                    except:
-                        try:
-                            self.settingsWindow.lift()
-                            self.settingsWindow.focus()
-                        except:
-                            try:
-                                self.autoWindow.lift()
-                                self.autoWindow.focus()
-                            except:
-                                self.autoWindow = tkinter.Toplevel(self.parent)
-                                self.autoWindow.transient(self.parent)
-                                self.autoWindow.grid_columnconfigure(0, weight=1)
-                                self.autoWindow.grid_rowconfigure(0, weight=1)
-                                self.autoWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
-                                self.autoWindow.minsize(600, 500)
-                                self.autoWindow.title("Automatic Download")
-                                #Object for user interface
-                                AutoWindow(self.autoWindow, self).grid(row=0, column=0, sticky="NESW")
-                                self.autoWindow.focus()
+            if not self.focusOtherWindows():
+                self.autoWindow = tkinter.Toplevel(self.parent)
+                self.autoWindow.transient(self.parent)
+                self.autoWindow.grid_columnconfigure(0, weight=1)
+                self.autoWindow.grid_rowconfigure(0, weight=1)
+                self.autoWindow.geometry("600x500+{0}+{1}".format(int(self.screenCentre[0] - 300), int(self.screenCentre[1] - 250)))
+                self.autoWindow.minsize(600, 500)
+                self.autoWindow.title("Automatic Download")
+                #Object for user interface
+                AutoWindow(self.autoWindow, self, self.ports, self.portNames).grid(row=0, column=0, sticky="NESW")
+                self.autoWindow.focus()
 
     def checkLastPort(self) -> None:
         if self.lastOpened != "":
@@ -1067,7 +1021,6 @@ class MainWindow(tkinter.Frame):
         self.checkLastPort()
 
     def getDownloadSequence(self) -> None:
-        print("Getting auto sequence")
         self.downloadSequence = []
         try:
             devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "autodownload.txt")
@@ -1076,23 +1029,16 @@ class MainWindow(tkinter.Frame):
             deviceFile.close()
             deviceLines = deviceData.split("\n")
             for line in deviceLines:
-                print(line)
                 try:
                     parts = line.split(",")
                     portName = parts[0]
                     folder = parts[1]
                     setupFile = parts[2]
-                    print(portName, folder, setupFile)
                     self.downloadSequence.append(FileDownloader(portName, folder, setupFile, self.datePart))
                 except:
                     pass
         except Exception:
             print(traceback.format_exc())
-        
-        index = 0
-        for device in self.downloadSequence:
-            print("{0}:".format(index), device.pathToSave)
-            index = index + 1
 
     def getAutoTime(self) -> None:
         try:
@@ -1116,7 +1062,7 @@ class MainWindow(tkinter.Frame):
         datePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
         pathlib.Path(datePath).mkdir(parents=True, exist_ok=True)
         dateFile = open(os.path.join(datePath, "downloaddate.txt"), "w")
-        dateFile.write("{0},{1},{2}".format(*self.lastDownloadDate))
+        dateFile.write("{0},{1},{2},{3},{4}".format(*self.lastDownloadDate, *self.lastDownloadTime))
         dateFile.close()
 
     def loadAutoDownloadDate(self) -> None:
@@ -1127,16 +1073,18 @@ class MainWindow(tkinter.Frame):
             dateFile.close()
             dateParts = dateData.split(",")
             self.lastDownloadDate = [int(dateParts[0]), int(dateParts[1]), int(dateParts[2])]
+            self.lastDownloadTime = [int(dateParts[3]), int(dateParts[4])]
         except:
             self.lastDownloadDate = [1970, 1, 1]
+            self.lastDownloadTime = [0, 0]
     
     def checkAutoTime(self) -> bool:
-        print("Next:", self.downloadTime, "Last:", self.lastDownloadDate)
         currentTime = datetime.datetime.now()
         self.datePart = "{0}_{1}_{2}".format(currentTime.year, currentTime.month, currentTime.day)
         if self.downloadTime[0] > -1 and self.downloadTime[0] < 24 and self.downloadTime[1] > -1 and self.downloadTime[1] < 60:
-            print(currentTime)
             if self.lastDownloadDate[0] != currentTime.year or self.lastDownloadDate[1] != currentTime.month or self.lastDownloadDate[2] != currentTime.day:
+                if currentTime.year > self.lastDownloadDate[0] or currentTime.month > self.lastDownloadDate[1] or currentTime.day > self.lastDownloadDate[2] + 1:
+                    return True
                 if currentTime.hour > self.downloadTime[0] or (currentTime.hour == self.downloadTime[0] and currentTime.minute >= self.downloadTime[1]):
                     return True
         return False
@@ -1144,28 +1092,138 @@ class MainWindow(tkinter.Frame):
     def tryAutoDownload(self) -> None:
         if self.checkAutoTime():
             print("Auto download needed")
+            self.changeAutoInfoDownloading()
             self.getDownloadSequence()
             if len(self.downloadSequence) > 0:
                 self.autoDownloading = True
+                self.closeAllWindows()
+            else:
+                self.updateDefaultDownloadDisplay()
             currentTime = datetime.datetime.now()
             self.lastDownloadDate = [currentTime.year, currentTime.month, currentTime.day]
-            self.storeAutoDownloadDate()
+            self.lastDownloadTime = [currentTime.hour, currentTime.minute]
     
     def checkAutoThread(self) -> None:
         while self.autoThreadRunning:
-            print("Auto Downloading: {0}".format(self.autoDownloading))
             if not self.autoDownloading:
                 self.tryAutoDownload()
             else:
                 allFinished = True
                 for item in self.downloadSequence:
-                    if item.working and not item.finished:
+                    if not item.finished:
                         allFinished = False
                 if allFinished:
                     self.autoDownloading = False
+                    logLines = []
+                    success = True
+                    for item in self.downloadSequence:
+                        if not item.working:
+                            success = False
+                        item.close()
+                        if item.targetPort in self.ignoreList:
+                            self.ignoreList.remove(item.targetPort)
+                        logLines.append(item.logResult)
+                    self.downloadSequence = []
+                    self.lastDownloadError = not success
+                    self.lastDownloadCancel = False
+                    self.updateDefaultDownloadDisplay()
+                    self.addToAutoLog("{0}/{1}/{2} {3}:{4}".format(*self.lastDownloadDate, *self.lastDownloadTime), logLines)
                     print("Automatic downloads completed")
+                    #self.storeAutoDownloadDate()
+            if not self.autoDownloading:
+                self.updateDefaultDownloadDisplay()
             time.sleep(5)
-        print("Auto download check terminated")
+
+    def changeAutoInfoDownloading(self) -> None:
+        self.autoStatusBar.configure(bg=self.autoActiveColour)
+        self.autoStatusLabel.configure(bg=self.autoActiveColour)
+        self.autoStatusLabel.configure(text="Currently Downloading")
+        self.autoCancelButton.configure(state="normal")
+
+    def getNextDownload(self) -> str:
+        currentTime = datetime.datetime.now()
+        
+        if self.lastDownloadTime[0] == -1 or self.lastDownloadTime[1] == -1 or self.lastDownloadDate[0] < currentTime.year or self.lastDownloadDate[1] < currentTime.month or self.lastDownloadDate[2] < currentTime.day - 1:
+            return "0s"
+        nextTime = datetime.datetime(self.lastDownloadDate[0], self.lastDownloadDate[1], self.lastDownloadDate[2] + 1, self.downloadTime[0], self.downloadTime[1])
+        difference = (nextTime - currentTime).seconds
+
+        if difference >= 60 * 60:
+            return "{0}h".format(int(difference / (60 * 60)))
+        elif difference >= 60:
+            return "{0}m".format(int(difference / 60))
+        return "{0}s".format(max(difference, 0))
+    
+    def updateDefaultDownloadDisplay(self) -> None:
+        if not self.lastDownloadError:
+            if not self.lastDownloadCancel:
+                self.changeAutoInfoNormal()
+            else:
+                self.changeAutoInfoCancel()
+        else:
+            self.changeAutoInfoError()
+
+    def changeAutoInfo(self, colour : str, info : str) -> None:
+        self.autoStatusBar.configure(bg=colour)
+        self.autoStatusLabel.configure(bg=colour)
+        nextTime = self.getNextDownload()
+        minute = str(self.lastDownloadTime[1])
+        if len(minute) < 2:
+            minute = "0" + minute 
+        self.autoStatusLabel.configure(text="{0}, Last Download: {1}:{2} {3}/{4}/{5}, Next Download in {6}".format(info, self.lastDownloadTime[0], minute, *self.lastDownloadDate, nextTime))
+        self.autoCancelButton.configure(state="disabled")
+    
+    def changeAutoInfoNormal(self) -> None:
+        self.changeAutoInfo(self.autoOkColour, "Auto Download OK")
+
+    def changeAutoInfoError(self) -> None:
+        self.changeAutoInfo(self.autoErrorColour, "Error In Previous Download")
+    
+    def changeInfoCancel(self) -> None:
+        self.changeAutoInfo(self.autoOkColour, "Last Download Cancelled")
+
+
+    def cancelAutoPressed(self) -> None:
+        self.autoDownloading = False
+        for item in self.downloadSequence:
+            item.close()
+            if item.targetPort in self.ignoreList:
+                self.ignoreList.remove(item.targetPort)
+        self.downloadSequence = []
+        self.lastDownloadError = False
+        self.lastDownloadCancel = True
+        self.updateDefaultDownloadDisplay()
+
+    def closeAllWindows(self) -> None:
+        try:
+            self.receiveWindow.terminate()
+        except:
+            pass
+        try:
+            self.monitorWindow.terminate()
+        except:
+            pass
+        try:
+            self.analysisWindow.destroy()
+        except:
+            pass
+        try:
+            self.settingsWindow.destroy()
+        except:
+            pass
+        try:
+            self.autoWindow.destroy()
+        except:
+            pass
+
+    def addToAutoLog(self, timeString, logs) -> None:
+        logPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
+        pathlib.Path(logPath).mkdir(parents=True, exist_ok=True)
+        logFile = open(os.path.join(logPath, "autolog.txt"), "a")
+        logFile.write(timeString + "\n")
+        for line in logs:
+            logFile.write("\t{0}\n".format(line))
+        logFile.close()
 
     def displayMessage(self, title : str, message : str) -> None:
         '''Send user a popup notification with the current title and message'''
@@ -1206,26 +1264,7 @@ class MainWindow(tkinter.Frame):
     def closeWindow(self):
         '''Close all sub windows and self'''
         #Attempt to destroy all child windows
-        try:
-            self.receiveWindow.terminate()
-        except:
-            pass
-        try:
-            self.monitorWindow.terminate()
-        except:
-            pass
-        try:
-            self.analysisWindow.destroy()
-        except:
-            pass
-        try:
-            self.settingsWindow.destroy()
-        except:
-            pass
-        try:
-            self.autoWindow.destroy()
-        except:
-            pass
+        self.closeAllWindows()
         #Cancel the repeated action if necessary
         try:
             self.after_cancel(self.portChangesThread)
@@ -1502,7 +1541,7 @@ class SettingsWindow(tkinter.Frame):
     
 class AutoWindow(tkinter.Frame):
     '''Class for the auto download window toplevel'''
-    def __init__ (self, parent, control, *args, **kwargs):
+    def __init__ (self, parent, control, portCodes, deviceNames, *args, **kwargs):
         #Initialise parent class
         tkinter.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
@@ -1520,6 +1559,9 @@ class AutoWindow(tkinter.Frame):
         self.normalFont = ("", 10)
 
         self.screenCentre = [self.parent.winfo_screenwidth() / 2, self.parent.winfo_screenheight() / 2]
+
+        self.portCodes = portCodes
+        self.deviceNames = deviceNames
 
         self.timeFrame = tkinter.Frame(self)
         self.timeFrame.grid(row=0, column=0, sticky="NESW")
@@ -1549,9 +1591,11 @@ class AutoWindow(tkinter.Frame):
         self.timingLabel = tkinter.Label(self.timeFrame, text="Download Time: --:--", font=self.largeFont)
         self.timingChange = tkinter.Button(self.timeFrame, text="Change", font=self.largeFont, command=self.changeTimePressed)
         self.timingCancel = tkinter.Button(self.timeFrame, text="Remove", font=self.largeFont, command=self.removeTime)
+        self.timingLog = tkinter.Button(self.timeFrame, text="Logs", font=self.largeFont, command=self.openLogFile)
         self.timingLabel.pack(expand=True, side="left", anchor="center", padx=2)
         self.timingChange.pack(expand=True, side="left", anchor="center", padx=2)
         self.timingCancel.pack(expand=True, side="left", anchor="center", padx=2)
+        self.timingLog.pack(expand=True, side="left", anchor="center", padx=2)
         
         self.addButton = tkinter.Button(self.addFrame, text="+ Add Device", command=lambda:self.addDevice("", "", "", save=True), relief="flat", fg=self.green, font=self.largeFont)
         self.addButton.pack(expand="true", anchor="center")
@@ -1643,6 +1687,8 @@ class AutoWindow(tkinter.Frame):
         self.getFileTime()
         hour = str(self.downloadTime["hour"])
         minute = str(self.downloadTime["minute"])
+        if len(minute) < 2:
+            minute = "0" + minute
         if self.downloadTime["hour"] < 0 or self.downloadTime["hour"] > 23 or self.downloadTime["minute"] < 0 or self.downloadTime["minute"] > 59:
             hour = "--"
             minute = "--"
@@ -1657,23 +1703,26 @@ class AutoWindow(tkinter.Frame):
     def addDevice(self, portName : str, folderPath : str, setupPath : str, save=False) -> None:
         frame = tkinter.Frame(self.deviceListGridFrame, highlightthickness=2, highlightbackground="black")
         portValue = tkinter.StringVar()
-        portNames = [port.device for port in list_ports.comports(include_links=True)]
+        portNames = ["None"]
+        for index in range(0, min(len(self.portCodes), len(self.deviceNames))):
+            portNames.append("{0} - {1}".format(self.portCodes[index], self.deviceNames[index]))
         if portName != "" and portName != "None":
-            portValue.set(portName)
-            if portName not in portNames:
+            if portName not in self.portCodes:
                 portNames.append(portName)
+                portValue.set(portName)
+            else:
+                portValue.set("{0} - {1}".format(portName, self.deviceNames[self.portCodes.index(portName)]))
         else:
             portValue.set("None")
-        portNames = ["None"] + portNames
         portChoice = tkinter.OptionMenu(frame, portValue, *portNames)
         portChoice.configure(font=self.mediumFont)
         portValue.trace_add("write", lambda _a, _b, _c:self.changedDevicePort)
         folderButton = tkinter.Button(frame, text="Choose Folder", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceFolder(x))
         setupButton = tkinter.Button(frame, text="Select Setup", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.changeDeviceSetup(x))
         if folderPath != "":
-            folderButton.configure(text=folderPath.split("/")[-1])
+            folderButton.configure(text="Folder:" + folderPath.split("/")[-1])
         if setupPath != "":
-            setupButton.configure(text=setupPath.split("/")[-1])
+            setupButton.configure(text="Setup:" + setupPath.split("/")[-1])
         removeButton = tkinter.Button(frame, text="Remove", font=self.mediumFont, command=lambda x=len(self.deviceObjects):self.removeDevice(x))
         portChoice.pack(side="left", expand=True)
         folderButton.pack(side="left", expand=True)
@@ -1692,7 +1741,7 @@ class AutoWindow(tkinter.Frame):
     def saveDevices(self) -> None:
         data = ""
         for device in self.deviceObjects:
-            data = data + "{0},{1},{2}\n".format(device["port"].get(), device["folder"], device["setup"])
+            data = data + "{0},{1},{2}\n".format(device["port"].get().split(" ")[0], device["folder"], device["setup"])
         devicePath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM")
         pathlib.Path(devicePath).mkdir(parents=True, exist_ok=True)
         deviceFile = open(os.path.join(devicePath, "autodownload.txt"), "w")
@@ -1729,7 +1778,7 @@ class AutoWindow(tkinter.Frame):
             folder = filedialog.askdirectory(initialdir=oldFolder)
             if folder != None and folder != "":
                 self.deviceObjects[index]["folder"] = folder
-                self.deviceObjects[index]["folderbutton"].configure(text=folder.split("/")[-1])
+                self.deviceObjects[index]["folderbutton"].configure(text="Folder:" + folder.split("/")[-1])
                 self.saveDevices()
 
     def changeDeviceSetup(self, index : int) -> None:
@@ -1744,7 +1793,7 @@ class AutoWindow(tkinter.Frame):
             setupFile = filedialog.askopenfilename(title="Select Setup File", initialdir=oldFolder, filetypes=(("csv files", "*.csv"),))
             if setupFile != None and setupFile != "":
                 self.deviceObjects[index]["setup"] = setupFile
-                self.deviceObjects[index]["setupbutton"].configure(text=setupFile.split("/")[-1])
+                self.deviceObjects[index]["setupbutton"].configure(text="Setup:" + setupFile.split("/")[-1])
                 self.saveDevices()
 
     def removeDevice(self, index : int) -> None:
@@ -1752,12 +1801,15 @@ class AutoWindow(tkinter.Frame):
             for otherIndex in range(index + 1, len(self.deviceObjects)):
                 self.deviceObjects[otherIndex]["index"] = self.deviceObjects[otherIndex]["index"] - 1
                 self.deviceObjects[otherIndex]["removebutton"].configure(command=lambda x=self.deviceObjects[otherIndex]["index"]:self.removeDevice(x))
-                #self.deviceObjects[otherIndex]["port"].trace_remove("write")
-                #self.deviceObjects[otherIndex]["port"].trace_add("write", command=lambda x=self.deviceObjects[otherIndex]["index"]:self.changeDevicePort(x))
         self.deviceObjects[index]["frame"].grid_remove()
         del self.deviceObjects[index]
         for device in self.deviceObjects:
             device["frame"].grid(row=device["index"], column=0, sticky="EW")
+
+    def openLogFile(self) -> None:
+        logPath = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AnaeroGFM", "autolog.txt")
+        if os.path.isfile(logPath):
+            os.startfile(logPath)
 
     def onFrameConfigure(self, event) -> None:
         '''Event called when canvas frame resized'''
@@ -1788,18 +1840,11 @@ class AutoWindow(tkinter.Frame):
 
 class FileDownloader():
     def __init__(self, portName, saveFolderPath, setupFilePath, dateString):
+        self.targetPort = portName
         self.working = False
-        try:
-            self.serialConnection = serial.Serial(port=portName, baudrate=115200)
-            self.working = True
-            print("Port opened successfully {0}".format(portName))
-        except:
-            self.serialConnection = None
-            print("Port failed to open {0}".format(portName))
         self.pathToSave = saveFolderPath
         self.setupPath = setupFilePath
         self.rawFileData = ""
-        self.currentLine = 0
         self.processedFileData = ""
         self.setupFileData = ""
         self.currentFileName = ""
@@ -1810,26 +1855,81 @@ class FileDownloader():
         self.date = dateString
         self.finished = False
 
+        self.expectedSize = 0
+
+        self.logResult = "{0} - Did not finish".format(self.targetPort)
+
+        self.timeout = 3 * 60
+
         self.column, self.decimal = readSeparators.read()
 
         self.messageBuffer = ""
         self.messages = []
 
+        self.startTime = 0
+        self.readThread = None
+        self.timeThread = None
+
         self.readSetupFile()
 
-        self.readThread = Thread(target=self.readSerial, daemon=True)
-        self.readThread.start()
+        if self.targetPort != "None":
+            self.start()
+        else:
+            self.finished = True
+            self.working = False
 
-        self.messageHandleThread = Thread(target=self.handleMessage, daemon=True)
-        self.messageHandleThread.start()
+    def start(self) -> None:
+        failCount = 5
+        while not self.working and failCount > 0:
+            if self.setupPortHandling():
+                self.working = True
+            else:
+                failCount = failCount - 1
+            if not self.working:
+                time.sleep(15)
+        if not self.working:
+            self.logResult = "{0} - Failed to connect to device".format(self.targetPort)
+            self.close()
+    
+    def timer(self) -> None:
+        self.startTime = time.time()
+        timedOut = False
+        while not timedOut and self.working and not self.finished:
+            if time.time() - self.startTime >= self.timeout:
+                timedOut = True
 
-        self.sendInfoMessage()
+        if not self.downloadComplete:
+            self.working = False
+            self.finished = True
+            if timedOut:
+                self.logResult = "{0} - Timed out".format(self.targetPort)
+        self.close()
+    
+    def tryStartPort(self) -> bool:
+        try:
+            self.serialConnection = serial.Serial(port=self.targetPort, baudrate=115200)
+            return True
+        except:
+            self.serialConnection = None
+        return False
+
+    def setupPortHandling(self) -> bool:
+        if self.tryStartPort():
+            self.working = True
+            self.readThread = Thread(target=self.readSerial, daemon=True)
+            self.readThread.start()
+
+            self.timeThread = Thread(target=self.timer, daemon=True)
+            self.timeThread.start()
+
+            time.sleep(1)
+            self.sendInfoMessage()
+            return True
+        return False
 
     def readSetupFile(self) -> None:
         try:
-            setupFile = open(self.setupPath)
-            setupData = setupFile.read()
-            setupFile.close()
+            setupData = readSetup.getFile(self.setupPath)
             finalSetupData = readSetup.formatData(setupData)
             self.setupFileData = finalSetupData
         except:
@@ -1840,7 +1940,7 @@ class FileDownloader():
             self.serialConnection.write("info\n".encode("utf-8"))
 
     def readSerial(self) -> None:
-        while self.serialConnection != None:
+        while self.serialConnection != None and self.working and not self.finished:
             try:
                 char = self.serialConnection.read()
                 if len(char) > 0:
@@ -1848,6 +1948,7 @@ class FileDownloader():
                     if c == "\n":
                         if len(self.messageBuffer) > 0:
                             self.messages.append(self.messageBuffer)
+                            self.handleMessage()
                             self.messageBuffer = ""
                     elif c not in ['\r', '\0']:
                         self.messageBuffer = self.messageBuffer + c
@@ -1856,70 +1957,115 @@ class FileDownloader():
 
     def handleMessage(self) -> None:
         if len(self.messages) > 0:
+            print("{0} : {1}".format(self.targetPort, self.messages[0]))
             messageParts = self.messages[0].split(" ")
+            del self.messages[0]
             if len(messageParts) > 0:
                 try:
                     if messageParts[0] == "info" and len(messageParts) > 2:
+                        print("Received info")
                         self.logging = messageParts[1] == "1"
                         self.currentFileName = messageParts[2]
                         if not self.downloadComplete:
                             self.downloadFile()
                     if messageParts[0] == "download":
-                        if messageParts[1] == "start":
+                        if messageParts[1] == "start" and len(messageParts) > 2:
+                            print("File Started")
                             self.rawFileData = ""
                             self.downloadComplete = False
-                            self.currentLine = 0
+                            try:
+                                self.expectedSize = int(messageParts[2])
+                            except:
+                                self.expectedSize = 0
                         elif messageParts[1] == "stop":
-                            self.downloadComplete = True
+                            print("File Finished")
                             self.downloading = False
-                            self.processFile()
+                            if self.expectedSize != 0 and len(self.rawFileData) != self.expectedSize:
+                                print("File not downloaded correctly, expected {0} but got {1}".format(self.expectedSize, len(self.rawFileData)))
+                                self.downloadFile()
+                            else:
+                                self.downloadComplete = True
+                                if self.working:
+                                    self.saveRawFile()
+                                if self.working:
+                                    if self.setupFileData != "":
+                                        self.processFile()
+                                    else:
+                                        self.logResult = "{0} - Saved raw data. No setup given to process".format(self.targetPort)
+                                self.finished = True
+                                self.close()
                         elif messageParts[1] == "failed":
+                            print("File Failed")
                             self.downloading = False
                             self.downloadFile()
                         else:
-                            for index in range(1, len(messageParts)):
-                                messageParts[index] = messageParts[index].replace(".", self.decimal).replace(":", self.decimal).replace("\r", "")
-                            self.rawFileData = self.rawFileData + self.column.join(messageParts[1:]) + "\n"
-                            self.serialConnection.write("next\n".encode("utf-8"))
+                            if len(messageParts) > 1:
+                                lineParts = messageParts[1].split(",")
+                                for lineIndex in range(0, len(lineParts)):
+                                    lineParts[lineIndex] = lineParts[lineIndex].replace(".", self.decimal).replace(":", self.decimal).replace("\r", "")
+                                self.rawFileData = self.rawFileData + self.column.join(lineParts) + "\n"
+                                self.serialConnection.write("next\n".encode("utf-8"))
                 except:
                     pass
                         
     def downloadFile(self) -> None:
-        if self.serialConnection != None and not self.downloading and self.logging and self.currentFileName != "":
-            self.serialConnection.write("download {}\n".format(self.currentFileName).encode("utf-8"))
-            self.downloading = True
+        if self.logging and self.currentFileName != "":
+                message = "download {0}\n".format(self.currentFileName)
+                self.serialConnection.write("download {0}\n".format(self.currentFileName).encode("utf-8"))
+                self.downloading = True
+                print("Requested download: {0}".format(message))
+        else:
+            self.logResult = "{0} - Device not logging".format(self.targetPort)
+            self.working = False
+            self.close()
+
 
     def processFile(self) -> None:
-        error, event, hour, day, setup = newCalculations.performGeneralCalculations(self.setupFileData, readSetup.formatData(self.rawFileData), None)
-        if error == None:
-            self.processedFileData = createSetup.convertArrayToString(day)
-        else:
+        try:
+            rawData = readSetup.formatData(self.rawFileData.split(self.column))
+            error, event, hour, day, setup = newCalculations.performGeneralCalculations(self.setupFileData, rawData, None)
+            if error == None:
+                self.processedFileData = createSetup.convertArrayToString(day)
+            else:
+                self.processedFileData = ""
+                self.working = False
+        except Exception:
+            traceback.print_exc()
             self.processedFileData = ""
+            self.working = False
         
-        self.saveFiles()
+        self.saveProcessedFile()
     
-    def saveFiles(self) -> None:
+    def saveRawFile(self) -> None:
         try:
             if self.rawFileData != "" and self.downloadComplete:
                 pathlib.Path(os.path.join(self.pathToSave, "raw_files")).mkdir(parents=True, exist_ok=True)
-                rawFile = open(os.path.join(self.pathToSave, "raw_files", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv") ), "w")
+                rawFilePath = os.path.join(self.pathToSave, "raw_files", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv").replace("\\", "").replace("/", "")).replace("\\", "/")
+                rawFile = open(rawFilePath, "w")
                 rawFile.write(self.rawFileData)
-        except:
-            pass
+                self.logResult = "{0} - Saved raw data".format(self.targetPort)
+        except Exception:
+            traceback.print_exc()
+            working = False
+            self.logResult = "{0} - Raw data not saved".format(self.targetPort)
+
+    def saveProcessedFile(self) -> None:
         try:
             if self.processedFileData != "" and self.downloadComplete:
                 pathlib.Path(os.path.join(self.pathToSave, "daily_data")).mkdir(parents=True, exist_ok=True)
-                dayFile = open(os.path.join(self.pathToSave, "daily_data", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv") ), "w")
+                dayFile = open(os.path.join(self.pathToSave, "daily_data", "{0}_".format(self.date) + self.currentFileName.replace(".txt", ".csv").replace("\\", "").replace("/", "")).replace("\\", "/"), "w")
                 dayFile.write(self.processedFileData)
-        except:
-            pass
-
-        self.finished = True
-        self.close()
-
+                self.logResult = "{0} - Completed successfully".format(self.targetPort)
+        except Exception:
+            traceback.print_exc()
+            working = False
+            self.logResult = "{0} - Saved raw data. Failed to process data".format(self.targetPort)
+    
     def close(self) -> None:
-        self.serialConnection.close()
+        if self.serialConnection != None:
+            self.serialConnection.close()
         self.serialConnection = None
+        self.finished = True
             
 
 #Only run if this is the main module being run
