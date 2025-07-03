@@ -894,7 +894,7 @@ class MainWindow(tkinter.Frame):
                         except:
                             #Create a new toplevel and configure it as data receive
                             self.monitorWindow = tkinter.Toplevel(self.parent)
-                            self.monitorWindow.transient(self.parent)
+                            #self.monitorWindow.transient(self.parent)
                             self.monitorWindow.geometry("1000x750+{0}+{1}".format(int(self.screenCentre[0] - 500), int(self.screenCentre[1] - 375)))
                             self.monitorWindow.minsize(1000, 750)
                             self.monitorWindow.title("Monitor View - {0}".format(port))
