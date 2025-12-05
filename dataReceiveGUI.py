@@ -595,7 +595,7 @@ class MainWindow(tkinter.Frame):
                 """if fileGiven[0] != "/":
                     fileGiven = "/" + fileGiven"""
                 #If it is not the configuration files
-                if fileGiven not in ["setup.txt", "time.txt", "tipcount.txt", "name.txt", "wifi.txt", "hourlyTips.txt"]:
+                if fileGiven not in ["setup.txt", "time.txt", "tipcount.txt", "name.txt", "wifi.txt", "hourlyTips.txt", "eventMemory.txt"]:
                     #Add to the list
                     self.files.append(fileGiven)
                     size = -1
